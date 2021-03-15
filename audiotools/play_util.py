@@ -6,10 +6,9 @@ the terminal.
 from copy import deepcopy
 import subprocess
 from tempfile import NamedTemporaryFile
-import random, string
 from .util import _close_temp_files
 
-def _check_imports():
+def _check_imports(): # pragma: no cover
     try:
         import ffmpy
     except:
@@ -53,7 +52,7 @@ def embed_audio(audio_signal, ext='.mp3', display=True):
         tmp_wav = NamedTemporaryFile(
             mode='w+', suffix='.wav', delete=False)
         tmpfiles.append(tmp_wav)
-        audio_signal.write_audio_to_file(tmp_wav.name)
+        audio_signal.write(tmp_wav.name)
         if ext != '.wav' and ffmpy:
             tmp_converted = NamedTemporaryFile(
                 mode='w+', suffix=ext, delete=False)
