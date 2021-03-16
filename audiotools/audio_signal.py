@@ -5,6 +5,7 @@ from collections import namedtuple
 from scipy import signal
 import copy
 from .augment import AugmentMixin
+from .loudness import LoudnessMixin
 from . import util
 
 STFTParams = namedtuple('STFTParams',
@@ -18,7 +19,7 @@ are not specified will be inferred by the AudioSignal parameters and the setting
 in `nussl.core.constants`.
 """
 
-class AudioSignal(AugmentMixin):
+class AudioSignal(AugmentMixin, LoudnessMixin):
     def __init__(self, audio_path=None, audio_array=None, sample_rate=44100, 
                  stft_params=None, offset=0, duration=-1):
         if audio_path is None and audio_array is None:
@@ -81,6 +82,13 @@ class AudioSignal(AugmentMixin):
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
         return self
+
+    @property
+    def device(self):
+        if torch.is_tensor(self.audio_data):
+            return self.audio_data.device
+        else:
+            return 'numpy'
 
     # Properties
     @property

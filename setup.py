@@ -27,10 +27,10 @@ setup(
     packages=find_packages(),
     install_requires=[
         'soundfile',
+        'pyloudnorm',
         'scipy',
         'torch',
         'torchaudio',
-        'zarr',
         'ffmpy',
         'ipython',
     ],
