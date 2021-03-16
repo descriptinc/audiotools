@@ -30,6 +30,7 @@ setup(
         'pyloudnorm',
         'scipy',
         'torch',
+        'julius',
         'torchaudio',
         'ffmpy',
         'ipython',

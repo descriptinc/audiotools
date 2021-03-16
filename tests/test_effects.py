@@ -27,3 +27,13 @@ def test_normalize():
 
     signal = signal.normalize(db)
     assert np.allclose(signal.loudness(), db, 1e-1)    
+
+
+def test_mix():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    spk = AudioSignal(audio_path, offset=10, duration=10)
+
+    audio_path = 'tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav'
+    nz = AudioSignal(audio_path, offset=10, duration=10)
+
+    spk.mix(nz, snr=10)

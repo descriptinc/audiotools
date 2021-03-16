@@ -7,6 +7,7 @@ import copy
 from .effects import EffectMixin
 from .loudness import LoudnessMixin
 from . import util
+import julius
 
 STFTParams = namedtuple('STFTParams',
                         ['window_length', 'hop_length', 'window_type']
@@ -21,7 +22,7 @@ in `nussl.core.constants`.
 
 class AudioSignal(EffectMixin, LoudnessMixin):
     def __init__(self, audio_path=None, audio_array=None, sample_rate=44100, 
-                 stft_params=None, offset=0, duration=None):
+                 stft_params=None, offset=0, duration=None, device=None):
         if audio_path is None and audio_array is None:
             raise ValueError("One of audio_path or audio_array must be set!")
         if audio_path is not None and audio_array is not None:
@@ -30,10 +31,10 @@ class AudioSignal(EffectMixin, LoudnessMixin):
         self.path_to_input_file = None
 
         if audio_path is not None:
-            self.load_from_file(audio_path, offset=offset, duration=duration)
+            self.load_from_file(audio_path, offset=offset, duration=duration, device=device)
         
         if audio_array is not None:
-            self.load_from_array(audio_array, sample_rate)
+            self.load_from_array(audio_array, sample_rate, device=device)
 
         self.window = None
         self.stft_params = stft_params
@@ -56,6 +57,49 @@ class AudioSignal(EffectMixin, LoudnessMixin):
 
         return signal
 
+    @classmethod
+    def batch(cls, audio_signals, pad_signals=False, 
+              truncate_signals=False, resample=False):
+        signal_lengths = [x.signal_length for x in audio_signals]
+        sample_rates = [x.sample_rate for x in audio_signals]
+
+        if len(set(sample_rates)) != 1:
+            if resample:
+                for x in audio_signals:
+                    x.resample(sample_rates[0])
+            else:
+                raise RuntimeError(
+                    f"Not all signals had the same sample rate! Got {sample_rates}. "
+                    f"All signals must have the same sample rate, or resample must be True. "
+                )
+
+        if len(set(signal_lengths)) != 1:
+            if pad_signals:
+                max_length = max(signal_lengths)
+                for x in audio_signals:
+                    pad_len = max_length - x.signal_length
+                    x.zero_pad(0, pad_len)
+            elif truncate_signals:
+                min_length = min(signal_lengths)
+                for x in audio_signals:
+                    x.truncate_samples(min_length)
+            else:
+                raise RuntimeError(
+                    f"Not all signals had the same length! Got {signal_lengths}. "
+                    f"All signals must be the same length, or pad_signals/truncate_signals "
+                    f"must be True. " 
+                )
+        # Concatenate along the batch dimension
+        audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
+        audio_mask = torch.cat([x.audio_mask for x in audio_signals], dim=0)
+
+        batched_signal = cls(
+            audio_array=audio_data, 
+            sample_rate=audio_signals[0].sample_rate,
+        )
+        batched_signal.audio_mask = audio_mask
+        return batched_signal
+
     # I/O
     def load_from_file(self, audio_path, offset, duration, device=None):
         info = torchaudio.info(audio_path)
@@ -71,12 +115,21 @@ class AudioSignal(EffectMixin, LoudnessMixin):
             audio_path, frame_offset=frame_offset, num_frames=num_frames
         )
         self.audio_data = data
+        self.original_signal_length = self.signal_length
+
+        self.audio_mask = torch.ones_like(self.audio_data)
         self.sample_rate = sample_rate
         self.path_to_input_file = audio_path
         return self.to(device)
 
     def load_from_array(self, audio_array, sample_rate, device=None):
         self.audio_data = audio_array
+        self.original_signal_length = self.signal_length
+
+        if self.device == 'numpy':
+            self.audio_mask = np.ones_like(audio_array)
+        else:
+            self.audio_mask = torch.ones_like(self.audio_data)
         self.sample_rate = sample_rate
         return self.to(device)
 
@@ -96,29 +149,51 @@ class AudioSignal(EffectMixin, LoudnessMixin):
     # Signal operations
     def to_mono(self):
         self.audio_data = self.audio_data.mean(1, keepdim=True)
+        self.audio_mask = self.audio_mask.mean(1, keepdim=True)
+        return self
+
+    def resample(self, sample_rate):
+        if sample_rate == self.sample_rate:
+            return self
+        self.to() # Ensure tensors.
+        self.audio_data = julius.resample_frac(
+            self.audio_data, self.sample_rate, sample_rate
+        )
+        self.audio_mask = julius.resample_frac(
+            self.audio_mask, self.sample_rate, sample_rate
+        )
+        self.sample_rate = sample_rate
         return self
 
     # Tensor operations
     def to(self, device=None):
         if isinstance(self.audio_data, np.ndarray):
             self.audio_data = torch.from_numpy(self.audio_data)
+        if isinstance(self.audio_mask, np.ndarray):
+            self.audio_mask = torch.from_numpy(self.audio_mask)
         if device is None: device = self.device
         device = device if torch.cuda.is_available() else 'cpu'
         self.audio_data = self.audio_data.to(device).float()
+        self.audio_mask = self.audio_mask.to(device).float()
         return self
 
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
-        return self   
+        self.audio_mask = self.audio_mask.detach().cpu().numpy()
+        return self           
 
     def zero_pad(self, before, after):
         self.audio_data = torch.nn.functional.pad(
             self.audio_data, (before, after)
         )
+        self.audio_mask = torch.nn.functional.pad(
+            self.audio_mask, (before, after)
+        )
         return self
 
     def truncate_samples(self, length_in_samples):
-       self.audio_data =  self.audio_data[..., :length_in_samples]
+       self.audio_data = self.audio_data[..., :length_in_samples]
+       self.audio_mask = self.audio_mask[..., :length_in_samples]
        return self     
 
     @property
@@ -146,7 +221,6 @@ class AudioSignal(EffectMixin, LoudnessMixin):
             else:
                 value = np.expand_dims(value, axis=0)
         self._audio_data = value
-        self.original_signal_length = self.signal_length
 
     @property
     def batch_size(self):
@@ -375,12 +449,13 @@ class AudioSignal(EffectMixin, LoudnessMixin):
     def __str__(self):
         dur = f'{self.signal_duration:0.3f}' if self.signal_duration else '[unknown]'
         return (
-            f"{self.__class__.__name__}: "
-            f"{dur} sec @ "
-            f"{self.path_to_input_file if self.path_to_input_file else 'path unknown'}, "
-            f"{self.sample_rate if self.sample_rate else '[unknown]'} Hz, "
-            f"{self.num_channels if self.num_channels else '[unknown]'} ch, "
-            f"{self.stft_params}."
+            f"{self.__class__.__name__}\n"
+            f"Duration: {dur} sec\n"
+            f"Batch size: {self.batch_size}\n"
+            f"Path: {self.path_to_input_file if self.path_to_input_file else 'path unknown'}\n"
+            f"Sample rate: {self.sample_rate if self.sample_rate else '[unknown]'} Hz\n"
+            f"Number of channels: {self.num_channels if self.num_channels else '[unknown]'} ch\n"
+            f"STFT Parameters: {self.stft_params}"
         )
     
     # Comparison 

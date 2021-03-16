@@ -193,3 +193,84 @@ def test_to_mono():
 
     signal = signal.to_mono()
     assert signal.num_channels == 1
+
+@pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])
+def test_resample(sample_rate):
+    array = np.random.randn(4, 2, 16000)
+    sr = 16000
+
+    signal = AudioSignal(audio_array=array, sample_rate=sr)
+
+    signal = signal.resample(sample_rate)
+    assert signal.sample_rate == sample_rate
+    assert signal.signal_length == sample_rate
+
+def test_batching():
+    signals = []
+    batch_size = 16
+
+    # All same length, same sample rate.
+    for _ in range(batch_size):
+        array = np.random.randn(2, 16000)
+        signal = AudioSignal(audio_array=array, sample_rate=16000)
+        signals.append(signal)
+
+    batched_signal = AudioSignal.batch(signals)
+    assert batched_signal.batch_size == batch_size
+
+    signals = []
+    # All different lengths, same sample rate, pad signals
+    for _ in range(batch_size):
+        L = np.random.randint(8000, 32000)
+        array = np.random.randn(2, L)
+        signal = AudioSignal(audio_array=array, sample_rate=16000)
+        signals.append(signal)
+
+    with pytest.raises(RuntimeError):
+        batched_signal = AudioSignal.batch(signals)
+    
+    signal_lengths = [x.signal_length for x in signals]
+    max_length = max(signal_lengths)
+    batched_signal = AudioSignal.batch(signals, pad_signals=True)
+
+    assert batched_signal.signal_length == max_length
+    assert batched_signal.batch_size == batch_size
+
+    signals = []
+    # All different lengths, same sample rate, truncate signals
+    for _ in range(batch_size):
+        L = np.random.randint(8000, 32000)
+        array = np.random.randn(2, L)
+        signal = AudioSignal(audio_array=array, sample_rate=16000)
+        signals.append(signal)
+
+    with pytest.raises(RuntimeError):
+        batched_signal = AudioSignal.batch(signals)
+    
+    signal_lengths = [x.signal_length for x in signals]
+    min_length = min(signal_lengths)
+    batched_signal = AudioSignal.batch(signals, truncate_signals=True)
+
+    assert batched_signal.signal_length == min_length
+    assert batched_signal.batch_size == batch_size
+
+    signals = []
+    # All different lengths, different sample rate, pad signals
+    for _ in range(batch_size):
+        L = np.random.randint(8000, 32000)
+        sr = np.random.choice([8000, 16000, 32000])
+        array = np.random.randn(2, L)
+        signal = AudioSignal(audio_array=array, sample_rate=int(sr))
+        signals.append(signal)
+
+    with pytest.raises(RuntimeError):
+        batched_signal = AudioSignal.batch(signals)
+    
+    signal_lengths = [x.signal_length for x in signals]
+    max_length = max(signal_lengths)
+    batched_signal = AudioSignal.batch(
+        signals, resample=True, pad_signals=True
+    )
+
+    assert batched_signal.signal_length == max_length
+    assert batched_signal.batch_size == batch_size
