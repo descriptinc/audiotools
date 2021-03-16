@@ -78,7 +78,7 @@ class Meter(pyloudnorm.Meter):
         z_avg_gated = torch.nan_to_num(z_avg_gated)
 
         LUFS = -0.691 + 10.0 * torch.log10((G[None, :nch] * z_avg_gated).sum(1))
-        return torch.nan_to_num(LUFS, nan=MIN_LOUDNESS)
+        return torch.nan_to_num(LUFS, nan=MIN_LOUDNESS).float()
 
 class LoudnessMixin:
     def loudness(self, filter_class='K-weighting', block_size=0.400):

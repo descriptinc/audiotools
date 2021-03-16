@@ -1,3 +1,4 @@
+from subprocess import check_output
 from audiotools import AudioSignal
 import torch
 import numpy as np
@@ -57,7 +58,6 @@ def test_mix():
     snr = spk_batch.loudness() - nz_batch.loudness()
     assert np.allclose(snr, tgt_snr, atol=1)
 
-
 def test_convolve():
     np.random.seed(6) # Found a failing seed
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
@@ -95,17 +95,29 @@ def test_convolve():
     convolved = spk_batch.deepcopy().convolve(ir_batch)
     assert convolved == spk_batch
 
+def test_pipeline():
     # An actual IR, no batching
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
-    spk = AudioSignal(audio_path, offset=10, duration=1)
+    spk = AudioSignal(audio_path, offset=10, duration=5)
 
     audio_path = 'tests/audio/ir/h179_Bar_1txts.wav'
     ir = AudioSignal(audio_path)
     spk.deepcopy().convolve(ir)
     
     audio_path = 'tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav'
-    nz = AudioSignal(audio_path, offset=10, duration=10)
+    nz = AudioSignal(audio_path, offset=10, duration=5)
 
     batch_size = 16
-    tgt_snr = torch.linspace(-10, 10, batch_size)
-    (spk.deepcopy() @ ir.deepcopy()).mix(nz, snr=tgt_snr)
+    tgt_snr = torch.linspace(20, 30, batch_size)
+
+    (spk @ ir).mix(nz, snr=tgt_snr)
+
+def test_codec():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    spk = AudioSignal(audio_path, offset=10, duration=10)
+    
+    with pytest.raises(ValueError):
+        spk.apply_codec("unknown preset")
+
+    out = spk.deepcopy().apply_codec("Ogg")
+    out = spk.deepcopy().apply_codec("8-bit")

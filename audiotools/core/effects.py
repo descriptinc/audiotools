@@ -12,6 +12,14 @@ def _ensure_tensor(x):
 
 class EffectMixin:
     GAIN_FACTOR = np.log(10) / 20
+    CODEC_PRESETS = {
+        "8-bit": {"format": "wav", "encoding": 'ULAW', "bits_per_sample": 8},
+        "GSM-FR": {"format": "gsm"},
+        "MP3": {"format": "mp3", "compression": -9},
+        "Vorbis": {"format": "vorbis", "compression": -1},
+        "Ogg": {"format": "ogg", "compression": -1,},
+        "Amr-nb": {"format": "amr-nb"}
+    }
 
     def mix(self, other, snr=10): 
         """
@@ -87,15 +95,39 @@ class EffectMixin:
     def time_stretch(self, factor):  # pragma: no cover
         pass
 
-    def apply_codec(self, codec):  # pragma: no cover
-        pass
+    def apply_codec(self, preset=None, format="wav", encoding=None, 
+                    bits_per_sample=None, compression=None):
+        kwargs = {
+            'format': format,
+            'encoding': encoding,
+            'bits_per_sample': bits_per_sample,
+            'compression': compression
+        }
 
-    def match_duration(self, duration):  # pragma: no cover
-        n_samples = int(duration * self.sample_rate)
-        pad_len = n_samples - self.signal_length
-        if pad_len > 0:
-            self.zero_pad(0, pad_len)
-        return self.truncate_samples(n_samples)
+        if preset is not None:
+            if preset in self.CODEC_PRESETS:
+                kwargs = self.CODEC_PRESETS[preset]
+            else:
+                raise ValueError(
+                    f"Unknown preset: {preset}. "
+                    f"Known presets: {list(self.CODEC_PRESETS.keys())}"
+                )
+        
+        waveform = self.audio_data.reshape(-1, self.signal_length)
+        if kwargs['format'] in ['vorbis', 'mp3', 'ogg', 'amr-nb']:
+            # Apply it in a for loop
+            augmented = torch.cat([
+                torchaudio.functional.apply_codec(
+                    waveform[0][None, :], self.sample_rate, **kwargs
+            ) for i in range(waveform.shape[0])], dim=0)
+        else:
+            augmented = torchaudio.functional.apply_codec(
+                waveform, self.sample_rate, **kwargs
+            )
+        augmented = augmented.reshape(self.batch_size, self.num_channels, -1)
+
+        self.audio_data = augmented
+        return self
 
     def __matmul__(self, other):
         return self.convolve(other)

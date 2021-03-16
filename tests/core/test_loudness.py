@@ -1,5 +1,5 @@
 from audiotools import AudioSignal
-from audiotools.loudness import Meter
+from audiotools import Meter
 import pyloudnorm
 import numpy as np
 import soundfile as sf
