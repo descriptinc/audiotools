@@ -6,6 +6,8 @@ import torch
 import copy
 
 class Meter(pyloudnorm.Meter):
+    """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.
+    """
     @staticmethod
     def apply_filter(filter_stage, data):
         passband_gain = filter_stage.passband_gain
