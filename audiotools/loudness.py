@@ -24,6 +24,8 @@ class Meter(pyloudnorm.Meter):
     def integrated_loudness(self, data):
         if not torch.is_tensor(data):
             data = torch.from_numpy(data).float()
+        else:
+            data = data.float()
         
         input_data = copy.copy(data)
         # Data always has a batch and channel dimension.

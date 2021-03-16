@@ -23,6 +23,7 @@ def test_loudness_short():
     signal_loudness = signal.loudness()
 
 def test_batch_loudness():
+    np.random.seed(0)
     array = np.random.randn(16, 2, 16000)
     array /= np.abs(array).max()
 

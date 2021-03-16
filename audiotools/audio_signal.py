@@ -21,7 +21,7 @@ in `nussl.core.constants`.
 """
 
 class AudioSignal(EffectMixin, LoudnessMixin):
-    def __init__(self, audio_path=None, audio_array=None, sample_rate=44100, 
+    def __init__(self, audio_path=None, audio_array=None, sample_rate=None, 
                  stft_params=None, offset=0, duration=None, device=None):
         if audio_path is None and audio_array is None:
             raise ValueError("One of audio_path or audio_array must be set!")
@@ -130,6 +130,8 @@ class AudioSignal(EffectMixin, LoudnessMixin):
             self.audio_mask = np.ones_like(audio_array)
         else:
             self.audio_mask = torch.ones_like(self.audio_data)
+        if sample_rate is None:
+            sample_rate = 44100
         self.sample_rate = sample_rate
         return self.to(device)
 
@@ -191,10 +193,19 @@ class AudioSignal(EffectMixin, LoudnessMixin):
         )
         return self
 
+    def trim(self, before, after):
+        if after == 0:
+            self.audio_data = self.audio_data[..., before:]
+            self.audio_mask = self.audio_mask[..., before:]
+        else:
+            self.audio_data = self.audio_data[..., before:-after]
+            self.audio_mask = self.audio_mask[..., before:-after]
+        return self
+
     def truncate_samples(self, length_in_samples):
        self.audio_data = self.audio_data[..., :length_in_samples]
        self.audio_mask = self.audio_mask[..., :length_in_samples]
-       return self     
+       return self
 
     @property
     def device(self):

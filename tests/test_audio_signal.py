@@ -21,8 +21,10 @@ def test_io():
 
     array = np.random.randn(2, 16000)
     signal = AudioSignal(audio_array=array, sample_rate=16000)
-
     assert np.allclose(signal.numpy().audio_data, array)
+
+    signal = AudioSignal(audio_array=array)
+    assert signal.sample_rate == 44100
 
     with pytest.raises(ValueError):
         signal = AudioSignal(audio_path=audio_path, audio_array=array, sample_rate=16000)
@@ -132,6 +134,21 @@ def test_truncate():
 
     sig1.truncate_samples(100)
     assert sig1.signal_length == 100
+    assert np.allclose(sig1.audio_data, array[..., :100])
+
+def test_trim():
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+
+    sig1.trim(100, 100)
+    assert sig1.signal_length == 16000 - 200
+    assert np.allclose(sig1.audio_data, array[..., 100:-100])
+
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1.trim(0, 0)
+    assert np.allclose(sig1.audio_data, array)
+
 
 def test_to_from_ops():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
