@@ -89,11 +89,40 @@ class EffectMixin:
         self.audio_data = self.audio_data * gain[:, None, None]
         return self
 
+    def _to_2d(self):
+        waveform = self.audio_data.reshape(-1, self.signal_length)
+        return waveform
+
+    def _to_3d(self, waveform):
+        return waveform.reshape(self.batch_size, self.num_channels, -1)
+
     def pitch_shift(self, n_semitones): # pragma: no cover
-        pass
+        effects = [
+            ['pitch', str(n_semitones * 100)],
+            ['rate', str(self.sample_rate)],
+        ]
+
+        waveform = self._to_2d()
+        waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
+            waveform, self.sample_rate, effects, channels_first=True
+        )
+        self.sample_rate = sample_rate
+        self.audio_data = self._to_3d(waveform)
+        return self
 
     def time_stretch(self, factor):  # pragma: no cover
-        pass
+        effects = [
+            ['tempo', str(factor)],
+            ['rate', str(self.sample_rate)],
+        ]
+
+        waveform = self._to_2d()
+        waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
+            waveform, self.sample_rate, effects, channels_first=True
+        )
+        self.sample_rate = sample_rate
+        self.audio_data = self._to_3d(waveform)
+        return self
 
     def apply_codec(self, preset=None, format="wav", encoding=None, 
                     bits_per_sample=None, compression=None):
@@ -113,18 +142,18 @@ class EffectMixin:
                     f"Known presets: {list(self.CODEC_PRESETS.keys())}"
                 )
         
-        waveform = self.audio_data.reshape(-1, self.signal_length)
+        waveform = self._to_2d()
         if kwargs['format'] in ['vorbis', 'mp3', 'ogg', 'amr-nb']:
             # Apply it in a for loop
             augmented = torch.cat([
                 torchaudio.functional.apply_codec(
-                    waveform[0][None, :], self.sample_rate, **kwargs
+                    waveform[i][None, :], self.sample_rate, **kwargs
             ) for i in range(waveform.shape[0])], dim=0)
         else:
             augmented = torchaudio.functional.apply_codec(
                 waveform, self.sample_rate, **kwargs
             )
-        augmented = augmented.reshape(self.batch_size, self.num_channels, -1)
+        augmented = self._to_3d(augmented)
 
         self.audio_data = augmented
         return self

@@ -121,3 +121,15 @@ def test_codec():
 
     out = spk.deepcopy().apply_codec("Ogg")
     out = spk.deepcopy().apply_codec("8-bit")
+
+def test_pitch_shift():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    spk = AudioSignal(audio_path, offset=10, duration=1)
+    
+    out = spk.deepcopy().play().pitch_shift(5).play()
+
+def test_time_stretch():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    spk = AudioSignal(audio_path, offset=10, duration=1)
+    
+    out = spk.deepcopy().play().time_stretch(0.8).play()

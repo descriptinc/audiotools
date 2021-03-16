@@ -6,6 +6,7 @@ from scipy import signal
 import copy
 from .effects import EffectMixin
 from .loudness import LoudnessMixin
+from .playback import PlayMixin
 from . import util
 import julius
 
@@ -20,7 +21,7 @@ are not specified will be inferred by the AudioSignal parameters and the setting
 in `nussl.core.constants`.
 """
 
-class AudioSignal(EffectMixin, LoudnessMixin):
+class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin):
     def __init__(self, audio_path=None, audio_array=None, sample_rate=None, 
                  stft_params=None, offset=0, duration=None, device=None):
         if audio_path is None and audio_array is None:
@@ -411,16 +412,6 @@ class AudioSignal(EffectMixin, LoudnessMixin):
         if self.stft_data is None:
             self.stft()
         return torch.angle(self.stft_data)
-
-    def play(self, batch_idx=0):
-        from . import play_util
-        play_util.play(self, batch_idx=batch_idx)
-        return self
-
-    def embed(self, batch_idx=0, ext='.mp3', display=True):
-        from . import play_util
-        return play_util.embed_audio(self, ext=ext, 
-            display=display, batch_idx=batch_idx)
 
     # Operator overloading
     def __add__(self, other):
