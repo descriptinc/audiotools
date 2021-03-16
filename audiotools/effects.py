@@ -1,18 +1,26 @@
 import torchaudio
 import torch
 import numpy as np
+import numbers
 
 class EffectMixin:
+    GAIN_FACTOR = np.log(10) / 20
+
     def snr(self, other):
         pass
 
     def convolve(self, other):
         pass
 
-    def normalize(self, db=-24):
+    def normalize(self, db=-24.0):
+        if isinstance(db, (float, int, numbers.Integral)):
+            db = np.array([db])
+        if not torch.is_tensor(db):
+            db = torch.from_numpy(db)
         audio_signal_loudness = self.loudness()
         gain = db - audio_signal_loudness
-        self *= torch.exp(gain * np.log(10) / 20)
+        gain = torch.exp(gain * self.GAIN_FACTOR)
+        self.audio_data *= gain[:, None, None]
         return self
 
     def pitch_shift(self, n_semitones):

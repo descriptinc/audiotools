@@ -18,4 +18,12 @@ def test_normalize():
         loudness = signal.loudness()
         assert np.allclose(loudness, db, atol=1e-1)
 
-    
+    batch_size = 16
+    db = -60 + torch.linspace(10, 30, batch_size)
+
+    array = np.random.randn(batch_size, 2, 32000)
+    array = array / np.abs(array).max()
+    signal = AudioSignal(audio_array=array, sample_rate=16000)
+
+    signal = signal.normalize(db)
+    assert np.allclose(signal.loudness(), db, 1e-1)    

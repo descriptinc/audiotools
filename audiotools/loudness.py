@@ -56,8 +56,11 @@ class Meter(pyloudnorm.Meter):
         l = -0.691 + 10.0 * torch.log10((G[None, :nch, None] * z).sum(1, keepdim=True))
         l = l.expand_as(z)
 
-        # find gating block indices above absolute threshold    
-        z_avg_gated = z[l > Gamma_a].reshape(nb, nch, -1).mean(2)
+        # find gating block indices above absolute threshold
+        z_avg_gated = z
+        z_avg_gated[l <= Gamma_a] = 0
+        masked = l > Gamma_a
+        z_avg_gated = z_avg_gated.sum(2) / masked.sum(2)
 
         # calculate the relative threshold value (see eq. 6)
         Gamma_r = -0.691 + 10.0 * torch.log10((z_avg_gated * G[None, :nch]).sum(-1)) - 10.0
@@ -65,7 +68,13 @@ class Meter(pyloudnorm.Meter):
         Gamma_r = Gamma_r.expand(nb, nch, l.shape[-1])
         
         # find gating block indices above relative and absolute thresholds  (end of eq. 7)
-        z_avg_gated = torch.nan_to_num(z[(l > Gamma_a) * (l > Gamma_r)].reshape(nb, nch, -1)).mean(-1)
+        z_avg_gated = z
+        z_avg_gated[l <= Gamma_a] = 0
+        z_avg_gated[l <= Gamma_r] = 0
+        masked = (l > Gamma_a) * (l > Gamma_r)
+        z_avg_gated = z_avg_gated.sum(2) / masked.sum(2)
+        z_avg_gated = torch.nan_to_num(z_avg_gated)
+
         LUFS = -0.691 + 10.0 * torch.log10((G[None, :nch] * z_avg_gated).sum(1))
         return torch.nan_to_num(LUFS, nan=MIN_LOUDNESS)
 
