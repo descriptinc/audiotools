@@ -117,6 +117,22 @@ def test_copy():
     assert sig1 == sig1.copy()
     assert sig1 == sig1.deepcopy()
 
+def test_zero_pad():
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+
+    sig1.zero_pad(100, 100)
+    zeros = torch.zeros(4, 2, 100)
+    assert torch.allclose(sig1.audio_data[..., :100], zeros)
+    assert torch.allclose(sig1.audio_data[..., -100:], zeros)
+
+def test_truncate():
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+
+    sig1.truncate_samples(100)
+    assert sig1.signal_length == 100
+
 def test_to_from_ops():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     signal = AudioSignal(audio_path)
@@ -167,3 +183,13 @@ def test_stft(window_length, hop_length, window_type):
 
         recon_stft = mag * torch.exp(1j * phase)
         assert torch.allclose(recon_stft, signal.stft_data)
+
+def test_to_mono():
+    array = np.random.randn(4, 2, 16000)
+    sr = 16000
+
+    signal = AudioSignal(audio_array=array, sample_rate=sr)
+    assert signal.num_channels == 2
+
+    signal = signal.to_mono()
+    assert signal.num_channels == 1

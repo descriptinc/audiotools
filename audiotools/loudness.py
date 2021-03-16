@@ -1,9 +1,10 @@
 import pyloudnorm
 import torchaudio
 import numpy as np
-import warnings
 import torch
 import copy
+
+MIN_LOUDNESS = -120
 
 class Meter(pyloudnorm.Meter):
     """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.
@@ -60,12 +61,13 @@ class Meter(pyloudnorm.Meter):
 
         # calculate the relative threshold value (see eq. 6)
         Gamma_r = -0.691 + 10.0 * torch.log10((z_avg_gated * G[None, :nch]).sum(-1)) - 10.0
+        Gamma_r = Gamma_r[:, None, None]
         Gamma_r = Gamma_r.expand(nb, nch, l.shape[-1])
         
         # find gating block indices above relative and absolute thresholds  (end of eq. 7)
         z_avg_gated = torch.nan_to_num(z[(l > Gamma_a) * (l > Gamma_r)].reshape(nb, nch, -1)).mean(-1)
         LUFS = -0.691 + 10.0 * torch.log10((G[None, :nch] * z_avg_gated).sum(1))
-        return LUFS
+        return torch.nan_to_num(LUFS, nan=MIN_LOUDNESS)
 
 class LoudnessMixin:
     def loudness(self, filter_class='K-weighting', block_size=0.400):
@@ -94,9 +96,19 @@ class LoudnessMixin:
             float: LUFS, Integrated gated loudness of the input 
               measured in dB LUFS.
         """
+        original_length = self.signal_length
+        if self.signal_duration < 0.5:
+            pad_len = int((0.5 - self.signal_duration) * self.sample_rate)
+            self.zero_pad(0, pad_len)
+
         # create BS.1770 meter
         meter = Meter(
             self.sample_rate, filter_class=filter_class, block_size=block_size)
         # measure loudness
         loudness = meter.integrated_loudness(self.audio_data.permute(0, 2, 1))
-        return loudness
+        self.truncate_samples(original_length)
+        min_loudness = (
+            torch.ones_like(loudness, device=loudness.device) *
+            MIN_LOUDNESS
+        )
+        return torch.maximum(loudness, min_loudness)

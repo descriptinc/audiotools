@@ -3,7 +3,6 @@ from audiotools.loudness import Meter
 import pyloudnorm
 import numpy as np
 import soundfile as sf
-import torch
 
 def test_loudness_against_pyln():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
@@ -18,8 +17,37 @@ def test_loudness_against_pyln():
     py_loudness = meter.integrated_loudness(signal.numpy().audio_data[0].T)
     assert np.allclose(signal_loudness, py_loudness, 1e-1)
 
-# Tests below are copied from pyloudnorm
+def test_loudness_short():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    signal = AudioSignal(audio_path, offset=10, duration=0.25)
+    signal_loudness = signal.loudness()
 
+def test_batch_loudness():
+    array = np.random.randn(16, 2, 16000)
+    array /= np.abs(array).max()
+
+    gains = np.random.rand(array.shape[0])[:, None, None]
+    array = array * gains
+
+    meter = pyloudnorm.Meter(16000)
+    py_loudness = [
+        meter.integrated_loudness(array[i].T)
+        for i in range(array.shape[0])
+    ]
+
+    meter = Meter(16000)
+    at_loudness_iso = [
+        meter.integrated_loudness(array[i].T).item()
+        for i in range(array.shape[0])
+    ]
+
+    assert np.allclose(py_loudness, at_loudness_iso, atol=1e-1)
+
+    signal = AudioSignal(audio_array=array, sample_rate=16000)
+    at_loudness_batch = signal.loudness()
+    assert np.allclose(py_loudness, at_loudness_batch, atol=1e-1)
+
+# Tests below are copied from pyloudnorm
 def test_integrated_loudness():
     data, rate = sf.read("tests/audio/loudness/sine_1000.wav")
     meter = Meter(rate)

@@ -93,6 +93,11 @@ class AudioSignal(EffectMixin, LoudnessMixin):
     def copy(self):
         return copy.copy(self)
 
+    # Signal operations
+    def to_mono(self):
+        self.audio_data = self.audio_data.mean(1, keepdim=True)
+        return self
+
     # Tensor operations
     def to(self, device=None):
         if isinstance(self.audio_data, np.ndarray):
@@ -104,7 +109,17 @@ class AudioSignal(EffectMixin, LoudnessMixin):
 
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
-        return self        
+        return self   
+
+    def zero_pad(self, before, after):
+        self.audio_data = torch.nn.functional.pad(
+            self.audio_data, (before, after)
+        )
+        return self
+
+    def truncate_samples(self, length_in_samples):
+       self.audio_data =  self.audio_data[..., :length_in_samples]
+       return self     
 
     @property
     def device(self):
