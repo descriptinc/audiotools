@@ -4,7 +4,7 @@ import torch
 from collections import namedtuple
 from scipy import signal
 import copy
-from .augment import AugmentMixin
+from .effects import EffectMixin
 from .loudness import LoudnessMixin
 from . import util
 
@@ -19,9 +19,9 @@ are not specified will be inferred by the AudioSignal parameters and the setting
 in `nussl.core.constants`.
 """
 
-class AudioSignal(AugmentMixin, LoudnessMixin):
+class AudioSignal(EffectMixin, LoudnessMixin):
     def __init__(self, audio_path=None, audio_array=None, sample_rate=44100, 
-                 stft_params=None, offset=0, duration=-1):
+                 stft_params=None, offset=0, duration=None):
         if audio_path is None and audio_array is None:
             raise ValueError("One of audio_path or audio_array must be set!")
         if audio_path is not None and audio_array is not None:
@@ -39,13 +39,33 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
         self.stft_params = stft_params
         self.stft_data = None
 
+        self.metadata = {}
+
+    @classmethod
+    def excerpt(cls, audio_path, duration=None, state=None, **kwargs):
+        info = torchaudio.info(audio_path)
+        total_duration = info.num_frames / info.sample_rate
+        
+        state = util.random_state(state)
+        upper_bound = max(total_duration - duration, 0)
+        offset = state.uniform(0, upper_bound)
+
+        signal = cls(audio_path, offset=offset, duration=duration)
+        signal.metadata['offset'] = offset
+        signal.metadata['duration'] = duration
+
+        return signal
+
     # I/O
     def load_from_file(self, audio_path, offset, duration, device=None):
         info = torchaudio.info(audio_path)
         sample_rate = info.sample_rate
 
         frame_offset = min(int(sample_rate * offset), info.num_frames)
-        num_frames = min(int(sample_rate * duration), info.num_frames)
+        if duration is not None:
+            num_frames = min(int(sample_rate * duration), info.num_frames)
+        else:
+            num_frames = info.num_frames
 
         data, sample_rate = torchaudio.load(
             audio_path, frame_offset=frame_offset, num_frames=num_frames
@@ -60,8 +80,11 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
         self.sample_rate = sample_rate
         return self.to(device)
 
-    def write(self, audio_path):
-        torchaudio.save(audio_path, self.audio_data, self.sample_rate, bits_per_sample=32)
+    def write(self, audio_path, batch_idx=0):
+        torchaudio.save(
+            audio_path, self.audio_data[batch_idx], 
+            self.sample_rate, bits_per_sample=32
+        )
         return self
 
     def deepcopy(self):
@@ -74,14 +97,14 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
     def to(self, device=None):
         if isinstance(self.audio_data, np.ndarray):
             self.audio_data = torch.from_numpy(self.audio_data)
-        if device is None: device = self.audio_data.device
+        if device is None: device = self.device
         device = device if torch.cuda.is_available() else 'cpu'
         self.audio_data = self.audio_data.to(device).float()
         return self
 
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
-        return self
+        return self        
 
     @property
     def device(self):
@@ -97,8 +120,22 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
 
     @audio_data.setter
     def audio_data(self, value):
+        """Setter for audio data. Audio data is always of the shape
+        (batch_size, num_channels, num_samples). If value has less
+        than 3 dims (e.g. is (num_channels, num_samples)), then it will
+        be reshaped to (1, num_channels, num_samples) - a batch size of 1.
+        """
+        if value.ndim < 3:
+            if torch.is_tensor(value):
+                value = value.unsqueeze(0)
+            else:
+                value = np.expand_dims(value, axis=0)
         self._audio_data = value
         self.original_signal_length = self.signal_length
+
+    @property
+    def batch_size(self):
+        return self.audio_data.shape[0]
 
     @property
     def signal_length(self):
@@ -110,7 +147,7 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
 
     @property
     def num_channels(self):
-        return self.audio_data.shape[0]
+        return self.audio_data.shape[1]
 
     # STFT
     @staticmethod
@@ -201,9 +238,12 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
         window = window.to(self.audio_data.device)
 
         stft_data = torch.stft(
-            self.audio_data, n_fft=window_length, hop_length=hop_length, 
+            self.audio_data.reshape(-1, self.signal_length), 
+            n_fft=window_length, hop_length=hop_length, 
             window=window, return_complex=return_complex
         )
+        _, nf, nt = stft_data.shape
+        stft_data = stft_data.reshape(self.batch_size, self.num_channels, nf, nt)
         self.stft_data = stft_data
         return stft_data
 
@@ -249,23 +289,38 @@ class AudioSignal(AugmentMixin, LoudnessMixin):
             if self.signal_length is not None:
                 truncate_to_length = self.signal_length
 
+        nb, nch, nf, nt = self.stft_data.shape
+        stft_data = self.stft_data.reshape(nb * nch, nf, nt)
         audio_data = torch.istft(
-            self.stft_data, n_fft=window_length, 
+            stft_data, n_fft=window_length, 
             hop_length=hop_length, window=window, 
             length=truncate_to_length
         )
-
+        audio_data = audio_data.reshape(nb, nch, -1)
         self.audio_data = audio_data
         return self
 
-    def play(self):
+    @property
+    def magnitude(self):
+        if self.stft_data is None:
+            self.stft()
+        return torch.abs(self.stft_data)
+
+    @property
+    def phase(self):
+        if self.stft_data is None:
+            self.stft()
+        return torch.angle(self.stft_data)
+
+    def play(self, batch_idx=0):
         from . import play_util
-        play_util.play(self)
+        play_util.play(self, batch_idx=batch_idx)
         return self
 
-    def embed(self, ext='.mp3', display=True):
+    def embed(self, batch_idx=0, ext='.mp3', display=True):
         from . import play_util
-        return play_util.embed_audio(self, ext=ext, display=display)
+        return play_util.embed_audio(self, ext=ext, 
+            display=display, batch_idx=batch_idx)
 
     # Operator overloading
     def __add__(self, other):

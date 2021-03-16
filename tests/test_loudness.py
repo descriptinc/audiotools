@@ -8,18 +8,14 @@ import torch
 def test_loudness_against_pyln():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     signal = AudioSignal(audio_path, offset=5, duration=10)
-    signal.audio_data = torch.cat(
-        [signal.audio_data, 0.5 * signal.audio_data], dim=0
-    )
     signal_loudness = signal.loudness()
 
-    
     meter = pyloudnorm.Meter(
         signal.sample_rate, 
         filter_class="K-weighting", 
         block_size=0.4
     )
-    py_loudness = meter.integrated_loudness(signal.numpy().audio_data.T)
+    py_loudness = meter.integrated_loudness(signal.numpy().audio_data[0].T)
     assert np.allclose(signal_loudness, py_loudness, 1e-1)
 
 # Tests below are copied from pyloudnorm

@@ -98,5 +98,5 @@ class LoudnessMixin:
         meter = Meter(
             self.sample_rate, filter_class=filter_class, block_size=block_size)
         # measure loudness
-        loudness = meter.integrated_loudness(self.audio_data.T)
+        loudness = meter.integrated_loudness(self.audio_data.permute(0, 2, 1))
         return loudness

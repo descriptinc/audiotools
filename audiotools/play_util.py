@@ -21,7 +21,7 @@ def _check_imports(): # pragma: no cover
     return ffmpy, IPython
 
 
-def embed_audio(audio_signal, ext='.mp3', display=True):
+def embed_audio(audio_signal, ext='.mp3', display=True, batch_idx=0):
     """
     Write a numpy array to a temporary mp3 file using ffmpy, then embeds the mp3
     into the notebook.
@@ -52,7 +52,7 @@ def embed_audio(audio_signal, ext='.mp3', display=True):
         tmp_wav = NamedTemporaryFile(
             mode='w+', suffix='.wav', delete=False)
         tmpfiles.append(tmp_wav)
-        audio_signal.write(tmp_wav.name)
+        audio_signal.write(tmp_wav.name, batch_idx=batch_idx)
         if ext != '.wav' and ffmpy:
             tmp_converted = NamedTemporaryFile(
                 mode='w+', suffix=ext, delete=False)
@@ -69,7 +69,7 @@ def embed_audio(audio_signal, ext='.mp3', display=True):
             IPython.display.display(audio_element)
     return audio_element
 
-def play(audio_signal):
+def play(audio_signal, batch_idx=0):
     """
     Plays an audio signal if ffplay from the ffmpeg suite of tools is installed.
     Otherwise, will fail. The audio signal is written to a temporary file
@@ -82,5 +82,5 @@ def play(audio_signal):
     with _close_temp_files(tmpfiles):
         tmp_wav = NamedTemporaryFile(suffix='.wav', delete=False)
         tmpfiles.append(tmp_wav)
-        audio_signal.write(tmp_wav.name)
+        audio_signal.write(tmp_wav.name, batch_idx=batch_idx)
         subprocess.call(["ffplay", "-nodisp", "-autoexit", tmp_wav.name])

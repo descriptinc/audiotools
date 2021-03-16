@@ -33,6 +33,12 @@ def test_io():
     signal = AudioSignal(audio_path, offset=10, duration=10)
     assert np.allclose(signal.signal_duration, 10.0)
 
+    signal = AudioSignal.excerpt(audio_path, 5)
+    assert signal.signal_duration == 5.0
+
+    assert 'offset' in signal.metadata
+    assert 'duration' in signal.metadata
+
 def test_arithmetic():
     def _make_signals():
         array = np.random.randn(2, 16000)
@@ -119,6 +125,7 @@ def test_to_from_ops():
 
     signal = signal.numpy()
     assert isinstance(signal.audio_data, np.ndarray)
+    assert signal.device == 'numpy'
 
     signal = signal.to()
     assert torch.is_tensor(signal.audio_data)
@@ -146,3 +153,17 @@ def test_stft(window_length, hop_length, window_type):
         copied_signal = copied_signal.istft()
 
         assert copied_signal == signal
+
+        mag = signal.magnitude
+        phase = signal.phase
+
+        recon_stft = mag * torch.exp(1j * phase)
+        assert torch.allclose(recon_stft, signal.stft_data)
+
+        signal.stft_data = None
+        mag = signal.magnitude
+        signal.stft_data = None
+        phase = signal.phase
+
+        recon_stft = mag * torch.exp(1j * phase)
+        assert torch.allclose(recon_stft, signal.stft_data)
