@@ -1,6 +1,7 @@
 import numpy as np
 from audiotools import util
 import pytest
+import torch
 
 def test_check_random_state():
     # seed is None
@@ -19,3 +20,12 @@ def test_check_random_state():
 
     # seed is none of the above : error
     pytest.raises(ValueError, util.random_state, 'random')
+
+
+def test_hz_to_bin():
+    hz = torch.from_numpy(np.array([100, 200, 300]))
+    sr = 1000
+    n_fft = 2048
+
+    bins = util.hz_to_bin(hz, n_fft, sr)
+    assert (((bins / n_fft) * sr / 2) - hz).abs().max() < 1

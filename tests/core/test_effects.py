@@ -149,3 +149,9 @@ def test_time_stretch():
 
     assert np.allclose(batched[0], single[0])
 
+def test_octave_filterbank():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    spk = AudioSignal(audio_path, offset=10, duration=1)
+    fbank = spk.octave_filterbank()
+
+    assert torch.allclose(fbank.sum(-1), spk.audio_data, atol=1e-4)

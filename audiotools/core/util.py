@@ -3,12 +3,24 @@ import os
 from functools import wraps
 import numpy as np
 import numbers
+import torch
 
 def _get_value(other):
     from . import AudioSignal
     if isinstance(other, AudioSignal):
         return other.audio_data
     return other
+
+def hz_to_bin(hz, n_fft, sample_rate):
+    shape = hz.shape
+    hz = hz.flatten()
+    freqs = torch.linspace(0, sample_rate / 2, 2 + n_fft // 2)
+    hz[hz > sample_rate / 2] = sample_rate / 2
+
+    closest = (hz[None, :] - freqs[:, None]).abs()
+    closest_bins = closest.min(dim=0).indices
+
+    return closest_bins.reshape(*shape)
 
 def random_state(seed):
     """Turn seed into a np.random.RandomState instance
