@@ -4,7 +4,7 @@ import torch
 from collections import namedtuple
 from scipy import signal
 import copy
-from .effects import EffectMixin
+from .effects import EffectMixin, ImpulseResponseMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
 from . import util
@@ -21,7 +21,7 @@ are not specified will be inferred by the AudioSignal parameters and the setting
 in `nussl.core.constants`.
 """
 
-class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin):
+class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin):
     def __init__(self, audio_path=None, audio_array=None, sample_rate=None, 
                  stft_params=None, offset=0, duration=None, device=None):
         if audio_path is None and audio_array is None:

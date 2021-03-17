@@ -149,9 +149,27 @@ def test_time_stretch():
 
     assert np.allclose(batched[0], single[0])
 
-def test_octave_filterbank():
+@pytest.mark.parametrize("fc", [440, 1000])
+@pytest.mark.parametrize("div", [1, 3, 4, 8])
+@pytest.mark.parametrize("n", [4, 8])
+def test_octave_filterbank(fc, div, n):
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     spk = AudioSignal(audio_path, offset=10, duration=1)
-    fbank = spk.octave_filterbank()
+    fbank = spk.deepcopy().octave_filterbank(fc=fc, div=div, n=n)
 
-    assert torch.allclose(fbank.sum(-1), spk.audio_data, atol=1e-4)
+    assert torch.allclose(fbank.sum(-1), spk.audio_data, atol=1e-6)
+
+def test_equalizer():
+    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    spk = AudioSignal(audio_path, offset=10, duration=10)
+    
+    bands = spk.get_bands()
+    db = -3 + 1 * torch.rand(bands.shape[0])
+    spk.deepcopy().equalizer(db)
+
+    audio_path = 'tests/audio/ir/h179_Bar_1txts.wav'
+    ir = AudioSignal(audio_path)
+    bands = ir.get_bands(div=1)
+    db = -3 + 1 * torch.rand(bands.shape[0])
+
+    spk.deepcopy().convolve(ir.equalizer(db, div=1))

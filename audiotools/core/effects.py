@@ -181,9 +181,13 @@ class EffectMixin:
         self.audio_data = augmented
         return self
 
-    def octave_filterbank(self, fc=1000, start=0, div=1, n=8):
-        bands = octave_bands(self.sample_rate, fc=fc, start=start, n=n)
+    def get_bands(self, fc=1000, div=1, n=8):
+        bands = octave_bands(self.sample_rate, div=div, fc=fc, n=n)
         bands = torch.from_numpy(bands)
+        return bands
+
+    def octave_filterbank(self, fc=1000, div=1, n=8):
+        bands = self.get_bands(fc=fc, div=div, n=n)
         closest_bins = util.hz_to_bin(bands, self.signal_length, self.sample_rate)
 
         fft_data = torch.fft.rfft(self.audio_data)
@@ -201,6 +205,91 @@ class EffectMixin:
 
     def equalizer(self, db, div=1):
         fbank = self.octave_filterbank(div=div)
+        
+        # Same number of boosts/cuts.
+        assert db.shape[-1] == fbank.shape[-1]
+        # If there's a batch dimension, make sure it's the same.
+        if db.ndim == 2:
+            if db.shape[0] != 1:
+                assert db.shape[0] == fbank.shape[0]
+        else:
+            db = db.unsqueeze(0)
+        
+        weights = 10 ** db
+        fbank = fbank * weights[:, None, None, :]
+        eq_audio_data = fbank.sum(-1)
+        self.audio_data = eq_audio_data
+
+        return self
 
     def __matmul__(self, other):
         return self.convolve(other)
+
+class ImpulseResponseMixin:
+    def decompose_ir(self):
+        # Equations 1 and 2 
+        # -----------------
+        # Breaking up into early 
+        # response + late field response.
+
+        td = np.argmax(self.audio_data)
+        t0 = int(self.sample_rate * .0025)
+
+        idx = np.arange(self.audio_data.shape[-1])
+        early_idx = (idx >= td - t0) * (idx <= td + t0)
+        early_response = np.zeros_like(self.audio_data)
+        early_response[:, early_idx] = self.audio_data[:, early_idx]
+
+        late_idx = np.invert(early_idx)
+        late_field = np.zeros_like(self.audio_data)
+        late_field[:, late_idx] = self.audio_data[:, late_idx]
+        
+        # Equation 4
+        # ----------
+        # Decompose early response into windowed
+        # direct path and windowed residual.
+        
+        wd_idx = early_idx.nonzero()[0]
+        wd_ = np.hanning(wd_idx.shape[-1])
+        wd = np.zeros_like(self.audio_data)
+        wd[:, wd_idx] = wd_
+            
+        return early_response, late_field, wd
+
+    def measure_drr(self):
+        early_response, late_field, _ = self.decompose_ir()
+        num = (early_response ** 2).sum() 
+        den = (late_field ** 2).sum()
+        drr = 10 * np.log10(num / den)
+        return drr
+
+    @staticmethod
+    def solve_alpha(early_response, late_field, wd, target_drr):
+        # Equation 5
+        # ----------
+        # Apply the good ol' quadratic formula.
+        
+        wd_sq = (wd ** 2)
+        wd_sq_1 = ((1 - wd) ** 2)
+        e_sq = early_response ** 2
+        l_sq = late_field ** 2
+        a = (wd_sq * e_sq).sum()
+        b = (2 * (1 - wd) * wd * e_sq).sum()
+        c = (wd_sq_1 * e_sq).sum() - np.power(10, target_drr / 10) * l_sq.sum()
+
+        alpha = max(np.roots([a, b, c]))
+        return alpha
+
+    def augment_drr(self, drr):
+        early_response, late_field, wd = self.decompose_ir()
+        alpha = self.solve_alpha(early_response, late_field, wd, drr)
+        min_alpha = np.abs(late_field).max() / np.abs(early_response).max()
+        alpha = max(alpha, min_alpha)
+            
+        aug_ir_data = (
+            alpha * wd * early_response + 
+            ((1 - wd) * early_response) + late_field
+        )
+            
+        aug_ir = self.make_copy_with_audio_data(aug_ir_data, verbose=False)
+        return aug_ir, self.measure_drr()
