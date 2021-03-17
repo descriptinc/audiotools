@@ -1,4 +1,3 @@
-from tests.core.test_effects import test_normalize
 import audiotools
 from audiotools import AudioSignal
 import torch
