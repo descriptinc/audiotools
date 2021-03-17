@@ -28,4 +28,5 @@ def test_hz_to_bin():
     n_fft = 2048
 
     bins = util.hz_to_bin(hz, n_fft, sr)
-    assert (((bins / n_fft) * sr / 2) - hz).abs().max() < 1
+
+    assert (((bins / n_fft) * sr) - hz).abs().max() < 1

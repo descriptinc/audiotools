@@ -54,7 +54,7 @@ class EffectMixin:
         other.truncate_samples(self.signal_length)        
         tgt_loudness = self.loudness() - snr
         other = other.normalize(tgt_loudness)
-        self.audio_data = self.audio_data + other.audio_data
+        self.audio_data = self.audio_data + other.audio_data        
         return self
 
     def convolve(self, other, start_at_max=True):
@@ -109,6 +109,7 @@ class EffectMixin:
         audio_signal_loudness = self.loudness()
         gain = db - audio_signal_loudness
         gain = torch.exp(gain * self.GAIN_FACTOR)
+        
         self.audio_data = self.audio_data * gain[:, None, None]
         return self
 
@@ -119,11 +120,13 @@ class EffectMixin:
     def _to_3d(self, waveform):
         return waveform.reshape(self.batch_size, self.num_channels, -1)
 
-    def pitch_shift(self, n_semitones): # pragma: no cover
+    def pitch_shift(self, n_semitones, quick=True): # pragma: no cover
         effects = [
             ['pitch', str(n_semitones * 100)],
             ['rate', str(self.sample_rate)],
         ]
+        if quick:
+            effects[0].insert(1, '-q')
 
         waveform = self._to_2d()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
@@ -133,11 +136,13 @@ class EffectMixin:
         self.audio_data = self._to_3d(waveform)
         return self
 
-    def time_stretch(self, factor):  # pragma: no cover
+    def time_stretch(self, factor, quick=True):  # pragma: no cover
         effects = [
             ['tempo', str(factor)],
             ['rate', str(self.sample_rate)],
         ]
+        if quick:
+            effects[0].insert(1, '-q')
 
         waveform = self._to_2d()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
@@ -205,6 +210,8 @@ class EffectMixin:
 
     def equalizer(self, db, div=1):
         fbank = self.octave_filterbank(div=div)
+        if not torch.is_tensor(db):
+            db = torch.from_numpy(db)
         
         # Same number of boosts/cuts.
         assert db.shape[-1] == fbank.shape[-1]
@@ -219,13 +226,12 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
-
         return self
 
     def __matmul__(self, other):
         return self.convolve(other)
 
-class ImpulseResponseMixin:
+class ImpulseResponseMixin: # pragma: no cover
     def decompose_ir(self):
         # Equations 1 and 2 
         # -----------------
