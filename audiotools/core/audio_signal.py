@@ -475,5 +475,12 @@ class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin):
                     return False
         return True
 
+    # Indexing
+    def __getitem__(self, key):
+        return self.audio_data[key]
+
+    def __setitem__(self, key, value):
+        self.audio_data[key] = value
+
     def __ne__(self, other):
         return not self == other

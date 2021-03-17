@@ -112,6 +112,16 @@ def test_equality():
 
     assert sig1.numpy() != sig3.numpy()
 
+def test_indexing():
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+
+    assert np.allclose(sig1[0], array[0])
+    assert np.allclose(sig1[0, :, 8000], array[0, :, 8000])
+
+    sig1[0, :, 8000] = 10
+    assert np.allclose(sig1.audio_data[0, :, 8000], 10)
+
 def test_copy():
     array = np.random.randn(2, 16000)
     sig1 = AudioSignal(audio_array=array, sample_rate=16000)

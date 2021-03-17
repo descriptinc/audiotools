@@ -126,10 +126,26 @@ def test_pitch_shift():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     spk = AudioSignal(audio_path, offset=10, duration=1)
     
-    out = spk.deepcopy().play().pitch_shift(5).play()
+    single = spk.deepcopy().pitch_shift(5)
+
+    batch_size = 4
+    spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
+
+    batched = spk_batch.deepcopy().pitch_shift(5)
+
+    assert np.allclose(batched[0], single[0])
+
 
 def test_time_stretch():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     spk = AudioSignal(audio_path, offset=10, duration=1)
     
-    out = spk.deepcopy().play().time_stretch(0.8).play()
+    single = spk.deepcopy().time_stretch(0.8)
+
+    batch_size = 4
+    spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
+
+    batched = spk_batch.deepcopy().time_stretch(0.8)
+
+    assert np.allclose(batched[0], single[0])
+
