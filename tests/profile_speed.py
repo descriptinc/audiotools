@@ -24,9 +24,6 @@ class RoomSimulator(torch.utils.data.Dataset):
         )
         ir = AudioSignal('tests/audio/ir/h179_Bar_1txts.wav')
 
-        spk.loudness()
-        nz.loudness()
-
         return {'spk': spk, 'nz': nz, 'ir': ir}
 
     @profile
@@ -87,7 +84,7 @@ class RoomSimulator(torch.utils.data.Dataset):
 
 @profile
 def run(batch_size=128):
-    dataset = RoomSimulator(1.0)
+    dataset = RoomSimulator(0.5)
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=16, batch_size=batch_size,
         collate_fn=RoomSimulator.collate
