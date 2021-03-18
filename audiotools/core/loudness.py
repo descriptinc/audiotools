@@ -3,18 +3,21 @@ import torchaudio
 import numpy as np
 import torch
 import copy
+from . import util
 
 MIN_LOUDNESS = -120
 
 class Meter(pyloudnorm.Meter):
     """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.
     """
+    G = torch.from_numpy(np.array([1.0, 1.0, 1.0, 1.41, 1.41]))
+
     @staticmethod
     def apply_filter(filter_stage, data):
         passband_gain = filter_stage.passband_gain
 
-        a_coeffs = torch.from_numpy(filter_stage.a).to(data.device).float()
-        b_coeffs = torch.from_numpy(filter_stage.b).to(data.device).float()
+        a_coeffs = torch.from_numpy(filter_stage.a).float()
+        b_coeffs = torch.from_numpy(filter_stage.b).float()
 
         _data = data.permute(0, 2, 1)
         filtered = torchaudio.functional.lfilter(_data, a_coeffs, b_coeffs)
@@ -39,10 +42,12 @@ class Meter(pyloudnorm.Meter):
 
         # Apply frequency weighting filters - account 
         # for the acoustic respose of the head and auditory system
+        input_data = input_data.cpu()
         for _, filter_stage in self._filters.items():
             input_data = self.apply_filter(filter_stage, input_data)
+        input_data = input_data.to(data.device)
 
-        G = torch.from_numpy(np.array([1.0, 1.0, 1.0, 1.41, 1.41])) # channel gains
+        G = self.G.to(data.device) # channel gains
         T_g = self.block_size # 400 ms gating block standard
         Gamma_a = -70.0 # -70 LKFS = absolute loudness threshold
         overlap = 0.75 # overlap of 75% of the block duration
@@ -81,6 +86,8 @@ class Meter(pyloudnorm.Meter):
         return torch.nan_to_num(LUFS, nan=MIN_LOUDNESS).float()
 
 class LoudnessMixin:
+    _loudness = None
+
     def loudness(self, filter_class='K-weighting', block_size=0.400):
         """
         Uses pyloudnorm to calculate loudness.
@@ -107,6 +114,8 @@ class LoudnessMixin:
             float: LUFS, Integrated gated loudness of the input 
               measured in dB LUFS.
         """
+        if self._loudness is not None:
+            return self._loudness.to(self.device)
         original_length = self.signal_length
         if self.signal_duration < 0.5:
             pad_len = int((0.5 - self.signal_duration) * self.sample_rate)
@@ -122,4 +131,5 @@ class LoudnessMixin:
             torch.ones_like(loudness, device=loudness.device) *
             MIN_LOUDNESS
         )
-        return torch.maximum(loudness, min_loudness)
+        self._loudness = torch.maximum(loudness, min_loudness)
+        return self._loudness.to(self.device)

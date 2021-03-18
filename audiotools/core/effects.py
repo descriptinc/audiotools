@@ -49,10 +49,13 @@ class EffectMixin:
         Mixes noise with signal at specified 
         signal-to-noise ratio.
         """
+        snr = _ensure_tensor(snr).to(self.device)
+
         pad_len = max(0, self.signal_length - other.signal_length)
         other.zero_pad(0, pad_len)
         other.truncate_samples(self.signal_length)        
         tgt_loudness = self.loudness() - snr
+
         other = other.normalize(tgt_loudness)
         self.audio_data = self.audio_data + other.audio_data        
         return self
@@ -105,12 +108,13 @@ class EffectMixin:
         return self
 
     def normalize(self, db=-24.0):
-        db = _ensure_tensor(db)
+        db = _ensure_tensor(db).to(self.device)
         audio_signal_loudness = self.loudness()
         gain = db - audio_signal_loudness
         gain = torch.exp(gain * self.GAIN_FACTOR)
         
         self.audio_data = self.audio_data * gain[:, None, None]
+        self._loudness = None
         return self
 
     def _to_2d(self):
@@ -120,7 +124,8 @@ class EffectMixin:
     def _to_3d(self, waveform):
         return waveform.reshape(self.batch_size, self.num_channels, -1)
 
-    def pitch_shift(self, n_semitones, quick=True): # pragma: no cover
+    def pitch_shift(self, n_semitones, quick=True):
+        device = self.device
         effects = [
             ['pitch', str(n_semitones * 100)],
             ['rate', str(self.sample_rate)],
@@ -128,15 +133,16 @@ class EffectMixin:
         if quick:
             effects[0].insert(1, '-q')
 
-        waveform = self._to_2d()
+        waveform = self._to_2d().cpu()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
             waveform, self.sample_rate, effects, channels_first=True
         )
         self.sample_rate = sample_rate
         self.audio_data = self._to_3d(waveform)
-        return self
+        return self.to(device)
 
-    def time_stretch(self, factor, quick=True):  # pragma: no cover
+    def time_stretch(self, factor, quick=True):
+        device = self.device
         effects = [
             ['tempo', str(factor)],
             ['rate', str(self.sample_rate)],
@@ -144,13 +150,13 @@ class EffectMixin:
         if quick:
             effects[0].insert(1, '-q')
 
-        waveform = self._to_2d()
+        waveform = self._to_2d().cpu()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
             waveform, self.sample_rate, effects, channels_first=True
         )
         self.sample_rate = sample_rate
         self.audio_data = self._to_3d(waveform)
-        return self
+        return self.to(device)
 
     def apply_codec(self, preset=None, format="wav", encoding=None, 
                     bits_per_sample=None, compression=None):
@@ -222,7 +228,7 @@ class EffectMixin:
         else:
             db = db.unsqueeze(0)
         
-        weights = 10 ** db
+        weights = (10 ** db).to(self.device)
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
