@@ -36,6 +36,6 @@ setup(
         'ipython',
     ],
     extras_require={
-        'tests': ['pytest', 'pytest-cov', "line_profiler", "tqdm"],
+        'tests': ['pytest', 'pytest-cov', "line_profiler", "tqdm", "argbind"],
     }
 )
