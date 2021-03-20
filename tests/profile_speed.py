@@ -33,7 +33,9 @@ class RoomSimulator(torch.utils.data.Dataset):
             spk_batch, nz_batch, ir_batch = batch['spk'], batch['nz'], batch['ir']
 
             batch_size = spk_batch.batch_size
+
             snr = state.uniform(10, 40, batch_size)
+            drr = state.uniform(-10, 50, batch_size)
 
             spk_batch.to(device)
             nz_batch.to(device)
@@ -47,10 +49,11 @@ class RoomSimulator(torch.utils.data.Dataset):
             curve = -1 + 1 * state.rand(nz_batch.batch_size, bands.shape[0])
             nz_batch = nz_batch.equalizer(curve)
 
-            # Augment the impulse response to simulate microphone effects.
+            # Augment the impulse response to simulate microphone effects
+            # and with varying direct-to-reverberant ratio.
             bands = ir_batch.get_bands()
             curve = -1 + 1 * state.rand(ir_batch.batch_size, bands.shape[0])
-            ir_batch = ir_batch.equalizer(curve)
+            ir_batch = ir_batch.equalizer(curve).alter_drr(drr)
 
             # Convolve
             noisy_spk = (
