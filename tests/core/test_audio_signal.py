@@ -33,7 +33,7 @@ def test_io():
     signal = AudioSignal(audio_path, offset=10, duration=10)
     assert np.allclose(signal.signal_duration, 10.0)
 
-    signal = AudioSignal.excerpt(audio_path, 5)
+    signal = AudioSignal.excerpt(audio_path, offset=5, duration=5)
     assert signal.signal_duration == 5.0
 
     assert 'offset' in signal.metadata

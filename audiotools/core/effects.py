@@ -237,35 +237,38 @@ class ImpulseResponseMixin: # pragma: no cover
         # Breaking up into early 
         # response + late field response.
 
-        td = np.argmax(self.audio_data)
+        td = torch.argmax(self.audio_data, dim=-1, keepdim=True)
         t0 = int(self.sample_rate * .0025)
 
-        idx = np.arange(self.audio_data.shape[-1])
+        idx = torch.arange(self.audio_data.shape[-1], device=self.device)[None, None, :]
+        idx = idx.expand(self.batch_size, -1, -1)
         early_idx = (idx >= td - t0) * (idx <= td + t0)
-        early_response = np.zeros_like(self.audio_data)
-        early_response[:, early_idx] = self.audio_data[:, early_idx]
 
-        late_idx = np.invert(early_idx)
-        late_field = np.zeros_like(self.audio_data)
-        late_field[:, late_idx] = self.audio_data[:, late_idx]
+        early_response = torch.zeros_like(self.audio_data, device=self.device)
+        early_response[early_idx] = self.audio_data[early_idx]
         
+        late_idx = ~early_idx
+        late_field = torch.zeros_like(self.audio_data, device=self.device)
+        late_field[late_idx] = self.audio_data[late_idx]
+
         # Equation 4
         # ----------
         # Decompose early response into windowed
         # direct path and windowed residual.
-        
-        wd_idx = early_idx.nonzero()[0]
-        wd_ = np.hanning(wd_idx.shape[-1])
-        wd = np.zeros_like(self.audio_data)
-        wd[:, wd_idx] = wd_
-            
-        return early_response, late_field, wd
+
+        window = torch.zeros_like(self.audio_data, device=self.device)
+        for idx in range(self.batch_size):
+            window_idx = early_idx[idx, 0].nonzero()
+            window[idx, ..., window_idx] = self.get_window(
+                'hanning', window_idx.shape[-1], self.device)
+
+        return early_response, late_field, window
 
     def measure_drr(self):
         early_response, late_field, _ = self.decompose_ir()
-        num = (early_response ** 2).sum() 
-        den = (late_field ** 2).sum()
-        drr = 10 * np.log10(num / den)
+        num = (early_response ** 2).sum(dim=-1) 
+        den = (late_field ** 2).sum(dim=-1)
+        drr = 10 * torch.log10(num / den)
         return drr
 
     @staticmethod
@@ -273,28 +276,34 @@ class ImpulseResponseMixin: # pragma: no cover
         # Equation 5
         # ----------
         # Apply the good ol' quadratic formula.
-        
+
         wd_sq = (wd ** 2)
         wd_sq_1 = ((1 - wd) ** 2)
         e_sq = early_response ** 2
         l_sq = late_field ** 2
-        a = (wd_sq * e_sq).sum()
-        b = (2 * (1 - wd) * wd * e_sq).sum()
-        c = (wd_sq_1 * e_sq).sum() - np.power(10, target_drr / 10) * l_sq.sum()
+        a = (wd_sq * e_sq).sum(dim=-1)
+        b = (2 * (1 - wd) * wd * e_sq).sum(dim=-1)
+        c = (wd_sq_1 * e_sq).sum(dim=-1) - torch.pow(10, target_drr / 10) * l_sq.sum(dim=-1)
 
-        alpha = max(np.roots([a, b, c]))
+        expr = ((b ** 2) - 4 * a * c).sqrt()
+        alpha = torch.maximum(
+            (-b - expr) / (2 * a),
+            (-b + expr) / (2 * a),
+        )
         return alpha
 
-    def augment_drr(self, drr):
-        early_response, late_field, wd = self.decompose_ir()
-        alpha = self.solve_alpha(early_response, late_field, wd, drr)
+    def alter_drr(self, drr):
+        drr = util.ensure_tensor(drr, 2, self.batch_size)
+
+        early_response, late_field, window = self.decompose_ir()
+        alpha = self.solve_alpha(early_response, late_field, window, drr)
         min_alpha = np.abs(late_field).max() / np.abs(early_response).max()
-        alpha = max(alpha, min_alpha)
+        min_alpha = late_field.abs().max(dim=-1)[0] / early_response.abs().max(dim=-1)[0]
+        alpha = torch.maximum(alpha, min_alpha)[..., None]
             
         aug_ir_data = (
-            alpha * wd * early_response + 
-            ((1 - wd) * early_response) + late_field
+            alpha * window * early_response + 
+            ((1 - window) * early_response) + late_field
         )
-            
-        aug_ir = self.make_copy_with_audio_data(aug_ir_data, verbose=False)
-        return aug_ir, self.measure_drr()
+        self.audio_data = aug_ir_data
+        return self

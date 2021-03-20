@@ -82,5 +82,9 @@ class PlayMixin:
             tmp_wav = NamedTemporaryFile(suffix='.wav', delete=False)
             tmpfiles.append(tmp_wav)
             self.write(tmp_wav.name, batch_idx=batch_idx)
-            subprocess.call(["ffplay", "-nodisp", "-autoexit", tmp_wav.name])
+            print(self)
+            subprocess.call([
+                "ffplay", "-nodisp", "-autoexit", "-hide_banner", 
+                "-loglevel", "error", tmp_wav.name
+            ])
         return self

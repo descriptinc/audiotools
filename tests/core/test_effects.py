@@ -195,3 +195,32 @@ def test_equalizer():
     output = spk_batch.deepcopy().equalizer(db)    
 
     assert output == spk_batch
+
+def test_impulse_response_augmentation():
+    audio_path = 'tests/audio/ir/h179_Bar_1txts.wav'
+    batch_size = 16
+    ir = AudioSignal(audio_path)
+    ir_batch = AudioSignal.batch(
+        [ir for _ in range(batch_size)]
+    )
+    early_response, late_field, window = ir_batch.decompose_ir()
+
+    assert early_response.shape == late_field.shape
+    assert late_field.shape == window.shape
+
+    drr = ir_batch.measure_drr()
+
+    alpha = AudioSignal.solve_alpha(
+        early_response, late_field, window, drr
+    )
+    assert np.allclose(alpha, np.ones_like(alpha), 1e-5)
+
+    target_drr = 5
+    out = ir_batch.deepcopy().alter_drr(target_drr)
+    drr = out.measure_drr()
+    assert np.allclose(drr, np.ones_like(drr) * target_drr)
+    
+    target_drr = np.random.rand(batch_size) * 50
+    altered_ir = ir_batch.deepcopy().alter_drr(target_drr)
+    drr = altered_ir.measure_drr()
+    assert np.allclose(drr.flatten(), target_drr.flatten())    

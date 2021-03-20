@@ -5,12 +5,21 @@ import numpy as np
 import numbers
 import torch
 
-def ensure_tensor(x):
+def ensure_tensor(x, ndim=None, batch_size=None):
     if isinstance(x, (float, int, numbers.Integral)):
         x = np.array([x])
     if not torch.is_tensor(x):
         x = torch.from_numpy(x)
-    return x
+    if ndim is not None:
+        if x.ndim < ndim:
+            for _ in range(ndim-1):
+                x = x.unsqueeze(-1) 
+    if batch_size is not None:
+        if x.shape[0] != batch_size:
+            shape = list(x.shape)
+            shape[0] = batch_size
+            x = x.expand(*shape)
+    return x.float()
 
 def _get_value(other):
     from . import AudioSignal

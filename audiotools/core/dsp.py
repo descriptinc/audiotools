@@ -92,9 +92,7 @@ class DSPMixin:
         return self
 
     def low_pass(self, cutoffs):
-        cutoffs = util.ensure_tensor(cutoffs)
-        if cutoffs.shape[0] == 1:
-            cutoffs = cutoffs.expand(self.batch_size)
+        cutoffs = util.ensure_tensor(cutoffs, 2, self.batch_size)
         closest_bins = util.hz_to_bin(
             cutoffs, self.signal_length, self.sample_rate
         )

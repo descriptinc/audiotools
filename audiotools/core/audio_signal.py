@@ -56,13 +56,14 @@ class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, D
         self.metadata = {}
 
     @classmethod
-    def excerpt(cls, audio_path, duration=None, state=None, **kwargs):
+    def excerpt(cls, audio_path, offset=None, duration=None, state=None, **kwargs):
         info = torchaudio.info(audio_path)
         total_duration = info.num_frames / info.sample_rate
         
         state = util.random_state(state)
+        lower_bound = 0 if offset is None else offset
         upper_bound = max(total_duration - duration, 0)
-        offset = state.uniform(0, upper_bound)
+        offset = state.uniform(lower_bound, upper_bound)
 
         signal = cls(audio_path, offset=offset, duration=duration)
         signal.metadata['offset'] = offset
