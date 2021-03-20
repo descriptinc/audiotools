@@ -7,12 +7,13 @@ import copy
 from .effects import EffectMixin, ImpulseResponseMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
+from .dsp import DSPMixin
 from . import util
 import julius
 
-STFTParams = namedtuple('STFTParams',
-                        ['window_length', 'hop_length', 'window_type']
-                        )
+STFTParams = namedtuple(
+    'STFTParams', ['window_length', 'hop_length', 'window_type']
+)
 STFTParams.__new__.__defaults__ = (None,) * len(STFTParams._fields)
 """
 STFTParams object is a container that holds STFT parameters - window_length, 
@@ -21,7 +22,7 @@ are not specified will be inferred by the AudioSignal parameters and the setting
 in `nussl.core.constants`.
 """
 
-class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin):
+class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, DSPMixin):
     def __init__(self, audio_path=None, audio_array=None, sample_rate=None, 
                  stft_params=None, offset=0, duration=None, device=None):
         if audio_path is None and audio_array is None:
@@ -457,6 +458,7 @@ class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin):
             f"Path: {self.path_to_input_file if self.path_to_input_file else 'path unknown'}\n"
             f"Sample rate: {self.sample_rate if self.sample_rate else '[unknown]'} Hz\n"
             f"Number of channels: {self.num_channels if self.num_channels else '[unknown]'} ch\n"
+            f"Audio data shape: {self.audio_data.shape}\n"
             f"STFT Parameters: {self.stft_params}"
         )
     
