@@ -221,7 +221,7 @@ class EffectMixin:
         else:
             db = db.unsqueeze(0)
         
-        weights = (10 ** db).to(self.device)
+        weights = (10 ** db).to(self.device).float()
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
@@ -261,7 +261,6 @@ class ImpulseResponseMixin: # pragma: no cover
             window_idx = early_idx[idx, 0].nonzero()
             window[idx, ..., window_idx] = self.get_window(
                 'hanning', window_idx.shape[-1], self.device)
-
         return early_response, late_field, window
 
     def measure_drr(self):
@@ -293,11 +292,10 @@ class ImpulseResponseMixin: # pragma: no cover
         return alpha
 
     def alter_drr(self, drr):
-        drr = util.ensure_tensor(drr, 2, self.batch_size)
+        drr = util.ensure_tensor(drr, 2, self.batch_size).to(self.device)
 
         early_response, late_field, window = self.decompose_ir()
         alpha = self.solve_alpha(early_response, late_field, window, drr)
-        min_alpha = np.abs(late_field).max() / np.abs(early_response).max()
         min_alpha = late_field.abs().max(dim=-1)[0] / early_response.abs().max(dim=-1)[0]
         alpha = torch.maximum(alpha, min_alpha)[..., None]
             

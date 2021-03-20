@@ -19,7 +19,8 @@ def ensure_tensor(x, ndim=None, batch_size=None):
             shape = list(x.shape)
             shape[0] = batch_size
             x = x.expand(*shape)
-    return x.float()
+    x = x.float()
+    return x
 
 def _get_value(other):
     from . import AudioSignal
