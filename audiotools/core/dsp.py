@@ -93,47 +93,31 @@ class DSPMixin:
 
     def low_pass(self, cutoffs):
         cutoffs = util.ensure_tensor(cutoffs)
+        if cutoffs.shape[0] == 1:
+            cutoffs = cutoffs.expand(self.batch_size)
         closest_bins = util.hz_to_bin(
             cutoffs, self.signal_length, self.sample_rate
         )
-        fft_data = torch.fft.rfft(self.audio_data)
 
+        fft_data = torch.fft.rfft(self.audio_data)
         filters = torch.zeros(fft_data.shape, device=fft_data.device)
+
         for i, cutoff in enumerate(closest_bins):
-            filters[..., :cutoff] = 1
+            filters[i, ..., :cutoff] = 1
+
         filtered_fft = fft_data * filters
         filtered = torch.fft.irfft(filtered_fft)
 
         self.audio_data = filtered
         return self
 
-    def find_peak_freq(self, freq_min=10000, bump=10):
-        stft_data = self.stft()
+    def find_shelf(self):
+        psd = torch.fft.rfft(self.audio_data, dim=-1).abs()
+        vals, bins = torch.diff(
+            psd.clamp(1e-8).log(), 
+            dim=-1
+        ).abs().max(dim=-1)
 
-
-        # if not self.stft_done:
-        #     self.max_frequency_displayed = 20000
-        #     return -1
-
-        # elif self.audio_signal_copy.file_name.endswith("wav"):
-        #     self.max_frequency_displayed = self.audio_signal_copy.sample_rate // 2
-        #     return -1
-
-        # else:
-        #     freqs = self.audio_signal_copy.freq_vector
-        #     psd = self.audio_signal_copy.get_power_spectrogram_channel(0)
-        #     psd = self._log_space_prepare(psd)
-
-        #     freq_bin = self.audio_signal_copy.get_closest_frequency_bin(freq_min)
-        #     psd = psd[freq_bin:, :]
-
-        #     # Best candidate
-        #     all_power = np.sum(psd, axis=1)
-        #     freq_i = np.argmax(np.abs(np.diff(np.log(all_power))))
-        #     idx = freq_i + freq_bin + bump
-        #     idx = len(freqs) - 1 if idx >= len(freqs) else idx
-
-        #     logger.info(f"Max freq = {freqs[idx]} Hz")
-
-        #     self.max_frequency_displayed = freqs[idx]
-        #     return idx
+        bins[vals < 10] = self.signal_length
+        cutoffs = (self.sample_rate / 2) * (bins + 1) / psd.shape[-1]
+        return cutoffs

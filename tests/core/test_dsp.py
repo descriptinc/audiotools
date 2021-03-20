@@ -35,14 +35,31 @@ def test_low_pass():
     sample_rate = 44100
     f = 440
     t = torch.arange(0, 1, 1 / sample_rate)
-    sine_wave = torch.sin(2 * np.pi * 440 * t)
+    sine_wave = torch.sin(2 * np.pi * f * t)
     signal = AudioSignal(
         sine_wave.unsqueeze(0),
         sample_rate=sample_rate
     )
-    signal.low_pass(220)
+    out = signal.deepcopy().low_pass(220)
+    assert out.audio_data.abs().max() < 1e-4
 
-    zeros = AudioSignal(
-        torch.zeros_like(signal.audio_data), 
-        sample_rate=sample_rate
+    out = signal.deepcopy().low_pass(880)
+    assert (out - signal).audio_data.abs().max() < 1e-3
+    
+def test_find_shelf():
+    noise = torch.randn(1, 1, int(5 * 44100))
+    batch_size = 5
+    nz_signal = AudioSignal(noise, sample_rate=44100)
+    nz_batch = AudioSignal.batch(
+        [nz_signal for _ in range(batch_size)]
     )
+
+    cutoffs = nz_batch.find_shelf()
+    assert np.allclose(cutoffs, 44100, 1)
+
+    cutoffs = nz_batch.deepcopy().low_pass(16000).find_shelf()
+    assert np.allclose(cutoffs, 16000, 1)
+
+    shelves = np.random.rand(batch_size, 1) * 22050
+    cutoffs = nz_batch.deepcopy().low_pass(shelves).find_shelf()
+    assert np.allclose(cutoffs, shelves, atol=1)
