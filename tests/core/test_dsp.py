@@ -23,7 +23,7 @@ def test_overlap_add(duration, sample_rate, window_duration):
 
             windowed_signal = signal.deepcopy().collect_windows(
                 window_duration, hop_duration)
-            recombined = windowed_signal.overlap_and_add(hop_duration, 'hanning')
+            recombined = windowed_signal.overlap_and_add(hop_duration)
 
             assert recombined == signal
             assert np.allclose(recombined.audio_data, signal.audio_data, 1e-3)
