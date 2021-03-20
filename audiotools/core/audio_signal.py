@@ -10,6 +10,7 @@ from .playback import PlayMixin
 from .dsp import DSPMixin
 from . import util
 import julius
+import pathlib
 
 STFTParams = namedtuple(
     'STFTParams', ['window_length', 'hop_length', 'window_type']
@@ -23,19 +24,29 @@ in `nussl.core.constants`.
 """
 
 class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, DSPMixin):
-    def __init__(self, audio_path=None, audio_array=None, sample_rate=None, 
+    def __init__(self, audio_path_or_array, sample_rate=None, 
                  stft_params=None, offset=0, duration=None, device=None):
-        if audio_path is None and audio_array is None:
-            raise ValueError("One of audio_path or audio_array must be set!")
-        if audio_path is not None and audio_array is not None:
-            raise ValueError("Only one of audio_path or audio_array must be set!")
+        audio_path = None
+        audio_array = None
+
+        if isinstance(audio_path_or_array, str):
+            audio_path = audio_path_or_array
+        elif isinstance(audio_path_or_array, pathlib.Path):
+            audio_path = audio_path_or_array
+        elif isinstance(audio_path_or_array, np.ndarray):
+            audio_array = audio_path_or_array
+        elif torch.is_tensor(audio_path_or_array):
+            audio_array = audio_path_or_array
+        else:
+            raise ValueError(
+                "audio_path_or_array must be either a Path, "
+                "string, numpy array, or torch Tensor!")
 
         self.path_to_input_file = None
 
         if audio_path is not None:
             self.load_from_file(audio_path, offset=offset, duration=duration, device=device)
-        
-        if audio_array is not None:
+        elif audio_array is not None:
             self.load_from_array(audio_array, sample_rate, device=device)
 
         self.window = None
@@ -96,7 +107,7 @@ class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, D
         audio_mask = torch.cat([x.audio_mask for x in audio_signals], dim=0)
 
         batched_signal = cls(
-            audio_array=audio_data, 
+            audio_data, 
             sample_rate=audio_signals[0].sample_rate,
         )
         batched_signal.audio_mask = audio_mask

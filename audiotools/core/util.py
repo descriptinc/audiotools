@@ -5,6 +5,13 @@ import numpy as np
 import numbers
 import torch
 
+def ensure_tensor(x):
+    if isinstance(x, (float, int, numbers.Integral)):
+        x = np.array([x])
+    if not torch.is_tensor(x):
+        x = torch.from_numpy(x)
+    return x
+
 def _get_value(other):
     from . import AudioSignal
     if isinstance(other, AudioSignal):

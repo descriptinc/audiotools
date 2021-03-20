@@ -5,12 +5,13 @@ import tempfile
 import numpy as np
 import copy
 import pytest
+import pathlib
 
 import audiotools
 
 def test_io():
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
-    signal = AudioSignal(audio_path)
+    signal = AudioSignal(pathlib.Path(audio_path))
 
     with tempfile.NamedTemporaryFile(suffix='.wav') as f:
         signal.write(f.name)
@@ -20,17 +21,14 @@ def test_io():
     print(signal)
 
     array = np.random.randn(2, 16000)
-    signal = AudioSignal(audio_array=array, sample_rate=16000)
+    signal = AudioSignal(array, sample_rate=16000)
     assert np.allclose(signal.numpy().audio_data, array)
 
-    signal = AudioSignal(audio_array=array)
+    signal = AudioSignal(array)
     assert signal.sample_rate == 44100
 
     with pytest.raises(ValueError):
-        signal = AudioSignal(audio_path=audio_path, audio_array=array, sample_rate=16000)
-
-    with pytest.raises(ValueError):
-        signal = AudioSignal()
+        signal = AudioSignal(5,sample_rate=16000)
 
     signal = AudioSignal(audio_path, offset=10, duration=10)
     assert np.allclose(signal.signal_duration, 10.0)
@@ -44,10 +42,10 @@ def test_io():
 def test_arithmetic():
     def _make_signals():
         array = np.random.randn(2, 16000)
-        sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+        sig1 = AudioSignal(array, sample_rate=16000)
 
         array = np.random.randn(2, 16000)
-        sig2 = AudioSignal(audio_array=array, sample_rate=16000)
+        sig2 = AudioSignal(array, sample_rate=16000)
         return sig1, sig2
 
     # Addition (with a copy)
@@ -100,13 +98,13 @@ def test_arithmetic():
 
 def test_equality():
     array = np.random.randn(2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
-    sig2 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
+    sig2 = AudioSignal(array, sample_rate=16000)
 
     assert sig1 == sig2
 
     array = np.random.randn(2, 16000)
-    sig3 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig3 = AudioSignal(array, sample_rate=16000)
 
     assert sig1 != sig3
 
@@ -114,7 +112,7 @@ def test_equality():
 
 def test_indexing():
     array = np.random.randn(4, 2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
 
     assert np.allclose(sig1[0], array[0])
     assert np.allclose(sig1[0, :, 8000], array[0, :, 8000])
@@ -124,14 +122,14 @@ def test_indexing():
 
 def test_copy():
     array = np.random.randn(2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
 
     assert sig1 == sig1.copy()
     assert sig1 == sig1.deepcopy()
 
 def test_zero_pad():
     array = np.random.randn(4, 2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
 
     sig1.zero_pad(100, 100)
     zeros = torch.zeros(4, 2, 100)
@@ -140,7 +138,7 @@ def test_zero_pad():
 
 def test_truncate():
     array = np.random.randn(4, 2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
 
     sig1.truncate_samples(100)
     assert sig1.signal_length == 100
@@ -148,14 +146,14 @@ def test_truncate():
 
 def test_trim():
     array = np.random.randn(4, 2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
 
     sig1.trim(100, 100)
     assert sig1.signal_length == 16000 - 200
     assert np.allclose(sig1.audio_data, array[..., 100:-100])
 
     array = np.random.randn(4, 2, 16000)
-    sig1 = AudioSignal(audio_array=array, sample_rate=16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
     sig1.trim(0, 0)
     assert np.allclose(sig1.audio_data, array)
 
@@ -215,7 +213,7 @@ def test_to_mono():
     array = np.random.randn(4, 2, 16000)
     sr = 16000
 
-    signal = AudioSignal(audio_array=array, sample_rate=sr)
+    signal = AudioSignal(array, sample_rate=sr)
     assert signal.num_channels == 2
 
     signal = signal.to_mono()
@@ -226,7 +224,7 @@ def test_resample(sample_rate):
     array = np.random.randn(4, 2, 16000)
     sr = 16000
 
-    signal = AudioSignal(audio_array=array, sample_rate=sr)
+    signal = AudioSignal(array, sample_rate=sr)
 
     signal = signal.resample(sample_rate)
     assert signal.sample_rate == sample_rate
@@ -239,7 +237,7 @@ def test_batching():
     # All same length, same sample rate.
     for _ in range(batch_size):
         array = np.random.randn(2, 16000)
-        signal = AudioSignal(audio_array=array, sample_rate=16000)
+        signal = AudioSignal(array, sample_rate=16000)
         signals.append(signal)
 
     batched_signal = AudioSignal.batch(signals)
@@ -250,7 +248,7 @@ def test_batching():
     for _ in range(batch_size):
         L = np.random.randint(8000, 32000)
         array = np.random.randn(2, L)
-        signal = AudioSignal(audio_array=array, sample_rate=16000)
+        signal = AudioSignal(array, sample_rate=16000)
         signals.append(signal)
 
     with pytest.raises(RuntimeError):
@@ -268,7 +266,7 @@ def test_batching():
     for _ in range(batch_size):
         L = np.random.randint(8000, 32000)
         array = np.random.randn(2, L)
-        signal = AudioSignal(audio_array=array, sample_rate=16000)
+        signal = AudioSignal(array, sample_rate=16000)
         signals.append(signal)
 
     with pytest.raises(RuntimeError):
@@ -287,7 +285,7 @@ def test_batching():
         L = np.random.randint(8000, 32000)
         sr = np.random.choice([8000, 16000, 32000])
         array = np.random.randn(2, L)
-        signal = AudioSignal(audio_array=array, sample_rate=int(sr))
+        signal = AudioSignal(array, sample_rate=int(sr))
         signals.append(signal)
 
     with pytest.raises(RuntimeError):

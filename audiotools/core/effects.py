@@ -4,13 +4,6 @@ import numpy as np
 import numbers
 from . import util
 
-def _ensure_tensor(x):
-    if isinstance(x, (float, int, numbers.Integral)):
-        x = np.array([x])
-    if not torch.is_tensor(x):
-        x = torch.from_numpy(x)
-    return x
-
 def octave_bands(sample_rate, fc=1000, div=1, start=0.0, n=8):
     """
     Create a bank of octave bands
@@ -49,7 +42,7 @@ class EffectMixin:
         Mixes noise with signal at specified 
         signal-to-noise ratio.
         """
-        snr = _ensure_tensor(snr).to(self.device)
+        snr = util.ensure_tensor(snr).to(self.device)
 
         pad_len = max(0, self.signal_length - other.signal_length)
         other.zero_pad(0, pad_len)
@@ -82,7 +75,7 @@ class EffectMixin:
             idx = other.audio_data.abs().argmax(axis=-1)
             weights = [
                 AudioSignal(
-                    audio_array=other.audio_data[i, ..., idx[i]:],
+                    other.audio_data[i, ..., idx[i]:],
                     sample_rate=other.sample_rate
                 ) 
                 for i in range(other.batch_size)
@@ -108,7 +101,7 @@ class EffectMixin:
         return self
 
     def normalize(self, db=-24.0):
-        db = _ensure_tensor(db).to(self.device)
+        db = util.ensure_tensor(db).to(self.device)
         audio_signal_loudness = self.loudness()
         gain = db - audio_signal_loudness
         gain = torch.exp(gain * self.GAIN_FACTOR)

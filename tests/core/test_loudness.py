@@ -44,7 +44,7 @@ def test_batch_loudness():
 
     assert np.allclose(py_loudness, at_loudness_iso, atol=1e-1)
 
-    signal = AudioSignal(audio_array=array, sample_rate=16000)
+    signal = AudioSignal(array, sample_rate=16000)
     at_loudness_batch = signal.loudness()
     assert np.allclose(py_loudness, at_loudness_batch, atol=1e-1)
 

@@ -16,7 +16,7 @@ def test_overlap_add(duration, sample_rate, window_duration):
         spk_signal.resample(sample_rate)
 
         noise = torch.randn(16, 1, int(duration * sample_rate))
-        nz_signal = AudioSignal(audio_array=noise, sample_rate=sample_rate)
+        nz_signal = AudioSignal(noise, sample_rate=sample_rate)
 
         def _test(signal):
             hop_duration = window_duration / 2
@@ -28,5 +28,21 @@ def test_overlap_add(duration, sample_rate, window_duration):
             assert recombined == signal
             assert np.allclose(recombined.audio_data, signal.audio_data, 1e-3)
 
-        # _test(nz_signal)
+        _test(nz_signal)
         _test(spk_signal)
+
+def test_low_pass():
+    sample_rate = 44100
+    f = 440
+    t = torch.arange(0, 1, 1 / sample_rate)
+    sine_wave = torch.sin(2 * np.pi * 440 * t)
+    signal = AudioSignal(
+        sine_wave.unsqueeze(0),
+        sample_rate=sample_rate
+    )
+    signal.low_pass(220)
+
+    zeros = AudioSignal(
+        torch.zeros_like(signal.audio_data), 
+        sample_rate=sample_rate
+    )

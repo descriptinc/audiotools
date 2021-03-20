@@ -13,7 +13,7 @@ def test_normalize():
     array = np.random.randn(1, 2, 32000)
     array = array / np.abs(array).max()
 
-    signal = AudioSignal(audio_array=array, sample_rate=16000)
+    signal = AudioSignal(array, sample_rate=16000)
     for db_incr in np.arange(10, 75, 5):
         db = -80 + db_incr
         signal = signal.normalize(db)
@@ -25,7 +25,7 @@ def test_normalize():
 
     array = np.random.randn(batch_size, 2, 32000)
     array = array / np.abs(array).max()
-    signal = AudioSignal(audio_array=array, sample_rate=16000)
+    signal = AudioSignal(array, sample_rate=16000)
 
     signal = signal.normalize(db)
     assert np.allclose(signal.loudness(), db, 1e-1)
@@ -65,7 +65,7 @@ def test_convolve():
 
     impulse = np.zeros((1, 16000))
     impulse[..., 0] = 1
-    ir = AudioSignal(audio_array=impulse)
+    ir = AudioSignal(impulse)
     batch_size = 4
 
     spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
@@ -83,7 +83,7 @@ def test_convolve():
 
     impulse = np.zeros((1, 16000))
     impulse[..., 0] = 1
-    ir = AudioSignal(audio_array=impulse)
+    ir = AudioSignal(impulse)
     batch_size = 4
 
     spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
