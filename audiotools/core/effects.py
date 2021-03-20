@@ -230,7 +230,7 @@ class EffectMixin:
     def __matmul__(self, other):
         return self.convolve(other)
 
-class ImpulseResponseMixin: # pragma: no cover
+class ImpulseResponseMixin:
     def decompose_ir(self):
         # Equations 1 and 2 
         # -----------------
@@ -269,7 +269,7 @@ class ImpulseResponseMixin: # pragma: no cover
         den = (late_field ** 2).sum(dim=-1)
         drr = 10 * torch.log10(num / den)
         return drr
-
+    
     @staticmethod
     def solve_alpha(early_response, late_field, wd, target_drr):
         # Equation 5

@@ -53,7 +53,8 @@ class RoomSimulator(torch.utils.data.Dataset):
             # and with varying direct-to-reverberant ratio.
             bands = ir_batch.get_bands()
             curve = -1 + 1 * state.rand(ir_batch.batch_size, bands.shape[0])
-            ir_batch = ir_batch.equalizer(curve).alter_drr(drr)
+            ir_batch = ir_batch.equalizer(curve)
+            ir_batch = ir_batch.alter_drr(drr)
 
             # Convolve
             noisy_spk = (
