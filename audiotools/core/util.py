@@ -4,6 +4,9 @@ from functools import wraps
 import numpy as np
 import numbers
 import torch
+from typing import List
+from pathlib import Path
+import glob
 
 def ensure_tensor(x, ndim=None, batch_size=None):
     if isinstance(x, (float, int, numbers.Integral)):
@@ -85,3 +88,42 @@ def _close_temp_files(tmpfiles):
         _close()
         raise
     _close()
+
+def find_audio(
+    folder : str, 
+    ext : List[str] = ['wav', 'flac', 'mp3']
+):
+    """
+    Finds all audio files in a directory 
+    recursively. Returns a list.
+    Parameters
+    ----------
+    folder : str
+        Folder to look for audio files in, recursively.
+    ext : List[str], optional
+        Extensions to look for without the ., by default
+        ['wav', 'flac', 'mp3'].
+    """
+    folder = Path(folder)        
+    files = []
+    for x in ext:
+        files += folder.glob(f'**/*.{x}')
+    return files
+
+@contextmanager
+def chdir(newdir):
+    """
+    Context manager for switching directories to run a 
+    function. Useful for when you want to use relative
+    paths to different runs.
+    Parameters
+    ----------
+    newdir : str
+        Directory to switch to.
+    """
+    curdir = os.getcwd()
+    try:
+        os.chdir(newdir)
+        yield
+    finally:
+        os.chdir(curdir)

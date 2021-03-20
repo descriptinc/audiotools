@@ -2,6 +2,8 @@ import numpy as np
 from audiotools import util
 import pytest
 import torch
+import tempfile
+import os
 
 def test_check_random_state():
     # seed is None
@@ -30,3 +32,16 @@ def test_hz_to_bin():
     bins = util.hz_to_bin(hz, n_fft, sr)
 
     assert (((bins / n_fft) * sr) - hz).abs().max() < 1
+
+def test_find_audio():
+    audio_files = util.find_audio('tests/', ['wav'])
+    for a in audio_files:
+        assert 'wav' in str(a)
+
+    audio_files = util.find_audio('tests/', ['flac'])
+    assert not audio_files
+
+def test_chdir():
+    with tempfile.TemporaryDirectory(suffix='tmp') as d:
+        with util.chdir(d):
+            assert d == os.path.realpath('.')
