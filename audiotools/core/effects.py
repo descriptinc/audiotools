@@ -86,8 +86,8 @@ class EffectMixin:
         if pad_len > 0:
             other.zero_pad(0, pad_len)
         else:
-            self.zero_pad(0, -pad_len-1)
-        
+            self.zero_pad(0, -pad_len)
+
         other.audio_data /= torch.norm(other.audio_data, p=2, dim=-1, keepdim=True)
         other_fft = torch.fft.rfft(other.audio_data)
         self_fft = torch.fft.rfft(self.audio_data)
@@ -97,7 +97,7 @@ class EffectMixin:
         self.audio_data = convolved_audio
 
         if pad_len < 0:
-            self.trim(0, -pad_len-1)
+            self.trim(0, -pad_len-(pad_len % 2))
         return self
 
     def normalize(self, db=-24.0):
