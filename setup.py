@@ -35,6 +35,8 @@ setup(
         'ffmpy',
         'ipython',
         'rich',
+        'matplotlib',
+        'librosa'
     ],
     extras_require={
         'tests': ['pytest', 'pytest-cov', "line_profiler", "tqdm", "argbind"],

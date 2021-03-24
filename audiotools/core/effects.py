@@ -50,7 +50,8 @@ class EffectMixin:
         tgt_loudness = self.loudness() - snr
 
         other = other.normalize(tgt_loudness)
-        self.audio_data = self.audio_data + other.audio_data        
+        self.audio_data = self.audio_data + other.audio_data     
+
         return self
 
     def convolve(self, other, start_at_max=True):
@@ -102,6 +103,7 @@ class EffectMixin:
 
         convolved_fft = other_fft * self_fft
         convolved_audio = torch.fft.irfft(convolved_fft)
+
         self.audio_data = convolved_audio
 
         return self

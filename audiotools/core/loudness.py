@@ -5,8 +5,6 @@ import torch
 import copy
 from . import util
 
-MIN_LOUDNESS = -120
-
 class Meter(pyloudnorm.Meter):
     """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.
     """
@@ -24,7 +22,7 @@ class Meter(pyloudnorm.Meter):
         output = passband_gain * filtered.permute(0, 2, 1)
         return output
 
-    def integrated_loudness(self, data):
+    def integrated_loudness(self, data, min_loudness=-70):
         if not torch.is_tensor(data):
             data = torch.from_numpy(data).float()
         else:
@@ -83,10 +81,11 @@ class Meter(pyloudnorm.Meter):
         z_avg_gated = torch.nan_to_num(z_avg_gated)
 
         LUFS = -0.691 + 10.0 * torch.log10((G[None, :nch] * z_avg_gated).sum(1))
-        return torch.nan_to_num(LUFS, nan=MIN_LOUDNESS).float()
+        return LUFS.float()
 
 class LoudnessMixin:
     _loudness = None
+    MIN_LOUDNESS = -70
 
     def loudness(self, filter_class='K-weighting', block_size=0.400):
         """
@@ -129,7 +128,7 @@ class LoudnessMixin:
         self.truncate_samples(original_length)
         min_loudness = (
             torch.ones_like(loudness, device=loudness.device) *
-            MIN_LOUDNESS
+            self.MIN_LOUDNESS
         )
         self._loudness = torch.maximum(loudness, min_loudness)
         return self._loudness.to(self.device)

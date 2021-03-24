@@ -8,6 +8,7 @@ from .effects import EffectMixin, ImpulseResponseMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
 from .dsp import DSPMixin
+from .display import DisplayMixin
 from . import util
 import julius
 import pathlib
@@ -23,7 +24,14 @@ are not specified will be inferred by the AudioSignal parameters and the setting
 in `nussl.core.constants`.
 """
 
-class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, DSPMixin):
+class AudioSignal(
+    EffectMixin, 
+    LoudnessMixin, 
+    PlayMixin, 
+    ImpulseResponseMixin, 
+    DSPMixin,
+    DisplayMixin
+):
     def __init__(self, audio_path_or_array, sample_rate=None, 
                  stft_params=None, offset=0, duration=None, device=None):
         audio_path = None
@@ -192,6 +200,12 @@ class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, D
         self.audio_data = self.audio_data.to(device).float()
         self.audio_mask = self.audio_mask.to(device).float()
         return self
+
+    def cpu(self):
+        return self.to('cpu')
+    
+    def cuda(self):
+        return self.to('cuda')
 
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
