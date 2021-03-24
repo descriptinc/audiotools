@@ -81,14 +81,22 @@ class EffectMixin:
                 for i in range(other.batch_size)
             ]
             other = AudioSignal.batch(weights, pad_signals=True)
-        
+
         pad_len = self.signal_length - other.signal_length
+
         if pad_len > 0:
             other.zero_pad(0, pad_len)
         else:
-            self.zero_pad(0, -pad_len)
+            other.truncate_samples(self.signal_length)
 
-        other.audio_data /= torch.norm(other.audio_data, p=2, dim=-1, keepdim=True)
+        other.audio_data /= (
+            torch.norm(
+                other.audio_data.clamp(min=1e-8), 
+                p=2, dim=-1, 
+                keepdim=True
+            )
+        )
+
         other_fft = torch.fft.rfft(other.audio_data)
         self_fft = torch.fft.rfft(self.audio_data)
 
@@ -96,8 +104,6 @@ class EffectMixin:
         convolved_audio = torch.fft.irfft(convolved_fft)
         self.audio_data = convolved_audio
 
-        if pad_len < 0:
-            self.trim(0, -pad_len-(pad_len % 2))
         return self
 
     def normalize(self, db=-24.0):

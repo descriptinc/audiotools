@@ -34,6 +34,7 @@ setup(
         'torchaudio',
         'ffmpy',
         'ipython',
+        'rich',
     ],
     extras_require={
         'tests': ['pytest', 'pytest-cov', "line_profiler", "tqdm", "argbind"],

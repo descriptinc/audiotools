@@ -6,6 +6,7 @@ import numpy as np
 import copy
 import pytest
 import pathlib
+from rich.console import Console 
 
 import audiotools
 
@@ -19,6 +20,10 @@ def test_io():
 
     assert signal == signal_from_file
     print(signal)
+
+    import rich
+
+    rich.print(signal)
 
     array = np.random.randn(2, 16000)
     signal = AudioSignal(array, sample_rate=16000)

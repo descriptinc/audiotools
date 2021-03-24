@@ -472,7 +472,31 @@ class AudioSignal(EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, D
             f"Number of channels: {self.num_channels if self.num_channels else '[unknown]'} ch\n"
             f"Audio data shape: {self.audio_data.shape}\n"
             f"STFT Parameters: {self.stft_params}"
-        )
+        )   
+
+    def __rich__(self):
+        from rich.table import Table 
+
+        dur = f'{self.signal_duration:0.3f}' if self.signal_duration else '[unknown]'
+
+        info = {
+            'duration': f'{dur} seconds', 
+            'batch_size': self.batch_size,
+            'path': self.path_to_input_file if self.path_to_input_file else 'path unknown',
+            'sample_rate': self.sample_rate,
+            'num_channels': self.num_channels if self.num_channels else '[unknown]',
+            'audio_data.shape': self.audio_data.shape,
+            'stft_params': self.stft_params
+        }
+
+        table = Table(title=f"{self.__class__.__name__}")
+        table.add_column("Key", style="green")
+        table.add_column("Value", style="cyan")
+
+        for k, v in info.items():
+            table.add_row(k, str(v))
+        return table
+
     
     # Comparison 
     def __eq__(self, other):
