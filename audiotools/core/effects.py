@@ -172,7 +172,9 @@ class EffectMixin:
         return self
 
     def mel_filterbank(self, n_bands):
-        filterbank = julius.SplitBands(self.sample_rate, n_bands).float()
+        filterbank = julius.SplitBands(
+            self.sample_rate, n_bands
+        ).float().to(self.device)
         filtered = filterbank(self.audio_data)
         return filtered.permute(1, 2, 3, 0)
 
