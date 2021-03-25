@@ -178,7 +178,8 @@ def test_to_from_ops():
 
     signal.cpu()
     signal.cuda()
-
+    signal.float()
+    
 @pytest.mark.parametrize("window_length", [2048, 512])
 @pytest.mark.parametrize("hop_length", [512, 128])
 @pytest.mark.parametrize("window_type", ["sqrt_hann", "hanning", None])

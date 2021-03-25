@@ -201,6 +201,11 @@ class AudioSignal(
         self.audio_mask = self.audio_mask.to(device).float()
         return self
 
+    def float(self):
+        self.audio_data = self.audio_data.float()
+        self.audio_mask = self.audio_mask.float()
+        return self
+
     def cpu(self):
         return self.to('cpu')
     
