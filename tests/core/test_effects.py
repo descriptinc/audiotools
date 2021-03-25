@@ -149,13 +149,11 @@ def test_time_stretch():
 
     assert np.allclose(batched[0], single[0])
 
-@pytest.mark.parametrize("fc", [440, 1000])
-@pytest.mark.parametrize("div", [1, 3, 4, 8])
-@pytest.mark.parametrize("n", [4, 8])
-def test_octave_filterbank(fc, div, n):
+@pytest.mark.parametrize("n_bands", [1, 2, 4, 8, 12, 16])
+def test_mel_filterbank(n_bands):
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     spk = AudioSignal(audio_path, offset=10, duration=1)
-    fbank = spk.deepcopy().octave_filterbank(fc=fc, div=div, n=n)
+    fbank = spk.deepcopy().mel_filterbank(n_bands)
 
     assert torch.allclose(fbank.sum(-1), spk.audio_data, atol=1e-6)
 
@@ -164,34 +162,33 @@ def test_octave_filterbank(fc, div, n):
         AudioSignal.excerpt('tests/audio/spk/f10_script4_produced.wav', duration=2)
         for _ in range(16)
     ])
-    fbank = spk_batch.deepcopy().octave_filterbank(fc=fc, div=div, n=n)
-    assert torch.allclose(fbank.sum(-1), spk_batch.audio_data, atol=1e-6)
+    fbank = spk_batch.deepcopy().mel_filterbank(n_bands)
+    summed = fbank.sum(-1)
+    assert torch.allclose(summed, spk_batch.audio_data, atol=1e-6)
 
-def test_equalizer():
+@pytest.mark.parametrize("n_bands", [1, 2, 4, 8, 12, 16])
+def test_equalizer(n_bands):
     audio_path = 'tests/audio/spk/f10_script4_produced.wav'
     spk = AudioSignal(audio_path, offset=10, duration=10)
     
-    bands = spk.get_bands()
-    db = -3 + 1 * torch.rand(bands.shape[0])
+    db = -3 + 1 * torch.rand(n_bands)
     spk.deepcopy().equalizer(db)
 
-    bands = spk.get_bands()
-    db = -3 + 1 * np.random.rand(bands.shape[0])
+    db = -3 + 1 * np.random.rand(n_bands)
     spk.deepcopy().equalizer(db)
 
     audio_path = 'tests/audio/ir/h179_Bar_1txts.wav'
     ir = AudioSignal(audio_path)
-    bands = ir.get_bands(div=1)
-    db = -3 + 1 * torch.rand(bands.shape[0])
+    db = -3 + 1 * torch.rand(n_bands)
 
-    spk.deepcopy().convolve(ir.equalizer(db, div=1))
+    spk.deepcopy().convolve(ir.equalizer(db))
 
     spk_batch = AudioSignal.batch([
         AudioSignal.excerpt('tests/audio/spk/f10_script4_produced.wav', duration=2)
         for _ in range(16)
     ])
     
-    db = torch.zeros(spk_batch.batch_size, bands.shape[0])
+    db = torch.zeros(spk_batch.batch_size, n_bands)
     output = spk_batch.deepcopy().equalizer(db)    
 
     assert output == spk_batch

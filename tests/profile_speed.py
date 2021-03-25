@@ -45,14 +45,14 @@ class RoomSimulator(torch.utils.data.Dataset):
             clean_spk = spk_batch.deepcopy()
 
             # Augment the noise signal with equalization
-            bands = nz_batch.get_bands()
-            curve = -1 + 1 * state.rand(nz_batch.batch_size, bands.shape[0])
+            n_bands = 6
+            curve = -1 + 1 * state.rand(nz_batch.batch_size, n_bands)
             nz_batch = nz_batch.equalizer(curve)
 
             # Augment the impulse response to simulate microphone effects
             # and with varying direct-to-reverberant ratio.
-            bands = ir_batch.get_bands()
-            curve = -1 + 1 * state.rand(ir_batch.batch_size, bands.shape[0])
+            n_bands = 6
+            curve = -1 + 1 * state.rand(ir_batch.batch_size, n_bands)
             ir_batch = ir_batch.equalizer(curve)
             ir_batch = ir_batch.alter_drr(drr)
 

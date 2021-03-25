@@ -112,12 +112,11 @@ spk_batch.deepcopy() @ ir_batch # Same as above.
 # Next, let's apply some equalization to the impulse response, to simulate different mic 
 # responses.
 
-# First, we need to figure out the number of bands in the EQ.
-bands = ir.get_bands()
+n_bands = 6
 
 # Then, let's make a random EQ curve.
 # The curve is in dB.
-curve = -2.5 + 1 * torch.rand(bands.shape[0])
+curve = -2.5 + 1 * torch.rand(n_bands)
 
 # Now, apply it to the impulse response.
 eq_ir = ir.deepcopy().equalizer(curve)
@@ -200,13 +199,13 @@ def augment(seed):
     clean_spk = spk_batch.deepcopy()
 
     # Augment the noise signal with equalization
-    bands = nz_batch.get_bands()
-    curve = -1 + 1 * state.rand(nz_batch.batch_size, bands.shape[0])
+    n_bands = 6
+    curve = -1 + 1 * state.rand(nz_batch.batch_size, n_bands)
     nz_batch = nz_batch.equalizer(curve)
 
     # Augment the impulse response to simulate microphone effects.
-    bands = ir_batch.get_bands()
-    curve = -1 + 1 * state.rand(ir_batch.batch_size, bands.shape[0])
+    n_bands = 6
+    curve = -1 + 1 * state.rand(ir_batch.batch_size, n_bands)
     ir_batch = ir_batch.equalizer(curve)
 
     # Convolve

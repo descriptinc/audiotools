@@ -1,30 +1,8 @@
 import torchaudio
 import torch
 import numpy as np
-import numbers
+import julius
 from . import util
-
-def octave_bands(sample_rate, fc=1000, div=1, start=0.0, n=8):
-    """
-    Create a bank of octave bands
-    Parameters
-    ----------
-    fc : float, optional
-        The center frequency
-    start : float, optional
-        Starting frequency for octave bands in Hz (default 0.)
-    n : int, optional
-        Number of frequency bands (default 8)
-    """
-    # Octave Bands
-    fcentre = fc * (
-        2.0 ** (np.arange(start * div, (start + n) * div - (div - 1)) / div)
-    )
-    fd = 2 ** (0.5 / div)
-    bands = [[f / fd, f * fd] for f in fcentre if f * fd < sample_rate / 2]
-    bands.insert(0, [0, bands[0][0]])
-    bands.append([bands[-1][-1], sample_rate / 2])
-    return np.array(bands)
 
 class EffectMixin:
     GAIN_FACTOR = np.log(10) / 20
@@ -193,35 +171,17 @@ class EffectMixin:
         self.audio_data = augmented
         return self
 
-    def get_bands(self, fc=1000, div=1, n=8):
-        bands = octave_bands(self.sample_rate, div=div, fc=fc, n=n)
-        bands = torch.from_numpy(bands)
-        return bands
+    def mel_filterbank(self, n_bands):
+        filterbank = julius.SplitBands(self.sample_rate, n_bands).float()
+        filtered = filterbank(self.audio_data)
+        return filtered.permute(1, 2, 3, 0)
 
-    def octave_filterbank(self, fc=1000, div=1, n=8):
-        bands = self.get_bands(fc=fc, div=div, n=n)
-        closest_bins = util.hz_to_bin(bands, self.signal_length, self.sample_rate)
-
-        fft_data = torch.fft.rfft(self.audio_data)
-        filters = torch.zeros(
-            *(fft_data.shape + (closest_bins.shape[0],)), 
-            device=fft_data.device
-        )
-        for i, band in enumerate(closest_bins):
-            filters[..., band[0]:band[1], i] = 1
-        filtered_fft = fft_data[..., None] * filters
-
-        fbank = torch.fft.irfft(filtered_fft.permute(0, 1, 3, 2))
-        fbank = fbank.permute(0, 1, 3, 2)
-        return fbank
-
-    def equalizer(self, db, div=1):
-        fbank = self.octave_filterbank(div=div)
+    def equalizer(self, db):
         if not torch.is_tensor(db):
             db = torch.from_numpy(db)
+        n_bands = db.shape[-1]
+        fbank = self.mel_filterbank(n_bands)
         
-        # Same number of boosts/cuts.
-        assert db.shape[-1] == fbank.shape[-1]
         # If there's a batch dimension, make sure it's the same.
         if db.ndim == 2:
             if db.shape[0] != 1:
