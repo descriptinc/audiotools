@@ -1,6 +1,7 @@
 import torchaudio
 import torch
 import numpy as np
+import julius
 from . import util
 
 class DSPMixin:
@@ -91,31 +92,27 @@ class DSPMixin:
         self.trim(hop_length, hop_length)
         return self
 
-    def low_pass(self, cutoffs):
+    def low_pass(self, cutoffs, zeros=51):
         cutoffs = util.ensure_tensor(cutoffs, 2, self.batch_size)
-        closest_bins = util.hz_to_bin(
-            cutoffs, self.signal_length, self.sample_rate
-        )
-
-        fft_data = torch.fft.rfft(self.audio_data)
-        filters = torch.zeros(fft_data.shape, device=fft_data.device)
-
-        for i, cutoff in enumerate(closest_bins):
-            filters[i, ..., :cutoff] = 1
-
-        filtered_fft = fft_data * filters
-        filtered = torch.fft.irfft(filtered_fft)
-
+        cutoffs = cutoffs / self.sample_rate
+        filtered = torch.empty_like(self.audio_data)
+        for i, cutoff in enumerate(cutoffs):
+            filtered[i] = julius.lowpass_filter(
+                self.audio_data[i], cutoff, zeros=zeros
+            )
         self.audio_data = filtered
         return self
 
-    def find_shelf(self):
-        psd = torch.fft.rfft(self.audio_data, dim=-1).abs()
-        vals, bins = torch.diff(
-            psd.clamp(1e-8).log(), 
-            dim=-1
-        ).abs().max(dim=-1)
+    def find_shelf(self, thresh=2):
+        fft = torch.fft.rfft(self.audio_data, dim=-1)
+        psd = fft.abs().pow(2).clamp(1e-8).log10()
+        psd = torch.nn.functional.avg_pool1d(psd, kernel_size=3, stride=1)
 
-        bins[vals < 10] = self.signal_length
+        psd[psd < thresh] = 0
+        psd[psd > thresh] = 1
+        diffs = torch.diff(psd).abs()
+
+        vals, bins = diffs.max(dim=-1)
+        bins[vals == 0] = self.signal_length
         cutoffs = (self.sample_rate / 2) * (bins + 1) / psd.shape[-1]
         return cutoffs

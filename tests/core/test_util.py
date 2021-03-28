@@ -4,6 +4,7 @@ import pytest
 import torch
 import tempfile
 import os
+from pathlib import Path
 
 def test_check_random_state():
     # seed is None
@@ -44,4 +45,4 @@ def test_find_audio():
 def test_chdir():
     with tempfile.TemporaryDirectory(suffix='tmp') as d:
         with util.chdir(d):
-            assert d == os.path.realpath('.')
+            assert os.path.samefile(d, os.path.realpath('.'))
