@@ -7,6 +7,7 @@ import copy
 import pytest
 import pathlib
 from rich.console import Console 
+import librosa
 
 import audiotools
 
@@ -17,6 +18,9 @@ def test_io():
     with tempfile.NamedTemporaryFile(suffix='.wav') as f:
         signal.write(f.name)
         signal_from_file = AudioSignal(f.name)
+
+    mp3_signal = AudioSignal(audio_path.replace('wav', 'mp3'))
+    print(mp3_signal)
 
     assert signal == signal_from_file
     print(signal)

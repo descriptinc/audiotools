@@ -12,6 +12,7 @@ from .display import DisplayMixin
 from . import util
 import julius
 import pathlib
+import librosa
 
 STFTParams = namedtuple(
     'STFTParams', ['window_length', 'hop_length', 'window_type']
@@ -124,18 +125,25 @@ class AudioSignal(
 
     # I/O
     def load_from_file(self, audio_path, offset, duration, device=None):
-        info = torchaudio.info(audio_path)
-        sample_rate = info.sample_rate
+        try:
+            info = torchaudio.info(audio_path)
+            sample_rate = info.sample_rate
 
-        frame_offset = min(int(sample_rate * offset), info.num_frames)
-        if duration is not None:
-            num_frames = min(int(sample_rate * duration), info.num_frames)
-        else:
-            num_frames = info.num_frames
+            frame_offset = min(int(sample_rate * offset), info.num_frames)
+            if duration is not None:
+                num_frames = min(int(sample_rate * duration), info.num_frames)
+            else:
+                num_frames = info.num_frames
 
-        data, sample_rate = torchaudio.load(
-            audio_path, frame_offset=frame_offset, num_frames=num_frames
-        )
+            data, sample_rate = torchaudio.load(
+                audio_path, frame_offset=frame_offset, num_frames=num_frames
+            )
+        except:
+            data, sample_rate = librosa.load(
+                audio_path, offset=offset, duration=duration, sr=None, 
+            )
+            data = torch.from_numpy(data)
+
         self.audio_data = data
         self.original_signal_length = self.signal_length
 
@@ -259,6 +267,8 @@ class AudioSignal(
         than 3 dims (e.g. is (num_channels, num_samples)), then it will
         be reshaped to (1, num_channels, num_samples) - a batch size of 1.
         """
+        if value.ndim < 2:
+            value = value.unsqueeze(0)
         if value.ndim < 3:
             if torch.is_tensor(value):
                 value = value.unsqueeze(0)
