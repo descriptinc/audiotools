@@ -1,13 +1,10 @@
-import copy
 import pathlib
 import tempfile
 
-import librosa
 import numpy as np
 import pytest
+import rich
 import torch
-import torchaudio
-from rich.console import Console
 
 import audiotools
 from audiotools import AudioSignal
@@ -27,7 +24,10 @@ def test_io():
     assert signal == signal_from_file
     print(signal)
 
-    import rich
+    mp3_signal = AudioSignal.excerpt(
+        audio_path.replace("wav", "mp3"), offset=5, duration=5
+    )
+    assert mp3_signal.signal_duration == 5.0
 
     rich.print(signal)
 
@@ -49,6 +49,9 @@ def test_io():
 
     assert "offset" in signal.metadata
     assert "duration" in signal.metadata
+
+    signal = AudioSignal(torch.randn(1000), 44100)
+    assert signal.audio_data.ndim == 3
 
 
 def test_arithmetic():
