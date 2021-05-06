@@ -144,7 +144,7 @@ class AudioSignal(
 
         data, sample_rate = torchaudio.load(
             audio_path, frame_offset=frame_offset, num_frames=num_frames
-            )
+        )
 
         self.audio_data = data
         self.original_signal_length = self.signal_length
