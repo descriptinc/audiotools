@@ -27,7 +27,7 @@ def info(audio_path):
         Path to audio file.
     """
     info = torchaudio.info(str(audio_path))
-    if isinstance(info, tuple):
+    if isinstance(info, tuple):  # pragma: no cover
         signal_info = info[0]
         info = Info(sample_rate=signal_info.rate, num_frames=signal_info.length)
     return info
