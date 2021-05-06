@@ -173,9 +173,7 @@ class AudioSignal(
         return self.to(device)
 
     def write(self, audio_path, batch_idx=0):
-        torchaudio.save(
-            audio_path, self.audio_data[batch_idx], self.sample_rate, precision=32
-        )
+        torchaudio.save(audio_path, self.audio_data[batch_idx], self.sample_rate)
         return self
 
     def deepcopy(self):

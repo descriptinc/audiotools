@@ -120,6 +120,9 @@ def test_pipeline():
 
 
 def test_codec():
+    torchaudio_version_070 = "0.7" in torchaudio.__version__
+    if torchaudio_version_070:
+        return
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     spk = AudioSignal(audio_path, offset=10, duration=10)
 

@@ -144,7 +144,11 @@ class EffectMixin:
         encoding=None,
         bits_per_sample=None,
         compression=None,
-    ):
+    ):  # pragma: no cover
+        torchaudio_version_070 = "0.7" in torchaudio.__version__
+        if torchaudio_version_070:
+            return self
+
         kwargs = {
             "format": format,
             "encoding": encoding,
