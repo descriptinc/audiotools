@@ -1,40 +1,44 @@
-import torchaudio
+import copy
+import pathlib
+from collections import namedtuple
+
+import julius
+import librosa
 import numpy as np
 import torch
-from collections import namedtuple
+import torchaudio
 from scipy import signal
-import copy
-from .effects import EffectMixin, ImpulseResponseMixin
+
+from . import util
+from .display import DisplayMixin
+from .dsp import DSPMixin
+from .effects import EffectMixin
+from .effects import ImpulseResponseMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
-from .dsp import DSPMixin
-from .display import DisplayMixin
-from . import util
-import julius
-import pathlib
-import librosa
 
-STFTParams = namedtuple(
-    'STFTParams', ['window_length', 'hop_length', 'window_type']
-)
+STFTParams = namedtuple("STFTParams", ["window_length", "hop_length", "window_type"])
 STFTParams.__new__.__defaults__ = (None,) * len(STFTParams._fields)
 """
-STFTParams object is a container that holds STFT parameters - window_length, 
+STFTParams object is a container that holds STFT parameters - window_length,
 hop_length, and window_type. Not all parameters need to be specified. Ones that
 are not specified will be inferred by the AudioSignal parameters and the settings
 in `nussl.core.constants`.
 """
 
+
 class AudioSignal(
-    EffectMixin, 
-    LoudnessMixin, 
-    PlayMixin, 
-    ImpulseResponseMixin, 
-    DSPMixin,
-    DisplayMixin
+    EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, DSPMixin, DisplayMixin
 ):
-    def __init__(self, audio_path_or_array, sample_rate=None, 
-                 stft_params=None, offset=0, duration=None, device=None):
+    def __init__(
+        self,
+        audio_path_or_array,
+        sample_rate=None,
+        stft_params=None,
+        offset=0,
+        duration=None,
+        device=None,
+    ):
         audio_path = None
         audio_array = None
 
@@ -49,12 +53,15 @@ class AudioSignal(
         else:
             raise ValueError(
                 "audio_path_or_array must be either a Path, "
-                "string, numpy array, or torch Tensor!")
+                "string, numpy array, or torch Tensor!"
+            )
 
         self.path_to_input_file = None
 
         if audio_path is not None:
-            self.load_from_file(audio_path, offset=offset, duration=duration, device=device)
+            self.load_from_file(
+                audio_path, offset=offset, duration=duration, device=device
+            )
         elif audio_array is not None:
             self.load_from_array(audio_array, sample_rate, device=device)
 
@@ -68,21 +75,22 @@ class AudioSignal(
     def excerpt(cls, audio_path, offset=None, duration=None, state=None, **kwargs):
         info = torchaudio.info(audio_path)
         total_duration = info.num_frames / info.sample_rate
-        
+
         state = util.random_state(state)
         lower_bound = 0 if offset is None else offset
         upper_bound = max(total_duration - duration, 0)
         offset = state.uniform(lower_bound, upper_bound)
 
         signal = cls(audio_path, offset=offset, duration=duration)
-        signal.metadata['offset'] = offset
-        signal.metadata['duration'] = duration
+        signal.metadata["offset"] = offset
+        signal.metadata["duration"] = duration
 
         return signal
 
     @classmethod
-    def batch(cls, audio_signals, pad_signals=False, 
-              truncate_signals=False, resample=False):
+    def batch(
+        cls, audio_signals, pad_signals=False, truncate_signals=False, resample=False
+    ):
         signal_lengths = [x.signal_length for x in audio_signals]
         sample_rates = [x.sample_rate for x in audio_signals]
 
@@ -110,14 +118,14 @@ class AudioSignal(
                 raise RuntimeError(
                     f"Not all signals had the same length! Got {signal_lengths}. "
                     f"All signals must be the same length, or pad_signals/truncate_signals "
-                    f"must be True. " 
+                    f"must be True. "
                 )
         # Concatenate along the batch dimension
         audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
         audio_mask = torch.cat([x.audio_mask for x in audio_signals], dim=0)
 
         batched_signal = cls(
-            audio_data, 
+            audio_data,
             sample_rate=audio_signals[0].sample_rate,
         )
         batched_signal.audio_mask = audio_mask
@@ -140,7 +148,10 @@ class AudioSignal(
             )
         except:
             data, sample_rate = librosa.load(
-                audio_path, offset=offset, duration=duration, sr=None, 
+                audio_path,
+                offset=offset,
+                duration=duration,
+                sr=None,
             )
             data = torch.from_numpy(data)
 
@@ -156,7 +167,7 @@ class AudioSignal(
         self.audio_data = audio_array
         self.original_signal_length = self.signal_length
 
-        if self.device == 'numpy':
+        if self.device == "numpy":
             self.audio_mask = np.ones_like(audio_array)
         else:
             self.audio_mask = torch.ones_like(self.audio_data)
@@ -167,8 +178,7 @@ class AudioSignal(
 
     def write(self, audio_path, batch_idx=0):
         torchaudio.save(
-            audio_path, self.audio_data[batch_idx], 
-            self.sample_rate, bits_per_sample=32
+            audio_path, self.audio_data[batch_idx], self.sample_rate, bits_per_sample=32
         )
         return self
 
@@ -187,7 +197,7 @@ class AudioSignal(
     def resample(self, sample_rate):
         if sample_rate == self.sample_rate:
             return self
-        self.to() # Ensure tensors.
+        self.to()  # Ensure tensors.
         self.audio_data = julius.resample_frac(
             self.audio_data, self.sample_rate, sample_rate
         )
@@ -203,8 +213,9 @@ class AudioSignal(
             self.audio_data = torch.from_numpy(self.audio_data)
         if isinstance(self.audio_mask, np.ndarray):
             self.audio_mask = torch.from_numpy(self.audio_mask)
-        if device is None: device = self.device
-        device = device if torch.cuda.is_available() else 'cpu'
+        if device is None:
+            device = self.device
+        device = device if torch.cuda.is_available() else "cpu"
         self.audio_data = self.audio_data.to(device).float()
         self.audio_mask = self.audio_mask.to(device).float()
         return self
@@ -215,23 +226,19 @@ class AudioSignal(
         return self
 
     def cpu(self):
-        return self.to('cpu')
-    
+        return self.to("cpu")
+
     def cuda(self):
-        return self.to('cuda')
+        return self.to("cuda")
 
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
         self.audio_mask = self.audio_mask.detach().cpu().numpy()
-        return self           
+        return self
 
     def zero_pad(self, before, after):
-        self.audio_data = torch.nn.functional.pad(
-            self.audio_data, (before, after)
-        )
-        self.audio_mask = torch.nn.functional.pad(
-            self.audio_mask, (before, after)
-        )
+        self.audio_data = torch.nn.functional.pad(self.audio_data, (before, after))
+        self.audio_mask = torch.nn.functional.pad(self.audio_mask, (before, after))
         return self
 
     def trim(self, before, after):
@@ -244,16 +251,16 @@ class AudioSignal(
         return self
 
     def truncate_samples(self, length_in_samples):
-       self.audio_data = self.audio_data[..., :length_in_samples]
-       self.audio_mask = self.audio_mask[..., :length_in_samples]
-       return self
+        self.audio_data = self.audio_data[..., :length_in_samples]
+        self.audio_mask = self.audio_mask[..., :length_in_samples]
+        return self
 
     @property
     def device(self):
         if torch.is_tensor(self.audio_data):
             return self.audio_data.device
         else:
-            return 'numpy'
+            return "numpy"
 
     # Properties
     @property
@@ -296,20 +303,18 @@ class AudioSignal(
     @staticmethod
     def get_window(window_type, window_length, device):
         """
-        Wrapper around scipy.signal.get_window so one can also get the 
+        Wrapper around scipy.signal.get_window so one can also get the
         popular sqrt-hann window.
-        
+
         Args:
             window_type (str): Type of window to get (see constants.ALL_WINDOW).
             window_length (int): Length of the window
-        
+
         Returns:
             np.ndarray: Window returned by scipy.signa.get_window
         """
-        if window_type == 'sqrt_hann':
-            window = np.sqrt(signal.get_window(
-                'hann', window_length
-            ))
+        if window_type == "sqrt_hann":
+            window = np.sqrt(signal.get_window("hann", window_length))
         else:
             window = signal.get_window(window_type, window_length)
         window = torch.from_numpy(window).to(device).float()
@@ -321,16 +326,14 @@ class AudioSignal(
 
     @stft_params.setter
     def stft_params(self, value):
-        default_win_len = int(
-            2 ** (np.ceil(np.log2(.032 * self.sample_rate)))
-        )
+        default_win_len = int(2 ** (np.ceil(np.log2(0.032 * self.sample_rate))))
         default_hop_len = default_win_len // 4
-        default_win_type = 'sqrt_hann'
+        default_win_type = "sqrt_hann"
 
         default_stft_params = STFTParams(
             window_length=default_win_len,
             hop_length=default_hop_len,
-            window_type=default_win_type
+            window_type=default_win_type,
         )._asdict()
 
         value = value._asdict() if value else default_stft_params
@@ -340,8 +343,10 @@ class AudioSignal(
                 value[key] = default_stft_params[key]
 
         self._stft_params = STFTParams(**value)
-    
-    def stft(self, window_length=None, hop_length=None, window_type=None, return_complex=True):
+
+    def stft(
+        self, window_length=None, hop_length=None, window_type=None, return_complex=True
+    ):
         """
         Computes the Short Time Fourier Transform (STFT) of :attr:`audio_data`.
         The results of the STFT calculation can be accessed from :attr:`stft_data`
@@ -357,7 +362,7 @@ class AudioSignal(
             (:obj:`np.ndarray`) Calculated, complex-valued STFT from :attr:`audio_data`, 3D numpy
             array with shape `(n_frequency_bins, n_hops, n_channels)`.
         """
-        self.to() # Ensure audio data is a tensor.
+        self.to()  # Ensure audio data is a tensor.
 
         window_length = (
             self.stft_params.window_length
@@ -365,14 +370,10 @@ class AudioSignal(
             else int(window_length)
         )
         hop_length = (
-            self.stft_params.hop_length
-            if hop_length is None
-            else int(hop_length)
+            self.stft_params.hop_length if hop_length is None else int(hop_length)
         )
         window_type = (
-            self.stft_params.window_type
-            if window_type is None
-            else window_type
+            self.stft_params.window_type if window_type is None else window_type
         )
 
         stft_data = []
@@ -381,17 +382,25 @@ class AudioSignal(
         window = window.to(self.audio_data.device)
 
         stft_data = torch.stft(
-            self.audio_data.reshape(-1, self.signal_length), 
-            n_fft=window_length, hop_length=hop_length, 
-            window=window, return_complex=return_complex
+            self.audio_data.reshape(-1, self.signal_length),
+            n_fft=window_length,
+            hop_length=hop_length,
+            window=window,
+            return_complex=return_complex,
         )
         _, nf, nt = stft_data.shape
         stft_data = stft_data.reshape(self.batch_size, self.num_channels, nf, nt)
         self.stft_data = stft_data
         return stft_data
 
-    def istft(self, window_length=None, hop_length=None, window_type=None, truncate_to_length=None):
-        """ Computes and returns the inverse Short Time Fourier Transform (iSTFT).
+    def istft(
+        self,
+        window_length=None,
+        hop_length=None,
+        window_type=None,
+        truncate_to_length=None,
+    ):
+        """Computes and returns the inverse Short Time Fourier Transform (iSTFT).
         The results of the iSTFT calculation can be accessed from :attr:`audio_data`
         if :attr:`audio_data` is ``None`` prior to running this function or ``overwrite == True``
         Warning:
@@ -407,7 +416,7 @@ class AudioSignal(
             with shape `(n_channels, n_samples)`.
         """
         if self.stft_data is None:
-            raise RuntimeError('Cannot do inverse STFT without self.stft_data!')
+            raise RuntimeError("Cannot do inverse STFT without self.stft_data!")
 
         window_length = (
             self.stft_params.window_length
@@ -415,14 +424,10 @@ class AudioSignal(
             else int(window_length)
         )
         hop_length = (
-            self.stft_params.hop_length
-            if hop_length is None
-            else int(hop_length)
+            self.stft_params.hop_length if hop_length is None else int(hop_length)
         )
         window_type = (
-            self.stft_params.window_type
-            if window_type is None
-            else window_type
+            self.stft_params.window_type if window_type is None else window_type
         )
 
         window = self.get_window(window_type, window_length, self.stft_data.device)
@@ -435,9 +440,11 @@ class AudioSignal(
         nb, nch, nf, nt = self.stft_data.shape
         stft_data = self.stft_data.reshape(nb * nch, nf, nt)
         audio_data = torch.istft(
-            stft_data, n_fft=window_length, 
-            hop_length=hop_length, window=window, 
-            length=truncate_to_length
+            stft_data,
+            n_fft=window_length,
+            hop_length=hop_length,
+            window=window,
+            length=truncate_to_length,
         )
         audio_data = audio_data.reshape(nb, nch, -1)
         self.audio_data = audio_data
@@ -491,7 +498,7 @@ class AudioSignal(
 
     # Representation
     def __str__(self):
-        dur = f'{self.signal_duration:0.3f}' if self.signal_duration else '[unknown]'
+        dur = f"{self.signal_duration:0.3f}" if self.signal_duration else "[unknown]"
         return (
             f"{self.__class__.__name__}\n"
             f"Duration: {dur} sec\n"
@@ -501,21 +508,23 @@ class AudioSignal(
             f"Number of channels: {self.num_channels if self.num_channels else '[unknown]'} ch\n"
             f"Audio data shape: {self.audio_data.shape}\n"
             f"STFT Parameters: {self.stft_params}"
-        )   
+        )
 
     def __rich__(self):
-        from rich.table import Table 
+        from rich.table import Table
 
-        dur = f'{self.signal_duration:0.3f}' if self.signal_duration else '[unknown]'
+        dur = f"{self.signal_duration:0.3f}" if self.signal_duration else "[unknown]"
 
         info = {
-            'duration': f'{dur} seconds', 
-            'batch_size': self.batch_size,
-            'path': self.path_to_input_file if self.path_to_input_file else 'path unknown',
-            'sample_rate': self.sample_rate,
-            'num_channels': self.num_channels if self.num_channels else '[unknown]',
-            'audio_data.shape': self.audio_data.shape,
-            'stft_params': self.stft_params
+            "duration": f"{dur} seconds",
+            "batch_size": self.batch_size,
+            "path": self.path_to_input_file
+            if self.path_to_input_file
+            else "path unknown",
+            "sample_rate": self.sample_rate,
+            "num_channels": self.num_channels if self.num_channels else "[unknown]",
+            "audio_data.shape": self.audio_data.shape,
+            "stft_params": self.stft_params,
         }
 
         table = Table(title=f"{self.__class__.__name__}")
@@ -526,8 +535,7 @@ class AudioSignal(
             table.add_row(k, str(v))
         return table
 
-    
-    # Comparison 
+    # Comparison
     def __eq__(self, other):
         for k, v in list(self.__dict__.items()):
             if torch.is_tensor(v):

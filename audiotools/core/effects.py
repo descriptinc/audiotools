@@ -1,34 +1,39 @@
-import torchaudio
-import torch
-import numpy as np
 import julius
+import numpy as np
+import torch
+import torchaudio
+
 from . import util
+
 
 class EffectMixin:
     GAIN_FACTOR = np.log(10) / 20
     CODEC_PRESETS = {
-        "8-bit": {"format": "wav", "encoding": 'ULAW', "bits_per_sample": 8},
+        "8-bit": {"format": "wav", "encoding": "ULAW", "bits_per_sample": 8},
         "GSM-FR": {"format": "gsm"},
         "MP3": {"format": "mp3", "compression": -9},
         "Vorbis": {"format": "vorbis", "compression": -1},
-        "Ogg": {"format": "ogg", "compression": -1,},
-        "Amr-nb": {"format": "amr-nb"}
+        "Ogg": {
+            "format": "ogg",
+            "compression": -1,
+        },
+        "Amr-nb": {"format": "amr-nb"},
     }
 
-    def mix(self, other, snr=10): 
+    def mix(self, other, snr=10):
         """
-        Mixes noise with signal at specified 
+        Mixes noise with signal at specified
         signal-to-noise ratio.
         """
         snr = util.ensure_tensor(snr).to(self.device)
 
         pad_len = max(0, self.signal_length - other.signal_length)
         other.zero_pad(0, pad_len)
-        other.truncate_samples(self.signal_length)        
+        other.truncate_samples(self.signal_length)
         tgt_loudness = self.loudness() - snr
 
         other = other.normalize(tgt_loudness)
-        self.audio_data = self.audio_data + other.audio_data     
+        self.audio_data = self.audio_data + other.audio_data
 
         return self
 
@@ -36,13 +41,13 @@ class EffectMixin:
         """
         Convolves signal one with signal two. There are three
         cases:
-        
+
         1. s1 is multichannel and s2 is mono.
         -> s1's channels will all be convolved with s2.
         2. s1 is mono and s2 is multichannel.
         -> s1 will be convolved with each channel of s2.
         3. s1 and s2 are both multichannel.
-        -> each channel will be convolved with the matching 
+        -> each channel will be convolved with the matching
             channel. If they don't have the same number of
             channels, an error will be thrown.
 
@@ -54,9 +59,8 @@ class EffectMixin:
             idx = other.audio_data.abs().argmax(axis=-1)
             weights = [
                 AudioSignal(
-                    other.audio_data[i, ..., idx[i]:],
-                    sample_rate=other.sample_rate
-                ) 
+                    other.audio_data[i, ..., idx[i] :], sample_rate=other.sample_rate
+                )
                 for i in range(other.batch_size)
             ]
             other = AudioSignal.batch(weights, pad_signals=True)
@@ -68,12 +72,8 @@ class EffectMixin:
         else:
             other.truncate_samples(self.signal_length)
 
-        other.audio_data /= (
-            torch.norm(
-                other.audio_data.clamp(min=1e-8), 
-                p=2, dim=-1, 
-                keepdim=True
-            )
+        other.audio_data /= torch.norm(
+            other.audio_data.clamp(min=1e-8), p=2, dim=-1, keepdim=True
         )
 
         other_fft = torch.fft.rfft(other.audio_data)
@@ -91,7 +91,7 @@ class EffectMixin:
         audio_signal_loudness = self.loudness()
         gain = db - audio_signal_loudness
         gain = torch.exp(gain * self.GAIN_FACTOR)
-        
+
         self.audio_data = self.audio_data * gain[:, None, None]
         self._loudness = None
         return self
@@ -106,11 +106,11 @@ class EffectMixin:
     def pitch_shift(self, n_semitones, quick=True):
         device = self.device
         effects = [
-            ['pitch', str(n_semitones * 100)],
-            ['rate', str(self.sample_rate)],
+            ["pitch", str(n_semitones * 100)],
+            ["rate", str(self.sample_rate)],
         ]
         if quick:
-            effects[0].insert(1, '-q')
+            effects[0].insert(1, "-q")
 
         waveform = self._to_2d().cpu()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
@@ -123,11 +123,11 @@ class EffectMixin:
     def time_stretch(self, factor, quick=True):
         device = self.device
         effects = [
-            ['tempo', str(factor)],
-            ['rate', str(self.sample_rate)],
+            ["tempo", str(factor)],
+            ["rate", str(self.sample_rate)],
         ]
         if quick:
-            effects[0].insert(1, '-q')
+            effects[0].insert(1, "-q")
 
         waveform = self._to_2d().cpu()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(
@@ -137,13 +137,19 @@ class EffectMixin:
         self.audio_data = self._to_3d(waveform)
         return self.to(device)
 
-    def apply_codec(self, preset=None, format="wav", encoding=None, 
-                    bits_per_sample=None, compression=None):
+    def apply_codec(
+        self,
+        preset=None,
+        format="wav",
+        encoding=None,
+        bits_per_sample=None,
+        compression=None,
+    ):
         kwargs = {
-            'format': format,
-            'encoding': encoding,
-            'bits_per_sample': bits_per_sample,
-            'compression': compression
+            "format": format,
+            "encoding": encoding,
+            "bits_per_sample": bits_per_sample,
+            "compression": compression,
         }
 
         if preset is not None:
@@ -154,14 +160,19 @@ class EffectMixin:
                     f"Unknown preset: {preset}. "
                     f"Known presets: {list(self.CODEC_PRESETS.keys())}"
                 )
-        
+
         waveform = self._to_2d()
-        if kwargs['format'] in ['vorbis', 'mp3', 'ogg', 'amr-nb']:
+        if kwargs["format"] in ["vorbis", "mp3", "ogg", "amr-nb"]:
             # Apply it in a for loop
-            augmented = torch.cat([
-                torchaudio.functional.apply_codec(
-                    waveform[i][None, :], self.sample_rate, **kwargs
-            ) for i in range(waveform.shape[0])], dim=0)
+            augmented = torch.cat(
+                [
+                    torchaudio.functional.apply_codec(
+                        waveform[i][None, :], self.sample_rate, **kwargs
+                    )
+                    for i in range(waveform.shape[0])
+                ],
+                dim=0,
+            )
         else:
             augmented = torchaudio.functional.apply_codec(
                 waveform, self.sample_rate, **kwargs
@@ -172,9 +183,9 @@ class EffectMixin:
         return self
 
     def mel_filterbank(self, n_bands):
-        filterbank = julius.SplitBands(
-            self.sample_rate, n_bands
-        ).float().to(self.device)
+        filterbank = (
+            julius.SplitBands(self.sample_rate, n_bands).float().to(self.device)
+        )
         filtered = filterbank(self.audio_data)
         return filtered.permute(1, 2, 3, 0)
 
@@ -183,14 +194,14 @@ class EffectMixin:
             db = torch.from_numpy(db)
         n_bands = db.shape[-1]
         fbank = self.mel_filterbank(n_bands)
-        
+
         # If there's a batch dimension, make sure it's the same.
         if db.ndim == 2:
             if db.shape[0] != 1:
                 assert db.shape[0] == fbank.shape[0]
         else:
             db = db.unsqueeze(0)
-        
+
         weights = (10 ** db).to(self.device).float()
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
@@ -200,15 +211,16 @@ class EffectMixin:
     def __matmul__(self, other):
         return self.convolve(other)
 
+
 class ImpulseResponseMixin:
     def decompose_ir(self):
-        # Equations 1 and 2 
+        # Equations 1 and 2
         # -----------------
-        # Breaking up into early 
+        # Breaking up into early
         # response + late field response.
 
         td = torch.argmax(self.audio_data, dim=-1, keepdim=True)
-        t0 = int(self.sample_rate * .0025)
+        t0 = int(self.sample_rate * 0.0025)
 
         idx = torch.arange(self.audio_data.shape[-1], device=self.device)[None, None, :]
         idx = idx.expand(self.batch_size, -1, -1)
@@ -216,7 +228,7 @@ class ImpulseResponseMixin:
 
         early_response = torch.zeros_like(self.audio_data, device=self.device)
         early_response[early_idx] = self.audio_data[early_idx]
-        
+
         late_idx = ~early_idx
         late_field = torch.zeros_like(self.audio_data, device=self.device)
         late_field[late_idx] = self.audio_data[late_idx]
@@ -230,29 +242,32 @@ class ImpulseResponseMixin:
         for idx in range(self.batch_size):
             window_idx = early_idx[idx, 0].nonzero()
             window[idx, ..., window_idx] = self.get_window(
-                'hanning', window_idx.shape[-1], self.device)
+                "hanning", window_idx.shape[-1], self.device
+            )
         return early_response, late_field, window
 
     def measure_drr(self):
         early_response, late_field, _ = self.decompose_ir()
-        num = (early_response ** 2).sum(dim=-1) 
+        num = (early_response ** 2).sum(dim=-1)
         den = (late_field ** 2).sum(dim=-1)
         drr = 10 * torch.log10(num / den)
         return drr
-    
+
     @staticmethod
     def solve_alpha(early_response, late_field, wd, target_drr):
         # Equation 5
         # ----------
         # Apply the good ol' quadratic formula.
 
-        wd_sq = (wd ** 2)
-        wd_sq_1 = ((1 - wd) ** 2)
+        wd_sq = wd ** 2
+        wd_sq_1 = (1 - wd) ** 2
         e_sq = early_response ** 2
         l_sq = late_field ** 2
         a = (wd_sq * e_sq).sum(dim=-1)
         b = (2 * (1 - wd) * wd * e_sq).sum(dim=-1)
-        c = (wd_sq_1 * e_sq).sum(dim=-1) - torch.pow(10, target_drr / 10) * l_sq.sum(dim=-1)
+        c = (wd_sq_1 * e_sq).sum(dim=-1) - torch.pow(10, target_drr / 10) * l_sq.sum(
+            dim=-1
+        )
 
         expr = ((b ** 2) - 4 * a * c).sqrt()
         alpha = torch.maximum(
@@ -266,12 +281,15 @@ class ImpulseResponseMixin:
 
         early_response, late_field, window = self.decompose_ir()
         alpha = self.solve_alpha(early_response, late_field, window, drr)
-        min_alpha = late_field.abs().max(dim=-1)[0] / early_response.abs().max(dim=-1)[0]
+        min_alpha = (
+            late_field.abs().max(dim=-1)[0] / early_response.abs().max(dim=-1)[0]
+        )
         alpha = torch.maximum(alpha, min_alpha)[..., None]
-            
+
         aug_ir_data = (
-            alpha * window * early_response + 
-            ((1 - window) * early_response) + late_field
+            alpha * window * early_response
+            + ((1 - window) * early_response)
+            + late_field
         )
         self.audio_data = aug_ir_data
         return self

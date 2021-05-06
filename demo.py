@@ -1,10 +1,11 @@
-import audiotools
-from audiotools import AudioSignal
 import torch
 
-spk = AudioSignal('tests/audio/spk/f10_script4_produced.wav', offset=5, duration=2)
-ir = AudioSignal('tests/audio/ir/h179_Bar_1txts.wav')
-nz = AudioSignal('tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav')
+import audiotools
+from audiotools import AudioSignal
+
+spk = AudioSignal("tests/audio/spk/f10_script4_produced.wav", offset=5, duration=2)
+ir = AudioSignal("tests/audio/ir/h179_Bar_1txts.wav")
+nz = AudioSignal("tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav")
 
 # Mixing
 # ------
@@ -15,18 +16,20 @@ spk
 # Mix speaker with noise at varying SNR
 # Making the deep copy before each one to preserve the original signal.
 
-spk.deepcopy().mix(nz, snr=20) # High SNR
-spk.deepcopy().mix(nz, snr=10) # Medium SNR
-spk.deepcopy().mix(nz, snr=0) # Low SNR
+spk.deepcopy().mix(nz, snr=20)  # High SNR
+spk.deepcopy().mix(nz, snr=10)  # Medium SNR
+spk.deepcopy().mix(nz, snr=0)  # Low SNR
 
-# Collate a batch together at random offsets 
+# Collate a batch together at random offsets
 # from one file, same duration
 
 batch_size = 16
-spk_batch = AudioSignal.batch([
-    AudioSignal.excerpt('tests/audio/spk/f10_script4_produced.wav', duration=2)
-    for _ in range(batch_size)
-])
+spk_batch = AudioSignal.batch(
+    [
+        AudioSignal.excerpt("tests/audio/spk/f10_script4_produced.wav", duration=2)
+        for _ in range(batch_size)
+    ]
+)
 
 # Printing gives useful information
 print(spk_batch)
@@ -40,7 +43,7 @@ print(spk_batch)
 # STFT Parameters: STFTParams(window_length=2048, hop_length=512, window_type='sqrt_hann')
 
 # Listen to items in the batch
-spk_batch # 5th item
+spk_batch  # 5th item
 
 # Mix each item in the batch at a different SNR
 tgt_snr = torch.linspace(-10, 10, batch_size)
@@ -51,9 +54,9 @@ output
 
 # Differentiable perceptual loudness
 # -----------------------
-# In Descript, we auto-level to -24dB. Now, we can do the same thing 
+# In Descript, we auto-level to -24dB. Now, we can do the same thing
 # for a batch of audio signals by using an implementation of the same
-# LUFS algorithm used in FFMPEG. This implementation is fully 
+# LUFS algorithm used in FFMPEG. This implementation is fully
 # differentiable, and so can be computed on the GPU. Let's see
 # the loudness of each item in our batch.
 
@@ -97,19 +100,18 @@ spk_batch.deepcopy().convolve(ir)
 # Or if we have a batch of impulse responses, we can convolve a batch of speech signals
 # with the batch of impulse responses.
 
-ir_batch = AudioSignal.batch([
-    AudioSignal('tests/audio/ir/h179_Bar_1txts.wav')
-    for _ in range(batch_size)
-])
+ir_batch = AudioSignal.batch(
+    [AudioSignal("tests/audio/ir/h179_Bar_1txts.wav") for _ in range(batch_size)]
+)
 spk_batch.deepcopy().convolve(ir_batch)
 
 # There's also some syntactic sugar for applying convolution.
 
-spk_batch.deepcopy() @ ir_batch # Same as above.
+spk_batch.deepcopy() @ ir_batch  # Same as above.
 
 # Equalization
 # ------------
-# Next, let's apply some equalization to the impulse response, to simulate different mic 
+# Next, let's apply some equalization to the impulse response, to simulate different mic
 # responses.
 
 n_bands = 6
@@ -134,7 +136,7 @@ spk.deepcopy().pitch_shift(-2)
 spk.deepcopy().time_stretch(1.2)
 spk.deepcopy().time_stretch(0.8)
 
-# Like other transformations, they also get applied 
+# Like other transformations, they also get applied
 # across an entire batch.
 
 spk_batch.deepcopy().pitch_shift(2)
@@ -152,23 +154,34 @@ spk.deepcopy().apply_codec("Ogg")
 # -----------------------
 # This is a fluent interface so things can be chained together easily.
 # Let's augment an entire batch by chaining these effects together.
-# We'll start from scratch, loading the batch fresh each time to 
+# We'll start from scratch, loading the batch fresh each time to
 # avoid overwriting anything inside the augmentation pipeline.
 
+
 def load_batch(batch_size, state=None):
-    spk_batch = AudioSignal.batch([
-        AudioSignal.excerpt('tests/audio/spk/f10_script4_produced.wav', duration=1, state=state)
-        for _ in range(batch_size)
-    ])
-    nz_batch = AudioSignal.batch([
-        AudioSignal.excerpt('tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav', duration=1, state=state)
-        for _ in range(batch_size)
-    ])
-    ir_batch = AudioSignal.batch([
-        AudioSignal('tests/audio/ir/h179_Bar_1txts.wav')
-        for _ in range(batch_size)
-    ])
+    spk_batch = AudioSignal.batch(
+        [
+            AudioSignal.excerpt(
+                "tests/audio/spk/f10_script4_produced.wav", duration=1, state=state
+            )
+            for _ in range(batch_size)
+        ]
+    )
+    nz_batch = AudioSignal.batch(
+        [
+            AudioSignal.excerpt(
+                "tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav",
+                duration=1,
+                state=state,
+            )
+            for _ in range(batch_size)
+        ]
+    )
+    ir_batch = AudioSignal.batch(
+        [AudioSignal("tests/audio/ir/h179_Bar_1txts.wav") for _ in range(batch_size)]
+    )
     return spk_batch, nz_batch, ir_batch
+
 
 # We'll apply the following pipeline, randomly getting parameters for each effect.
 # 1. Pitch shift
@@ -176,7 +189,7 @@ def load_batch(batch_size, state=None):
 # 3. Equalize noise.
 # 4. Equalize impulse response.
 # 5. Convolve speech with impulse response.
-# 6. Mix speech and noise at some random SNR. 
+# 6. Mix speech and noise at some random SNR.
 
 batch_size = 16
 
@@ -190,11 +203,7 @@ def augment(seed):
     snr = state.uniform(10, 40, batch_size)
 
     # We're not trying to undo pitch shifting/time streching.
-    spk_batch = (
-        spk_batch
-            .pitch_shift(n_semitones)
-            .time_stretch(factor)
-    )
+    spk_batch = spk_batch.pitch_shift(n_semitones).time_stretch(factor)
     # Make a copy so we have it later for training targets.
     clean_spk = spk_batch.deepcopy()
 
@@ -209,13 +218,10 @@ def augment(seed):
     ir_batch = ir_batch.equalizer(curve)
 
     # Convolve
-    noisy_spk = (
-        spk_batch
-            .convolve(ir_batch)
-            .mix(nz_batch, snr=snr)
-    )
+    noisy_spk = spk_batch.convolve(ir_batch).mix(nz_batch, snr=snr)
 
     return clean_spk, noisy_spk
+
 
 # Let's augment and then listen to each item in the batch.
 clean_spk, noisy_spk = augment(0)

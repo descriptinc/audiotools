@@ -1,0 +1,48 @@
+name: pr
+on: pull_request
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # Run isort + black formatter
+      - name: Python Code Formatter
+        uses: tdeboissiere/python-format-action@master
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/cache@v1
+        id: cache
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('**/*requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.python-version }}-pip-
+      - name: Checkout LFS objects
+        run: git lfs checkout
+      - name: Install binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install ffmpeg
+          sudo apt-get install libsndfile1-dev
+          python -m pip install --upgrade pip
+          pip install wheel
+      - name: Install dependencies
+        run: |
+          pip install -e ".[tests]"
+      - name: Test with pytest
+        run: |
+          python -m pytest .
