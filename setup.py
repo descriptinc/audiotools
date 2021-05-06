@@ -30,7 +30,7 @@ setup(
         "soundfile",
         "pyloudnorm",
         "scipy",
-        "torch==1.7.1",
+        "torch",
         "julius",
         "torchaudio",
         "ffmpy",
