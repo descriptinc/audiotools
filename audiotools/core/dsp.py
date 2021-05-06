@@ -100,17 +100,3 @@ class DSPMixin:
             filtered[i] = julius.lowpass_filter(self.audio_data[i], cutoff, zeros=zeros)
         self.audio_data = filtered
         return self
-
-    def find_shelf(self, thresh=2):
-        fft = torch.fft.rfft(self.audio_data, dim=-1)
-        psd = fft.abs().pow(2).clamp(1e-8).log10()
-        psd = torch.nn.functional.avg_pool1d(psd, kernel_size=3, stride=1)
-
-        psd[psd < thresh] = 0
-        psd[psd > thresh] = 1
-        diffs = torch.diff(psd).abs()
-
-        vals, bins = diffs.max(dim=-1)
-        bins[vals == 0] = self.signal_length
-        cutoffs = (self.sample_rate / 2) * (bins + 1) / psd.shape[-1]
-        return cutoffs

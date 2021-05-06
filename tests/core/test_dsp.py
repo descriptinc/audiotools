@@ -61,23 +61,3 @@ def test_low_pass():
     assert out.audio_data[0].abs().max() < 1e-4
     assert out.audio_data[2].abs().max() < 1e-4
     assert (out - batch).audio_data[1].abs().max() < 1e-3
-
-
-def test_find_shelf():
-    # TODO: find_shelf does not work reliably. This test is commented out.
-    noise = torch.randn(1, 1, int(5 * 44100))
-    batch_size = 5
-    nz_signal = AudioSignal(noise, sample_rate=44100)
-    nz_batch = AudioSignal.batch([nz_signal for _ in range(batch_size)])
-
-    cutoffs = nz_batch.find_shelf()
-    # assert np.allclose(cutoffs, 44100, 1)
-
-    out = nz_batch.deepcopy().low_pass(16000)
-    cutoffs = out.find_shelf()
-    # assert np.allclose(cutoffs, 16000, 1)
-
-    shelves = np.random.rand(batch_size, 1) * 22050
-    out = nz_batch.deepcopy().low_pass(shelves)
-    cutoffs = out.find_shelf()
-    # assert np.allclose(cutoffs, shelves, atol=400)

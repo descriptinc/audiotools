@@ -73,7 +73,7 @@ class AudioSignal(
 
     @classmethod
     def excerpt(cls, audio_path, offset=None, duration=None, state=None, **kwargs):
-        info = torchaudio.info(audio_path)
+        info = util.info(audio_path)
         total_duration = info.num_frames / info.sample_rate
 
         state = util.random_state(state)
@@ -133,7 +133,7 @@ class AudioSignal(
 
     # I/O
     def load_from_file(self, audio_path, offset, duration, device=None):
-        info = torchaudio.info(audio_path)
+        info = util.info(audio_path)
         sample_rate = info.sample_rate
 
         frame_offset = min(int(sample_rate * offset), info.num_frames)
@@ -142,9 +142,14 @@ class AudioSignal(
         else:
             num_frames = info.num_frames
 
-        data, sample_rate = torchaudio.load(
-            audio_path, frame_offset=frame_offset, num_frames=num_frames
-        )
+        # Compatible with torchaudio 0.7.2 and 0.8.1.
+        torchaudio_version_070 = "0.7" in torchaudio.__version__
+        kwargs = {
+            "offset" if torchaudio_version_070 else "frame_offset": frame_offset,
+            "num_frames": num_frames,
+        }
+
+        data, sample_rate = torchaudio.load(audio_path, **kwargs)
 
         self.audio_data = data
         self.original_signal_length = self.signal_length
@@ -169,7 +174,7 @@ class AudioSignal(
 
     def write(self, audio_path, batch_idx=0):
         torchaudio.save(
-            audio_path, self.audio_data[batch_idx], self.sample_rate, bits_per_sample=32
+            audio_path, self.audio_data[batch_idx], self.sample_rate, precision=32
         )
         return self
 

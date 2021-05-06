@@ -1,12 +1,36 @@
 import numbers
 import os
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 from typing import List
+from typing import Tuple
 
 import numpy as np
 import torch
+import torchaudio
+
+
+@dataclass
+class Info:
+    sample_rate: float
+    num_frames: int
+
+
+def info(audio_path):
+    """Shim for torchaudio.info to make 0.7.2 API match 0.8.0.
+
+    Parameters
+    ----------
+    audio_path : str
+        Path to audio file.
+    """
+    info = torchaudio.info(str(audio_path))
+    if isinstance(info, tuple):
+        signal_info = info[0]
+        info = Info(sample_rate=signal_info.rate, num_frames=signal_info.length)
+    return info
 
 
 def ensure_tensor(x, ndim=None, batch_size=None):
