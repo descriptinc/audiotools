@@ -30,6 +30,7 @@ setup(
     install_requires=[
         "soundfile",
         "pyloudnorm",
+        "importlib-resources",
         "scipy",
         "torch",
         "julius",

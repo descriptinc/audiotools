@@ -4,11 +4,6 @@ as a playable object in a Jupyter notebook, or to play audio from
 the terminal.
 """
 import base64
-
-try:
-    import importlib.resources as pkg_resources
-except:  # pragma: no cover
-    import importlib_resources as pkg_resources
 import io
 import random
 import string
@@ -16,6 +11,7 @@ import subprocess
 from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
+import importlib_resources as pkg_resources
 import matplotlib.pyplot as plt
 from PIL import Image
 
