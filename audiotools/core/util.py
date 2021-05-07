@@ -1,11 +1,37 @@
-from contextlib import contextmanager
-import os
-from functools import wraps
-import numpy as np
 import numbers
-import torch
-from typing import List
+import os
+from contextlib import contextmanager
+from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
+from typing import List
+from typing import Tuple
+
+import numpy as np
+import torch
+import torchaudio
+
+
+@dataclass
+class Info:
+    sample_rate: float
+    num_frames: int
+
+
+def info(audio_path):
+    """Shim for torchaudio.info to make 0.7.2 API match 0.8.0.
+
+    Parameters
+    ----------
+    audio_path : str
+        Path to audio file.
+    """
+    info = torchaudio.info(str(audio_path))
+    if isinstance(info, tuple):  # pragma: no cover
+        signal_info = info[0]
+        info = Info(sample_rate=signal_info.rate, num_frames=signal_info.length)
+    return info
+
 
 def ensure_tensor(x, ndim=None, batch_size=None):
     if isinstance(x, (float, int, numbers.Integral)):
@@ -16,8 +42,8 @@ def ensure_tensor(x, ndim=None, batch_size=None):
         x = torch.from_numpy(x)
     if ndim is not None:
         if x.ndim < ndim:
-            for _ in range(ndim-1):
-                x = x.unsqueeze(-1) 
+            for _ in range(ndim - 1):
+                x = x.unsqueeze(-1)
     if batch_size is not None:
         if x.shape[0] != batch_size:
             shape = list(x.shape)
@@ -26,11 +52,14 @@ def ensure_tensor(x, ndim=None, batch_size=None):
     x = x.float()
     return x
 
+
 def _get_value(other):
     from . import AudioSignal
+
     if isinstance(other, AudioSignal):
         return other.audio_data
     return other
+
 
 def hz_to_bin(hz, n_fft, sample_rate):
     shape = hz.shape
@@ -42,6 +71,7 @@ def hz_to_bin(hz, n_fft, sample_rate):
     closest_bins = closest.min(dim=0).indices
 
     return closest_bins.reshape(*shape)
+
 
 def random_state(seed):
     """Turn seed into a np.random.RandomState instance
@@ -60,8 +90,10 @@ def random_state(seed):
     elif isinstance(seed, np.random.RandomState):
         return seed
     else:
-        raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
-                         ' instance' % seed)
+        raise ValueError(
+            "%r cannot be used to seed a numpy.random.RandomState" " instance" % seed
+        )
+
 
 @contextmanager
 def _close_temp_files(tmpfiles):
@@ -76,6 +108,7 @@ def _close_temp_files(tmpfiles):
     Args:
         tmpfiles (list): List of temporary file handles
     """
+
     def _close():
         for t in tmpfiles:
             try:
@@ -83,19 +116,18 @@ def _close_temp_files(tmpfiles):
                 os.unlink(t.name)
             except:
                 pass
+
     try:
         yield
-    except: # pragma: no cover
+    except:  # pragma: no cover
         _close()
         raise
     _close()
 
-def find_audio(
-    folder : str, 
-    ext : List[str] = ['wav', 'flac', 'mp3']
-):
+
+def find_audio(folder: str, ext: List[str] = ["wav", "flac", "mp3"]):
     """
-    Finds all audio files in a directory 
+    Finds all audio files in a directory
     recursively. Returns a list.
     Parameters
     ----------
@@ -105,16 +137,17 @@ def find_audio(
         Extensions to look for without the ., by default
         ['wav', 'flac', 'mp3'].
     """
-    folder = Path(folder)        
+    folder = Path(folder)
     files = []
     for x in ext:
-        files += folder.glob(f'**/*.{x}')
+        files += folder.glob(f"**/*.{x}")
     return files
+
 
 @contextmanager
 def chdir(newdir):
     """
-    Context manager for switching directories to run a 
+    Context manager for switching directories to run a
     function. Useful for when you want to use relative
     paths to different runs.
     Parameters

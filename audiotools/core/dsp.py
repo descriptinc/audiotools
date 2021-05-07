@@ -1,8 +1,10 @@
-import torchaudio
-import torch
-import numpy as np
 import julius
+import numpy as np
+import torch
+import torchaudio
+
 from . import util
+
 
 class DSPMixin:
     _original_batch_size = None
@@ -16,7 +18,7 @@ class DSPMixin:
         Args:
             audio_signal (AudioSignal): AudioSignal that windows will be collected over.
             window_duration (float): Length of window in seconds.
-            hop_duration (float): How much to shift for each window 
+            hop_duration (float): How much to shift for each window
                 (overlap is window_duration - hop_duration) in seconds.
 
         Returns:
@@ -39,13 +41,11 @@ class DSPMixin:
         unfolded = torch.nn.functional.unfold(
             self.audio_data.reshape(-1, 1, 1, self.signal_length),
             kernel_size=(1, window_length),
-            stride=(1, hop_length)
+            stride=(1, hop_length),
         )
         # unfolded: (nb * nch, window_length, num_windows).
         # -> (nb * nch * num_windows, 1, window_length)
-        unfolded = unfolded.permute(0, 2, 1).reshape(
-            -1, 1, window_length
-        )
+        unfolded = unfolded.permute(0, 2, 1).reshape(-1, 1, window_length)
         self.audio_data = unfolded
         return self
 
@@ -58,7 +58,7 @@ class DSPMixin:
                 `OverlapAdd.collect_windows`.
             sample_rate (float): Sample rate of audio signal.
             window_duration (float): Length of window in seconds.
-            hop_duration (float): How much to shift for each window 
+            hop_duration (float): How much to shift for each window
                 (overlap is window_duration - hop_duration) in seconds.
 
         Returns:
@@ -66,7 +66,7 @@ class DSPMixin:
         """
         hop_length = int(hop_duration * self.sample_rate)
         window_length = self.signal_length
-        
+
         nb, nch = self._original_batch_size, self._original_num_channels
 
         unfolded = self.audio_data.reshape(nb * nch, -1, window_length).permute(0, 2, 1)
@@ -74,7 +74,7 @@ class DSPMixin:
             unfolded,
             output_size=(1, self._padded_signal_length),
             kernel_size=(1, window_length),
-            stride=(1, hop_length)
+            stride=(1, hop_length),
         )
 
         norm = torch.ones_like(unfolded, device=unfolded.device)
@@ -82,7 +82,7 @@ class DSPMixin:
             norm,
             output_size=(1, self._padded_signal_length),
             kernel_size=(1, window_length),
-            stride=(1, hop_length)
+            stride=(1, hop_length),
         )
 
         folded = folded / norm
@@ -97,22 +97,6 @@ class DSPMixin:
         cutoffs = cutoffs / self.sample_rate
         filtered = torch.empty_like(self.audio_data)
         for i, cutoff in enumerate(cutoffs):
-            filtered[i] = julius.lowpass_filter(
-                self.audio_data[i], cutoff, zeros=zeros
-            )
+            filtered[i] = julius.lowpass_filter(self.audio_data[i], cutoff, zeros=zeros)
         self.audio_data = filtered
         return self
-
-    def find_shelf(self, thresh=2):
-        fft = torch.fft.rfft(self.audio_data, dim=-1)
-        psd = fft.abs().pow(2).clamp(1e-8).log10()
-        psd = torch.nn.functional.avg_pool1d(psd, kernel_size=3, stride=1)
-
-        psd[psd < thresh] = 0
-        psd[psd > thresh] = 1
-        diffs = torch.diff(psd).abs()
-
-        vals, bins = diffs.max(dim=-1)
-        bins[vals == 0] = self.signal_length
-        cutoffs = (self.sample_rate / 2) * (bins + 1) / psd.shape[-1]
-        return cutoffs

@@ -1,7 +1,30 @@
 # AudioTools
 
-Object-oriented handling of audio signals, with fast augmentation routines, 
+Object-oriented handling of audio signals, with fast augmentation routines,
 batching, padding, and more.
+
+
+### Install hooks
+
+First install the pre-commit util:
+
+https://pre-commit.com/#install
+
+    pip install pre-commit  # with pip
+    brew install pre-commit  # on Mac
+
+Then install the git hooks
+
+    pre-commit install
+    # check .pre-commit-config.yaml for details of hooks
+
+Upon `git commit`, the pre-commit hooks will be run automatically on the stage files (i.e. added by `git add`)
+
+**N.B. By default, pre-commit checks only run on staged files**
+
+If you need to run it on all files:
+
+    pre-commit run --all-files
 
 # Feature tour
 
@@ -26,7 +49,7 @@ spk.play()
 ```
 
 Mix speaker with noise at varying SNR.
-We make the deep copy before each one to preserve 
+We make the deep copy before each one to preserve
 the original signal.
 
 ```python
@@ -35,7 +58,7 @@ spk.deepcopy().mix(nz, snr=10).play() # Medium SNR
 spk.deepcopy().mix(nz, snr=0).play() # Low SNR
 ```
 
-Collate a batch together at random offsets 
+Collate a batch together at random offsets
 from one file, same duration.
 
 ```python
@@ -83,9 +106,9 @@ output.play(-1)
 
 Differentiable perceptual loudness
 -----------------------
-In Descript, we auto-level to -24dB. Now, we can do the same thing 
+In Descript, we auto-level to -24dB. Now, we can do the same thing
 for a batch of audio signals by using an implementation of the same
-LUFS algorithm used in FFMPEG. This implementation is fully 
+LUFS algorithm used in FFMPEG. This implementation is fully
 differentiable, and so can be computed on the GPU. Let's see
 the loudness of each item in our batch.
 
@@ -162,7 +185,7 @@ spk_batch.deepcopy() @ ir_batch # Same as above.
 
 Equalization
 ------------
-Next, let's apply some equalization to the impulse response, to simulate different mic 
+Next, let's apply some equalization to the impulse response, to simulate different mic
 responses.
 
 First, we need to figure out the number of bands in the EQ.
@@ -202,7 +225,7 @@ spk.deepcopy().time_stretch(1.2)
 spk.deepcopy().time_stretch(0.8)
 ```
 
-Like other transformations, they also get applied 
+Like other transformations, they also get applied
 across an entire batch.
 
 ```python
@@ -224,7 +247,7 @@ Putting it all together
 -----------------------
 This is a fluent interface so things can be chained together easily.
 Let's augment an entire batch by chaining these effects together.
-We'll start from scratch, loading the batch fresh each time to 
+We'll start from scratch, loading the batch fresh each time to
 avoid overwriting anything inside the augmentation pipeline.
 
 ```python
@@ -250,7 +273,7 @@ We'll apply the following pipeline, randomly getting parameters for each effect.
 3. Equalize noise.
 4. Equalize impulse response.
 5. Convolve speech with impulse response.
-6. Mix speech and noise at some random SNR. 
+6. Mix speech and noise at some random SNR.
 
 ```python
 batch_size = 16

@@ -1,10 +1,13 @@
+import os
+import tempfile
+from pathlib import Path
+
 import numpy as np
-from audiotools import util
 import pytest
 import torch
-import tempfile
-import os
-from pathlib import Path
+
+from audiotools import util
+
 
 def test_check_random_state():
     # seed is None
@@ -22,7 +25,7 @@ def test_check_random_state():
     assert type(rng) == rng_type
 
     # seed is none of the above : error
-    pytest.raises(ValueError, util.random_state, 'random')
+    pytest.raises(ValueError, util.random_state, "random")
 
 
 def test_hz_to_bin():
@@ -34,15 +37,17 @@ def test_hz_to_bin():
 
     assert (((bins / n_fft) * sr) - hz).abs().max() < 1
 
-def test_find_audio():
-    audio_files = util.find_audio('tests/', ['wav'])
-    for a in audio_files:
-        assert 'wav' in str(a)
 
-    audio_files = util.find_audio('tests/', ['flac'])
+def test_find_audio():
+    audio_files = util.find_audio("tests/", ["wav"])
+    for a in audio_files:
+        assert "wav" in str(a)
+
+    audio_files = util.find_audio("tests/", ["flac"])
     assert not audio_files
 
+
 def test_chdir():
-    with tempfile.TemporaryDirectory(suffix='tmp') as d:
+    with tempfile.TemporaryDirectory(suffix="tmp") as d:
         with util.chdir(d):
-            assert os.path.samefile(d, os.path.realpath('.'))
+            assert os.path.samefile(d, os.path.realpath("."))

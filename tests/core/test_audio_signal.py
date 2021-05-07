@@ -1,31 +1,33 @@
-import torchaudio
-import torch
-from audiotools import AudioSignal
-import tempfile
-import numpy as np
-import copy
-import pytest
 import pathlib
-from rich.console import Console 
-import librosa
+import tempfile
+
+import numpy as np
+import pytest
+import rich
+import torch
 
 import audiotools
+from audiotools import AudioSignal
+
 
 def test_io():
-    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(pathlib.Path(audio_path))
 
-    with tempfile.NamedTemporaryFile(suffix='.wav') as f:
+    with tempfile.NamedTemporaryFile(suffix=".wav") as f:
         signal.write(f.name)
         signal_from_file = AudioSignal(f.name)
 
-    mp3_signal = AudioSignal(audio_path.replace('wav', 'mp3'))
+    mp3_signal = AudioSignal(audio_path.replace("wav", "mp3"))
     print(mp3_signal)
 
     assert signal == signal_from_file
     print(signal)
 
-    import rich
+    mp3_signal = AudioSignal.excerpt(
+        audio_path.replace("wav", "mp3"), offset=5, duration=5
+    )
+    assert mp3_signal.signal_duration == 5.0
 
     rich.print(signal)
 
@@ -37,7 +39,7 @@ def test_io():
     assert signal.sample_rate == 44100
 
     with pytest.raises(ValueError):
-        signal = AudioSignal(5,sample_rate=16000)
+        signal = AudioSignal(5, sample_rate=16000)
 
     signal = AudioSignal(audio_path, offset=10, duration=10)
     assert np.allclose(signal.signal_duration, 10.0)
@@ -45,8 +47,12 @@ def test_io():
     signal = AudioSignal.excerpt(audio_path, offset=5, duration=5)
     assert signal.signal_duration == 5.0
 
-    assert 'offset' in signal.metadata
-    assert 'duration' in signal.metadata
+    assert "offset" in signal.metadata
+    assert "duration" in signal.metadata
+
+    signal = AudioSignal(torch.randn(1000), 44100)
+    assert signal.audio_data.ndim == 3
+
 
 def test_arithmetic():
     def _make_signals():
@@ -105,6 +111,7 @@ def test_arithmetic():
     sig3 *= sig2
     assert torch.allclose(sig3.audio_data, sig1.audio_data * sig2.audio_data)
 
+
 def test_equality():
     array = np.random.randn(2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
@@ -119,6 +126,7 @@ def test_equality():
 
     assert sig1.numpy() != sig3.numpy()
 
+
 def test_indexing():
     array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
@@ -129,12 +137,14 @@ def test_indexing():
     sig1[0, :, 8000] = 10
     assert np.allclose(sig1.audio_data[0, :, 8000], 10)
 
+
 def test_copy():
     array = np.random.randn(2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
 
     assert sig1 == sig1.copy()
     assert sig1 == sig1.deepcopy()
+
 
 def test_zero_pad():
     array = np.random.randn(4, 2, 16000)
@@ -145,6 +155,7 @@ def test_zero_pad():
     assert torch.allclose(sig1.audio_data[..., :100], zeros)
     assert torch.allclose(sig1.audio_data[..., -100:], zeros)
 
+
 def test_truncate():
     array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
@@ -152,6 +163,7 @@ def test_truncate():
     sig1.truncate_samples(100)
     assert sig1.signal_length == 100
     assert np.allclose(sig1.audio_data, array[..., :100])
+
 
 def test_trim():
     array = np.random.randn(4, 2, 16000)
@@ -168,14 +180,14 @@ def test_trim():
 
 
 def test_to_from_ops():
-    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path)
-    signal = signal.to('cpu')
-    assert signal.audio_data.device == torch.device('cpu')
+    signal = signal.to("cpu")
+    assert signal.audio_data.device == torch.device("cpu")
 
     signal = signal.numpy()
     assert isinstance(signal.audio_data, np.ndarray)
-    assert signal.device == 'numpy'
+    assert signal.device == "numpy"
 
     signal = signal.to()
     assert torch.is_tensor(signal.audio_data)
@@ -183,14 +195,15 @@ def test_to_from_ops():
     signal.cpu()
     signal.cuda()
     signal.float()
-    
+
+
 @pytest.mark.parametrize("window_length", [2048, 512])
 @pytest.mark.parametrize("hop_length", [512, 128])
 @pytest.mark.parametrize("window_type", ["sqrt_hann", "hanning", None])
 def test_stft(window_length, hop_length, window_type):
     if hop_length >= window_length:
         hop_length = window_length // 2
-    audio_path = 'tests/audio/spk/f10_script4_produced.wav'
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
     stft_params = audiotools.STFTParams(
         window_length=window_length, hop_length=hop_length, window_type=window_type
     )
@@ -198,7 +211,7 @@ def test_stft(window_length, hop_length, window_type):
         signal = AudioSignal(audio_path, duration=10, stft_params=_stft_params)
         with pytest.raises(RuntimeError):
             signal.istft()
-        
+
         stft_data = signal.stft()
 
         assert torch.allclose(signal.stft_data, stft_data)
@@ -222,6 +235,7 @@ def test_stft(window_length, hop_length, window_type):
         recon_stft = mag * torch.exp(1j * phase)
         assert torch.allclose(recon_stft, signal.stft_data)
 
+
 def test_to_mono():
     array = np.random.randn(4, 2, 16000)
     sr = 16000
@@ -231,6 +245,7 @@ def test_to_mono():
 
     signal = signal.to_mono()
     assert signal.num_channels == 1
+
 
 @pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])
 def test_resample(sample_rate):
@@ -242,6 +257,7 @@ def test_resample(sample_rate):
     signal = signal.resample(sample_rate)
     assert signal.sample_rate == sample_rate
     assert signal.signal_length == sample_rate
+
 
 def test_batching():
     signals = []
@@ -266,7 +282,7 @@ def test_batching():
 
     with pytest.raises(RuntimeError):
         batched_signal = AudioSignal.batch(signals)
-    
+
     signal_lengths = [x.signal_length for x in signals]
     max_length = max(signal_lengths)
     batched_signal = AudioSignal.batch(signals, pad_signals=True)
@@ -284,7 +300,7 @@ def test_batching():
 
     with pytest.raises(RuntimeError):
         batched_signal = AudioSignal.batch(signals)
-    
+
     signal_lengths = [x.signal_length for x in signals]
     min_length = min(signal_lengths)
     batched_signal = AudioSignal.batch(signals, truncate_signals=True)
@@ -303,12 +319,10 @@ def test_batching():
 
     with pytest.raises(RuntimeError):
         batched_signal = AudioSignal.batch(signals)
-    
+
     signal_lengths = [x.signal_length for x in signals]
     max_length = max(signal_lengths)
-    batched_signal = AudioSignal.batch(
-        signals, resample=True, pad_signals=True
-    )
+    batched_signal = AudioSignal.batch(signals, resample=True, pad_signals=True)
 
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
