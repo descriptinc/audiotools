@@ -26,6 +26,7 @@ setup(
     author_email="prem@descript.com",
     license="MIT",
     packages=find_packages(),
+    package_data={"": ["core/templates/headers.html", "core/templates/widget.html"]},
     install_requires=[
         "soundfile",
         "pyloudnorm",

@@ -3,11 +3,23 @@ These are optional utilities included in nussl that allow one to embed an AudioS
 as a playable object in a Jupyter notebook, or to play audio from
 the terminal.
 """
+import base64
+import importlib.resources as pkg_resources
+import io
+import random
+import string
 import subprocess
 from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
+import matplotlib.pyplot as plt
+from PIL import Image
+
+from . import templates
 from .util import _close_temp_files
+
+headers = pkg_resources.read_text(templates, "headers.html")
+widget = pkg_resources.read_text(templates, "widget.html")
 
 
 def _check_imports():  # pragma: no cover
@@ -24,7 +36,7 @@ def _check_imports():  # pragma: no cover
 
 
 class PlayMixin:
-    def embed(self, ext=".mp3", display=True, batch_idx=0):
+    def embed(self, batch_idx=0, ext=".mp3", display=True):
         """
         Write a numpy array to a temporary mp3 file using ffmpy, then embeds the mp3
         into the notebook.
@@ -71,6 +83,60 @@ class PlayMixin:
             if display:
                 IPython.display.display(audio_element)
         return audio_element
+
+    def widget(
+        self,
+        batch_idx=0,
+        ext=".mp3",
+        display=True,
+        add_headers=True,
+        player_width="100%",
+        max_width="600px",
+        margin="10px",
+        **kwargs,
+    ):
+        _, IPython = _check_imports()
+
+        header_html = ""
+
+        if add_headers:
+            header_html = headers.replace("PLAYER_WIDTH", str(player_width))
+            header_html = header_html.replace("MAX_WIDTH", str(max_width))
+            header_html = header_html.replace("MARGIN", str(margin))
+            IPython.display.display(IPython.display.HTML(header_html))
+
+        widget_html = widget
+
+        self.specshow(**kwargs)
+
+        plt.ioff()
+        plt.gca().set_axis_off()
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        plt.margins(0, 0)
+        plt.gca().xaxis.set_major_locator(plt.NullLocator())
+        plt.gca().yaxis.set_major_locator(plt.NullLocator())
+
+        buffer = io.BytesIO()
+
+        plt.savefig(buffer, bbox_inches="tight", pad_inches=0)
+        plt.close()
+
+        buffer.seek(0)
+
+        data_uri = base64.b64encode(buffer.read()).decode("ascii")
+
+        tag = "data:image/png;base64,{0}".format(data_uri)
+
+        player_id = "".join(random.choice(string.ascii_uppercase) for _ in range(10))
+
+        audio_elem = self.embed(batch_idx=batch_idx, ext=ext, display=False)
+        widget_html = widget_html.replace("AUDIO_SRC", audio_elem.src_attr())
+        widget_html = widget_html.replace("IMAGE_SRC", tag)
+        widget_html = widget_html.replace("PLAYER_ID", player_id)
+
+        if display:
+            IPython.display.display(IPython.display.HTML(widget_html))
+        return IPython.display.HTML(header_html + widget_html)
 
     def play(self, batch_idx=0):
         """
