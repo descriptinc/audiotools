@@ -95,6 +95,31 @@ class PlayMixin:
         margin="10px",
         **kwargs,
     ):
+        """Creates a playable widget with spectrogram. Inspired (heavily) by
+        https://sjvasquez.github.io/blog/melnet/.
+
+        Parameters
+        ----------
+        batch_idx : int, optional
+            Which item in batch to display, by default 0
+        ext : str, optional
+            Extension for embedding, by default ".mp3"
+        display : bool, optional
+            Whether or not to display the widget, by default True
+        add_headers : bool, optional
+            Whether or not to add headers (use for first embed, False for later embeds), by default True
+        player_width : str, optional
+            Width of the player, as a string in a CSS rule, by default "100%"
+        max_width : str, optional
+            Maximum width of player, by default "600px"
+        margin : str, optional
+            Margin on all sides of player, by default "10px"
+
+        Returns
+        -------
+        HTML
+            HTML object.
+        """
         _, IPython = _check_imports()
 
         header_html = ""
