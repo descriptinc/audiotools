@@ -114,6 +114,8 @@ class PlayMixin:
             Maximum width of player, by default "600px"
         margin : str, optional
             Margin on all sides of player, by default "10px"
+        kwargs : dict, optional
+            Keyword arguments to specshow.
 
         Returns
         -------
