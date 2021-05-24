@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setup(
     name="audiotools",
-    version="0.0.2",
+    version="0.0.3",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -26,9 +26,11 @@ setup(
     author_email="prem@descript.com",
     license="MIT",
     packages=find_packages(),
+    package_data={"": ["core/templates/headers.html", "core/templates/widget.html"]},
     install_requires=[
         "soundfile",
         "pyloudnorm",
+        "importlib-resources",
         "scipy",
         "torch",
         "julius",
