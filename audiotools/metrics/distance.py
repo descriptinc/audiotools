@@ -14,11 +14,6 @@ class SISDRLoss(nn.Module):
     scaling : int, optional
         Whether to use scale-invariant (True) or
         signal-to-noise ratio (False), by default True
-    return_scaling : int, optional
-        Whether to only return the scaling
-        factor that the estimate gets scaled by relative to the reference.
-        This is just for monitoring this value during training, don't actually
-        train with it!, by default False.
     reduction : str, optional
         How to reduce across the batch (either 'mean',
         'sum', or none).], by default ' mean'
@@ -33,7 +28,6 @@ class SISDRLoss(nn.Module):
     def __init__(
         self,
         scaling: int = True,
-        return_scaling: int = False,
         reduction: str = " mean",
         zero_mean: int = True,
         clip_min: int = None,
@@ -41,7 +35,6 @@ class SISDRLoss(nn.Module):
         self.scaling = scaling
         self.reduction = reduction
         self.zero_mean = zero_mean
-        self.return_scaling = return_scaling
         self.clip_min = clip_min
         super().__init__()
 
@@ -93,6 +86,4 @@ class SISDRLoss(nn.Module):
             sdr = sdr.mean()
         elif self.reduction == "sum":
             sdr = sdr.sum()
-        if self.return_scaling:
-            return scale
         return sdr
