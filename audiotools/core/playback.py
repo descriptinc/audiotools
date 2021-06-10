@@ -93,6 +93,7 @@ class PlayMixin:
         player_width="100%",
         max_width="600px",
         margin="10px",
+        plot_fn=None,
         **kwargs,
     ):
         """Creates a playable widget with spectrogram. Inspired (heavily) by
@@ -114,8 +115,10 @@ class PlayMixin:
             Maximum width of player, by default "600px"
         margin : str, optional
             Margin on all sides of player, by default "10px"
+        plot_fn : function, optional
+            Plotting function to use (by default self.specshow).
         kwargs : dict, optional
-            Keyword arguments to specshow.
+            Keyword arguments to plot_fn (by default self.specshow).
 
         Returns
         -------
@@ -134,7 +137,9 @@ class PlayMixin:
 
         widget_html = widget
 
-        self.specshow(**kwargs)
+        if plot_fn is None:
+            plot_fn = self.specshow
+        plot_fn(**kwargs)
 
         plt.ioff()
         plt.gca().set_axis_off()

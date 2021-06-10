@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 
+import librosa
 import numpy as np
 import pytest
 import rich
@@ -234,6 +235,23 @@ def test_stft(window_length, hop_length, window_type):
 
         recon_stft = mag * torch.exp(1j * phase)
         assert torch.allclose(recon_stft, signal.stft_data)
+
+
+@pytest.mark.parametrize("n_mels", [40, 80, 128])
+@pytest.mark.parametrize("window_length", [2048, 512])
+@pytest.mark.parametrize("hop_length", [512, 128])
+@pytest.mark.parametrize("window_type", ["sqrt_hann", "hanning", None])
+def test_mel_spectrogram(n_mels, window_length, hop_length, window_type):
+    if hop_length >= window_length:
+        hop_length = window_length // 2
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    stft_params = audiotools.STFTParams(
+        window_length=window_length, hop_length=hop_length, window_type=window_type
+    )
+    for _stft_params in [None, stft_params]:
+        signal = AudioSignal(audio_path, duration=10, stft_params=_stft_params)
+        mel_spec = signal.mel_spectrogram(n_mels=n_mels)
+        assert mel_spec.shape[2] == n_mels
 
 
 def test_to_mono():

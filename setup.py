@@ -40,8 +40,11 @@ setup(
         "rich",
         "matplotlib",
         "librosa",
+        "pystoi",
+        "torch_stoi",
+        "pesq",
     ],
     extras_require={
-        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "argbind"],
+        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm"],
     },
 )
