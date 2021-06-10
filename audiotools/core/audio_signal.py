@@ -7,6 +7,7 @@ import librosa
 import numpy as np
 import torch
 import torchaudio
+from librosa.filters import mel as librosa_mel_fn
 from scipy import signal
 
 from . import util
@@ -16,6 +17,7 @@ from .effects import EffectMixin
 from .effects import ImpulseResponseMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
+
 
 STFTParams = namedtuple("STFTParams", ["window_length", "hop_length", "window_type"])
 STFTParams.__new__.__defaults__ = (None,) * len(STFTParams._fields)
@@ -350,21 +352,6 @@ class AudioSignal(
     def stft(
         self, window_length=None, hop_length=None, window_type=None, return_complex=True
     ):
-        """
-        Computes the Short Time Fourier Transform (STFT) of :attr:`audio_data`.
-        The results of the STFT calculation can be accessed from :attr:`stft_data`
-        if :attr:`stft_data` is ``None`` prior to running this function or ``overwrite == True``
-        Warning:
-            If overwrite=True (default) this will overwrite any data in :attr:`stft_data`!
-        Args:
-            window_length (int): Amount of time (in samples) to do an FFT on
-            hop_length (int): Amount of time (in samples) to skip ahead for the new FFT
-            window_type (str): Type of scaling to apply to the window.
-            overwrite (bool): Overwrite :attr:`stft_data` with current calculation
-        Returns:
-            (:obj:`np.ndarray`) Calculated, complex-valued STFT from :attr:`audio_data`, 3D numpy
-            array with shape `(n_frequency_bins, n_hops, n_channels)`.
-        """
         self.to()  # Ensure audio data is a tensor.
 
         window_length = (
@@ -403,21 +390,6 @@ class AudioSignal(
         window_type=None,
         truncate_to_length=None,
     ):
-        """Computes and returns the inverse Short Time Fourier Transform (iSTFT).
-        The results of the iSTFT calculation can be accessed from :attr:`audio_data`
-        if :attr:`audio_data` is ``None`` prior to running this function or ``overwrite == True``
-        Warning:
-            If overwrite=True (default) this will overwrite any data in :attr:`audio_data`!
-        Args:
-            window_length (int): Amount of time (in samples) to do an FFT on
-            hop_length (int): Amount of time (in samples) to skip ahead for the new FFT
-            window_type (str): Type of scaling to apply to the window.
-            overwrite (bool): Overwrite :attr:`stft_data` with current calculation
-            truncate_to_length (int): truncate resultant signal to specified length. Default ``None``.
-        Returns:
-            (:obj:`np.ndarray`) Calculated, real-valued iSTFT from :attr:`stft_data`, 2D numpy array
-            with shape `(n_channels, n_samples)`.
-        """
         if self.stft_data is None:
             raise RuntimeError("Cannot do inverse STFT without self.stft_data!")
 
@@ -452,6 +424,20 @@ class AudioSignal(
         audio_data = audio_data.reshape(nb, nch, -1)
         self.audio_data = audio_data
         return self
+
+    def mel_spectrogram(self, n_mels=80, mel_fmin=0.0, mel_fmax=None, **kwargs):
+        stft = self.stft(**kwargs)
+        magnitude = torch.abs(stft)
+
+        nf = magnitude.shape[2]
+        mel_basis = librosa_mel_fn(
+            self.sample_rate, 2 * (nf - 1), n_mels, mel_fmin, mel_fmax
+        )
+        mel_basis = torch.from_numpy(mel_basis).to(self.device)
+
+        mel_spectrogram = magnitude.transpose(2, -1) @ mel_basis.T
+        mel_spectrogram = mel_spectrogram.transpose(-1, 2)
+        return mel_spectrogram
 
     @property
     def magnitude(self):

@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setup(
     name="audiotools",
-    version="0.0.3",
+    version="0.0.4",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -28,6 +28,7 @@ setup(
     packages=find_packages(),
     package_data={"": ["core/templates/headers.html", "core/templates/widget.html"]},
     install_requires=[
+        "numpy",
         "soundfile",
         "pyloudnorm",
         "importlib-resources",
@@ -40,8 +41,10 @@ setup(
         "rich",
         "matplotlib",
         "librosa",
+        "pystoi",
+        "torch_stoi",
     ],
     extras_require={
-        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "argbind"],
+        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "pesq"],
     },
 )

@@ -1,0 +1,76 @@
+from typing import List
+
+from torch import nn
+
+from .. import AudioSignal
+from .. import STFTParams
+
+
+class MultiScaleSTFTLoss(nn.Module):
+    """
+    Computes the multi-scale STFT loss from [1].
+    [1] Differentiable Digital Signal Processing
+    """
+
+    def __init__(
+        self,
+        window_lengths: List[int] = [2048, 512],
+        loss_fn=nn.L1Loss(),
+        clamp_eps: float = 1e-5,
+    ):
+        super().__init__()
+        self.stft_params = [
+            STFTParams(window_length=w, hop_length=w // 4) for w in window_lengths
+        ]
+        self.loss_fn = loss_fn
+        self.clamp_eps = clamp_eps
+
+    def forward(self, x: AudioSignal, y: AudioSignal):
+        loss = 0.0
+        for s in self.stft_params:
+            x.stft(s.window_length, s.hop_length, s.window_type)
+            y.stft(s.window_length, s.hop_length, s.window_type)
+            loss += self.loss_fn(
+                x.magnitude.pow(2).clamp(self.clamp_eps).log10(),
+                y.magnitude.pow(2).clamp(self.clamp_eps).log10(),
+            )
+        return loss
+
+
+class MelSpectrogramLoss(nn.Module):
+    """Compute distance between mel spectrograms."""
+
+    def __init__(
+        self,
+        n_mels: List[int] = [150, 80],
+        window_lengths: List[int] = [2048, 512],
+        loss_fn=nn.L1Loss(),
+        clamp_eps: float = 1e-5,
+    ):
+        super().__init__()
+        self.stft_params = [
+            STFTParams(window_length=w, hop_length=w // 4) for w in window_lengths
+        ]
+        self.n_mels = n_mels
+        self.loss_fn = loss_fn
+        self.clamp_eps = clamp_eps
+
+    def forward(self, x: AudioSignal, y: AudioSignal):
+        loss = 0.0
+        for n_mels, s in zip(self.n_mels, self.stft_params):
+            kwargs = {
+                "window_length": s.window_length,
+                "hop_length": s.hop_length,
+                "window_type": s.window_type,
+            }
+            loss += self.loss_fn(
+                x.mel_spectrogram(n_mels, **kwargs)
+                .pow(2)
+                .clamp(self.clamp_eps)
+                .log10(),
+                y.mel_spectrogram(n_mels, **kwargs)
+                .pow(2)
+                .clamp(self.clamp_eps)
+                .log10(),
+            )
+        return loss
