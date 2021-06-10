@@ -28,6 +28,7 @@ setup(
     packages=find_packages(),
     package_data={"": ["core/templates/headers.html", "core/templates/widget.html"]},
     install_requires=[
+        "numpy",
         "soundfile",
         "pyloudnorm",
         "importlib-resources",
