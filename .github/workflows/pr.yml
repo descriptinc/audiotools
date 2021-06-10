@@ -42,6 +42,7 @@ jobs:
           pip install wheel
       - name: Install dependencies
         run: |
+          pip install -e .
           pip install -e ".[tests]"
       - name: Test with pytest
         run: |

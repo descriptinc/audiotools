@@ -1,7 +1,6 @@
 import numpy as np
 import pystoi
 import torch
-from pesq import pesq as pesq_fn
 
 from .. import AudioSignal
 
@@ -32,6 +31,8 @@ def pesq(
     mode: str = "wb",
     target_sr: float = 16000,
 ):
+    from pesq import pesq as pesq_fn
+
     estimates = estimates.deepcopy().to_mono().resample(target_sr)
     references = references.deepcopy().to_mono().resample(target_sr)
 

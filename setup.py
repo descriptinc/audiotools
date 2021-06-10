@@ -43,9 +43,8 @@ setup(
         "librosa",
         "pystoi",
         "torch_stoi",
-        "pesq",
     ],
     extras_require={
-        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm"],
+        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "pesq"],
     },
 )
