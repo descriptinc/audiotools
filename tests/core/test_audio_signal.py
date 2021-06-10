@@ -157,6 +157,15 @@ def test_zero_pad():
     assert torch.allclose(sig1.audio_data[..., -100:], zeros)
 
 
+def test_right_zero_pad_to():
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
+
+    sig1.right_zero_pad_to(16100)
+    zeros = torch.zeros(4, 2, 100)
+    assert torch.allclose(sig1.audio_data[..., -100:], zeros)
+
+
 def test_truncate():
     array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)

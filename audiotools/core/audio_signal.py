@@ -246,6 +246,10 @@ class AudioSignal(
         self.audio_mask = torch.nn.functional.pad(self.audio_mask, (before, after))
         return self
 
+    def right_zero_pad_to(self, length):
+        self.zero_pad(0, max(length - self.signal_length, 0))
+        return self
+
     def trim(self, before, after):
         if after == 0:
             self.audio_data = self.audio_data[..., before:]
