@@ -171,13 +171,13 @@ def test_zero_pad_to():
     assert sig1.signal_length == 16000
 
     sig1 = AudioSignal(array, sample_rate=16000)
-    sig1.zero_pad_to(16100, mode='before')
+    sig1.zero_pad_to(16100, mode="before")
     zeros = torch.zeros(4, 2, 100)
     assert torch.allclose(sig1.audio_data[..., :100], zeros)
     assert sig1.signal_length == 16100
 
     sig1 = AudioSignal(array, sample_rate=16000)
-    sig1.zero_pad_to(15000, mode='before')
+    sig1.zero_pad_to(15000, mode="before")
     assert sig1.signal_length == 16000
 
 
