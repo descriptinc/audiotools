@@ -55,6 +55,29 @@ def test_io():
     assert signal.audio_data.ndim == 3
 
 
+@pytest.mark.parametrize("loudness_cutoff", [-np.inf, -160, -80, -40, -20])
+def test_salient_excerpt(loudness_cutoff):
+    MAP = {-np.inf: 0.0, -160: 0.0, -80: 0.001, -40: 0.01, -20: 0.1}
+    with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+        sr = 44100
+        signal = AudioSignal(torch.zeros(sr * 60), sr)
+
+        signal[..., sr * 20 : sr * 21] = MAP[loudness_cutoff] * torch.randn(44100)
+
+        signal.write(f.name)
+        signal = AudioSignal.salient_excerpt(
+            f.name, loudness_cutoff=loudness_cutoff, duration=1
+        )
+
+        assert "offset" in signal.metadata
+        assert "duration" in signal.metadata
+        assert signal.loudness() >= loudness_cutoff
+
+        signal = AudioSignal.salient_excerpt(
+            f.name, loudness_cutoff=np.inf, duration=1, num_tries=10
+        )
+
+
 def test_arithmetic():
     def _make_signals():
         array = np.random.randn(2, 16000)
