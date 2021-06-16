@@ -90,6 +90,21 @@ class AudioSignal(
         return signal
 
     @classmethod
+    def salient_excerpt(
+        cls, audio_path, loudness_cutoff=-np.inf, num_tries=None, state=None, **kwargs
+    ):
+        state = util.random_state(state)
+        loudness = -np.inf
+        num_try = 0
+        while loudness <= loudness_cutoff:
+            excerpt = cls.excerpt(audio_path, state=state, **kwargs)
+            loudness = excerpt.loudness()
+            num_try += 1
+            if num_tries is not None and num_try >= num_tries:
+                break
+        return excerpt
+
+    @classmethod
     def batch(
         cls, audio_signals, pad_signals=False, truncate_signals=False, resample=False
     ):
