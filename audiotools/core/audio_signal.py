@@ -91,7 +91,7 @@ class AudioSignal(
 
     @classmethod
     def salient_excerpt(
-        cls, audio_path, loudness_cutoff=-40, num_tries=None, state=None, **kwargs
+        cls, audio_path, loudness_cutoff=-np.inf, num_tries=None, state=None, **kwargs
     ):
         state = util.random_state(state)
         loudness = -np.inf
