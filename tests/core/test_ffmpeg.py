@@ -3,7 +3,6 @@ import pyloudnorm
 import pytest
 
 from audiotools import AudioSignal
-from audiotools import Meter
 
 
 @pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])
