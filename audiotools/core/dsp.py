@@ -11,6 +11,40 @@ class DSPMixin:
     _original_num_channels = None
     _padded_signal_length = None
 
+    def _preprocess_signal_for_windowing(self, window_duration, hop_duration):
+        self._original_batch_size = self.batch_size
+        self._original_num_channels = self.num_channels
+
+        window_length = int(window_duration * self.sample_rate)
+        hop_length = int(hop_duration * self.sample_rate)
+
+        if window_length % hop_length != 0:
+            factor = window_length // hop_length
+            window_length = factor * hop_length
+
+        self.zero_pad(hop_length, hop_length)
+        self._padded_signal_length = self.signal_length
+
+        return window_length, hop_length
+
+    def windows(self, window_duration, hop_duration):
+        window_length, hop_length = self._preprocess_signal_for_windowing(
+            window_duration, hop_duration
+        )
+
+        self.audio_data = self.audio_data.reshape(-1, 1, self.signal_length)
+
+        for b in range(self.batch_size):
+            i = 0
+            start_idx = i * hop_length
+            while True:
+                start_idx = i * hop_length
+                i += 1
+                end_idx = start_idx + window_length
+                if end_idx > self.signal_length:
+                    break
+                yield self.audio_data[b, ..., start_idx:end_idx]
+
     def collect_windows(self, window_duration, hop_duration):
         """Function which collects overlapping windows from
         an AudioSignal.
@@ -24,18 +58,9 @@ class DSPMixin:
         Returns:
             AudioSignal: Signal of shape (nb * num_windows, nc, window_length).
         """
-        self._original_batch_size = self.batch_size
-        self._original_num_channels = self.num_channels
-
-        window_length = int(window_duration * self.sample_rate)
-        hop_length = int(hop_duration * self.sample_rate)
-
-        if window_length % hop_length != 0:
-            factor = window_length // hop_length
-            window_length = factor * hop_length
-
-        self.zero_pad(hop_length, hop_length)
-        self._padded_signal_length = self.signal_length
+        window_length, hop_length = self._preprocess_signal_for_windowing(
+            window_duration, hop_duration
+        )
 
         # self.audio_data: (nb, nch, nt).
         unfolded = torch.nn.functional.unfold(
