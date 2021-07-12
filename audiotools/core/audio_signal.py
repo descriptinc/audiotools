@@ -15,6 +15,7 @@ from .display import DisplayMixin
 from .dsp import DSPMixin
 from .effects import EffectMixin
 from .effects import ImpulseResponseMixin
+from .ffmpeg import FFMPEGMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
 
@@ -30,7 +31,13 @@ in `nussl.core.constants`.
 
 
 class AudioSignal(
-    EffectMixin, LoudnessMixin, PlayMixin, ImpulseResponseMixin, DSPMixin, DisplayMixin
+    EffectMixin,
+    LoudnessMixin,
+    PlayMixin,
+    ImpulseResponseMixin,
+    DSPMixin,
+    DisplayMixin,
+    FFMPEGMixin,
 ):
     def __init__(
         self,
