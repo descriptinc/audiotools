@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 
-def r128stats(filepath):
+def r128stats(filepath, quiet):
     """takes a path to an audio file, returns a dict with the loudness
     stats computed by the ffmpeg ebur128 filter. Taken lovingly from Scaper."""
     ffargs = [
@@ -20,6 +20,8 @@ def r128stats(filepath):
         "null",
         "-",
     ]
+    if quiet:
+        ffargs += ["-hide_banner"]
     proc = subprocess.Popen(ffargs, stderr=subprocess.PIPE, universal_newlines=True)
     stats = proc.communicate()[1]
     summary_index = stats.rfind("Summary:")
@@ -46,19 +48,19 @@ def r128stats(filepath):
 class FFMPEGMixin:
     _loudness = None
 
-    def ffmpeg_loudness(self):
+    def ffmpeg_loudness(self, quiet=True):
         loudness = []
 
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
             for i in range(self.batch_size):
                 self.write(f.name, i)
-                loudness_stats = r128stats(f.name)
+                loudness_stats = r128stats(f.name, quiet=quiet)
                 loudness.append(loudness_stats["I"])
 
         self._loudness = torch.from_numpy(np.array(loudness))
         return self.loudness()
 
-    def ffmpeg_resample(self, sample_rate):
+    def ffmpeg_resample(self, sample_rate, quiet=True):
         from audiotools import AudioSignal
 
         if sample_rate == self.sample_rate:
@@ -68,6 +70,8 @@ class FFMPEGMixin:
             self.write(f.name)
             f_out = f.name.replace("wav", "rs.wav")
             command = f"ffmpeg -i {f.name} -ar {sample_rate} {f_out}"
+            if quiet:
+                command += " -hide_banner -loglevel error"
             subprocess.check_call(shlex.split(command))
             resampled = AudioSignal(f_out)
         return resampled

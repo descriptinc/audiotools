@@ -72,7 +72,7 @@ class PlayMixin:
                 ff = ffmpy.FFmpeg(
                     inputs={tmp_wav.name: None},
                     outputs={
-                        tmp_converted.name: "-write_xing 0 -codec:a libmp3lame -b:a 128k -y"
+                        tmp_converted.name: "-write_xing 0 -codec:a libmp3lame -b:a 128k -y -hide_banner -loglevel error"
                     },
                 )
                 ff.run()
