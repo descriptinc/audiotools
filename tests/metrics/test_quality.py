@@ -26,7 +26,7 @@ def test_stoi():
     assert loss_val_diff < loss_val_identity
 
     old_stoi = 1.0
-    for snr in [50, 25, 10, 5, 0, -10, -20, -100]:
+    for snr in [50, 25, 10, 5, 0, -10, -20]:
         estimate = x.deepcopy().mix(nz.deepcopy(), snr=snr)
         new_stoi = metrics.quality.stoi(estimate, x)
         assert new_stoi < old_stoi
