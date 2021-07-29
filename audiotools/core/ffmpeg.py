@@ -57,7 +57,7 @@ class FFMPEGMixin:
                 loudness_stats = r128stats(f.name, quiet=quiet)
                 loudness.append(loudness_stats["I"])
 
-        self._loudness = torch.from_numpy(np.array(loudness))
+        self._loudness = torch.from_numpy(np.array(loudness)).float()
         return self.loudness()
 
     def ffmpeg_resample(self, sample_rate, quiet=True):

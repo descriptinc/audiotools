@@ -1,6 +1,9 @@
+import tempfile
+
 import numpy as np
 import pyloudnorm
 import pytest
+import torch
 
 from audiotools import AudioSignal
 
@@ -30,3 +33,11 @@ def test_ffmpeg_loudness():
 
     ffmpeg_loudness_iso = AudioSignal(array, 16000).ffmpeg_loudness()
     assert np.allclose(py_loudness, ffmpeg_loudness_iso, atol=1)
+
+    # if you normalize and then write, it should still work.
+    # if ffmpeg is float64, this fails
+    with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+        x = AudioSignal(torch.randn(44100 * 10), 44100)
+        x.ffmpeg_loudness(-24)
+        x.normalize(-24)
+        x.write(f.name)
