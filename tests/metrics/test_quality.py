@@ -20,7 +20,7 @@ def test_stoi():
     loss_val_identity = metrics.quality.stoi(x, y)
     assert np.allclose(loss_val_identity, 1.0)
 
-    y = AudioSignal.excerpt(audio_path, duration=1, state=0)
+    y = AudioSignal.excerpt(audio_path, duration=1, state=1)
 
     loss_val_diff = metrics.quality.stoi(x, y)
     assert loss_val_diff < loss_val_identity
@@ -36,7 +36,7 @@ def test_stoi():
 def test_pesq():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
 
-    x = AudioSignal.excerpt(audio_path, duration=1, state=0)
+    x = AudioSignal.excerpt(audio_path, duration=1, offset=5, state=0)
     y = x.deepcopy()
     nz = AudioSignal(torch.rand_like(x.audio_data), x.sample_rate)
     nz.normalize(-24)
@@ -44,7 +44,7 @@ def test_pesq():
     loss_val_identity = metrics.quality.pesq(x, y)
     assert loss_val_identity > 3.0
 
-    y = AudioSignal.excerpt(audio_path, duration=1, state=0)
+    y = AudioSignal.excerpt(audio_path, duration=1, offset=5, state=1)
 
     loss_val_diff = metrics.quality.pesq(x, y)
     assert loss_val_diff < loss_val_identity
