@@ -50,7 +50,7 @@ def test_pesq():
     assert loss_val_diff < loss_val_identity
 
     old_pesq = loss_val_identity
-    for snr in [50, 25, 10, 0, -10, -20, -100]:
+    for snr in [50, 25, 10, 0, -10, -20]:
         estimate = x.deepcopy().mix(nz.deepcopy(), snr=snr)
         new_pesq = metrics.quality.pesq(estimate, x)
         assert new_pesq < old_pesq
