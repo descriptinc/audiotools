@@ -20,7 +20,7 @@ def test_stoi():
     loss_val_identity = metrics.quality.stoi(x, y)
     assert np.allclose(loss_val_identity, 1.0)
 
-    y = AudioSignal.excerpt(audio_path, duration=1, state=1)
+    y = AudioSignal.excerpt(audio_path, duration=1, state=5)
 
     loss_val_diff = metrics.quality.stoi(x, y)
     assert loss_val_diff < loss_val_identity
@@ -44,7 +44,7 @@ def test_pesq():
     loss_val_identity = metrics.quality.pesq(x, y)
     assert loss_val_identity > 3.0
 
-    y = AudioSignal.excerpt(audio_path, duration=1, offset=5, state=1)
+    y = AudioSignal.excerpt(audio_path, duration=1, offset=5, state=5)
 
     loss_val_diff = metrics.quality.pesq(x, y)
     assert loss_val_diff < loss_val_identity
