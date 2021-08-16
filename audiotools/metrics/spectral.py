@@ -79,7 +79,5 @@ class MelSpectrogramLoss(nn.Module):
                 x_mels.pow(2).clamp(self.clamp_eps).log10(),
                 y_mels.pow(2).clamp(self.clamp_eps).log10(),
             )
-            loss += self.mag_weight * self.loss_fn(
-                x_mels, y_mels
-            )
+            loss += self.mag_weight * self.loss_fn(x_mels, y_mels)
         return loss

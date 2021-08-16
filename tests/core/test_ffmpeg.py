@@ -44,6 +44,7 @@ def test_ffmpeg_loudness():
         x.normalize(-24)
         x.write(f.name)
 
+
 def test_ffmpeg_load():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     # convert to mp3 with ffmpeg
