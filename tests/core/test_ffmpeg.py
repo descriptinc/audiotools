@@ -1,3 +1,5 @@
+import shlex
+import subprocess
 import tempfile
 
 import numpy as np
@@ -41,3 +43,17 @@ def test_ffmpeg_loudness():
         x.ffmpeg_loudness(-24)
         x.normalize(-24)
         x.write(f.name)
+
+def test_ffmpeg_load():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    # convert to mp3 with ffmpeg
+    og_signal = AudioSignal(audio_path)
+    with tempfile.NamedTemporaryFile(suffix=".mp3") as f:
+        command = f"ffmpeg -i {audio_path} {f.name} -y -hide_banner -loglevel error"
+        subprocess.check_call(shlex.split(command))
+
+        signal_from_mp3 = AudioSignal(f.name)
+        assert og_signal.signal_length != signal_from_mp3.signal_length
+
+        signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(f.name)
+        assert og_signal.signal_length == signal_from_ffmpeg.signal_length
