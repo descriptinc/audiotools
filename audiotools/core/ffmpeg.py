@@ -75,3 +75,14 @@ class FFMPEGMixin:
             subprocess.check_call(shlex.split(command))
             resampled = AudioSignal(f_out)
         return resampled
+
+    @classmethod
+    def load_from_file_with_ffmpeg(cls, audio_path, quiet=True, **kwargs):
+        with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+            command = f"ffmpeg -i {audio_path} {f.name} -y"
+            if quiet:
+                command += " -hide_banner -loglevel error"
+
+            subprocess.check_call(shlex.split(command))
+            signal = cls(f.name, **kwargs)
+        return signal
