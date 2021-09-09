@@ -162,6 +162,7 @@ class AudioSignal(
             offset=offset,
             duration=duration,
             sr=None,
+            mono=False,
         )
         data = torch.from_numpy(data)
 
