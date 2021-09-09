@@ -53,8 +53,5 @@ def test_ffmpeg_load():
         command = f"ffmpeg -i {audio_path} {f.name} -y -hide_banner -loglevel error"
         subprocess.check_call(shlex.split(command))
 
-        signal_from_mp3 = AudioSignal(f.name)
-        assert og_signal.signal_length != signal_from_mp3.signal_length
-
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(f.name)
         assert og_signal.signal_length == signal_from_ffmpeg.signal_length
