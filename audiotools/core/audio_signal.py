@@ -157,32 +157,13 @@ class AudioSignal(
 
     # I/O
     def load_from_file(self, audio_path, offset, duration, device=None):
-        try:
-            info = util.info(audio_path)
-            sample_rate = info.sample_rate
-
-            frame_offset = min(int(sample_rate * offset), info.num_frames)
-            if duration is not None:
-                num_frames = min(int(sample_rate * duration), info.num_frames)
-            else:
-                num_frames = info.num_frames
-
-            # Compatible with torchaudio 0.7.2 and 0.8.1.
-            torchaudio_version_070 = "0.7" in torchaudio.__version__
-            kwargs = {
-                "offset" if torchaudio_version_070 else "frame_offset": frame_offset,
-                "num_frames": num_frames,
-            }
-
-            data, sample_rate = torchaudio.load(audio_path, **kwargs)
-        except:  # pragma: no cover
-            data, sample_rate = librosa.load(
-                audio_path,
-                offset=offset,
-                duration=duration,
-                sr=None,
-            )
-            data = torch.from_numpy(data)
+        data, sample_rate = librosa.load(
+            audio_path,
+            offset=offset,
+            duration=duration,
+            sr=None,
+        )
+        data = torch.from_numpy(data)
 
         self.audio_data = data
         self.original_signal_length = self.signal_length
