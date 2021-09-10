@@ -1,7 +1,6 @@
 import pathlib
 import tempfile
 
-import librosa
 import numpy as np
 import pytest
 import rich
@@ -53,6 +52,12 @@ def test_io():
 
     signal = AudioSignal(torch.randn(1000), 44100)
     assert signal.audio_data.ndim == 3
+
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    assert AudioSignal(audio_path).hash() == AudioSignal(audio_path).hash()
+    assert (
+        AudioSignal(audio_path).hash() != AudioSignal(audio_path).normalize(-20).hash()
+    )
 
 
 @pytest.mark.parametrize("loudness_cutoff", [-np.inf, -160, -80, -40, -20])

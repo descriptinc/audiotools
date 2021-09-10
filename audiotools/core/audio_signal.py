@@ -1,5 +1,7 @@
 import copy
+import hashlib
 import pathlib
+import tempfile
 from collections import namedtuple
 
 import julius
@@ -196,6 +198,18 @@ class AudioSignal(
 
     def copy(self):
         return copy.copy(self)
+
+    def hash(self, batch_idx=0):
+        with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+            self.write(f.name, batch_idx)
+            h = hashlib.sha256()
+            b = bytearray(128 * 1024)
+            mv = memoryview(b)
+            with open(f.name, "rb", buffering=0) as f:
+                for n in iter(lambda: f.readinto(mv), 0):
+                    h.update(mv[:n])
+            file_hash = h.hexdigest()
+        return file_hash
 
     # Signal operations
     def to_mono(self):
