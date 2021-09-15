@@ -33,3 +33,24 @@ def test_sisdr(scaling, reduction, clip_min, zero_mean):
 
     loss_val_diff = loss(x, y)
     assert loss_val_diff > loss_val_identity
+
+
+def test_l1_loss():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+
+    x = AudioSignal.excerpt(audio_path, duration=1)
+    y = x.deepcopy()
+
+    loss = metrics.distance.L1Loss()
+
+    loss_val_identity = loss(x, y)
+    assert np.allclose(loss_val_identity, 0.0)
+
+    # Pass as tensors rather than audio signals
+    loss_val_identity = loss(x.audio_data, y.audio_data)
+    assert np.allclose(loss_val_identity, 0.0)
+
+    y = AudioSignal.excerpt(audio_path, duration=1)
+
+    loss_val_diff = loss(x, y)
+    assert loss_val_diff > loss_val_identity

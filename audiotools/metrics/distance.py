@@ -4,6 +4,18 @@ from torch import nn
 from .. import AudioSignal
 
 
+class L1Loss(nn.L1Loss):
+    def __init__(self, weight: float = 1.0, **kwargs):
+        self.weight = weight
+        super().__init__(**kwargs)
+
+    def forward(self, x, y):
+        if isinstance(x, AudioSignal):
+            x = x.audio_data
+            y = y.audio_data
+        return super().forward(x, y)
+
+
 class SISDRLoss(nn.Module):
     """
     Computes the Scale-Invariant Source-to-Distortion Ratio between a batch
@@ -31,11 +43,13 @@ class SISDRLoss(nn.Module):
         reduction: str = " mean",
         zero_mean: int = True,
         clip_min: int = None,
+        weight: float = 1.0,
     ):
         self.scaling = scaling
         self.reduction = reduction
         self.zero_mean = zero_mean
         self.clip_min = clip_min
+        self.weight = weight
         super().__init__()
 
     def forward(self, x: AudioSignal, y: AudioSignal):
