@@ -1,5 +1,6 @@
 from typing import List
 
+import numpy as np
 from torch import nn
 
 from .. import AudioSignal
@@ -84,4 +85,32 @@ class MelSpectrogramLoss(nn.Module):
                 y_mels.pow(2).clamp(self.clamp_eps).log10(),
             )
             loss += self.mag_weight * self.loss_fn(x_mels, y_mels)
+        return loss
+
+
+class PhaseLoss(nn.Module):
+    def __init__(
+        self, window_length: int = 2048, hop_length: int = 512, weight: float = 1.0
+    ):
+        super().__init__()
+
+        self.weight = weight
+        self.stft_params = STFTParams(window_length, hop_length)
+
+    def forward(self, x: AudioSignal, y: AudioSignal):
+        s = self.stft_params
+        x.stft(s.window_length, s.hop_length, s.window_type)
+        y.stft(s.window_length, s.hop_length, s.window_type)
+
+        # Take circular difference
+        diff = x.phase - y.phase
+        diff[diff < -np.pi] += 2 * np.pi
+        diff[diff > np.pi] -= -2 * np.pi
+
+        # Scale true magnitude to weights in [0, 1]
+        x_min, x_max = x.magnitude.min(), x.magnitude.max()
+        weights = (x.magnitude - x_min) / (x_max - x_min)
+
+        # Take weighted mean of all phase errors
+        loss = ((weights * diff) ** 2).mean()
         return loss
