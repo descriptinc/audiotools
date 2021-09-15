@@ -19,6 +19,7 @@ class MultiScaleSTFTLoss(nn.Module):
         clamp_eps: float = 1e-5,
         mag_weight: float = 1.0,
         log_weight: float = 1.0,
+        weight: float = 1.0,
     ):
         super().__init__()
         self.stft_params = [
@@ -28,6 +29,7 @@ class MultiScaleSTFTLoss(nn.Module):
         self.log_weight = log_weight
         self.mag_weight = mag_weight
         self.clamp_eps = clamp_eps
+        self.weight = weight
 
     def forward(self, x: AudioSignal, y: AudioSignal):
         loss = 0.0
@@ -53,6 +55,7 @@ class MelSpectrogramLoss(nn.Module):
         clamp_eps: float = 1e-5,
         mag_weight: float = 1.0,
         log_weight: float = 1.0,
+        weight: float = 1.0,
     ):
         super().__init__()
         self.stft_params = [
@@ -63,6 +66,7 @@ class MelSpectrogramLoss(nn.Module):
         self.clamp_eps = clamp_eps
         self.log_weight = log_weight
         self.mag_weight = mag_weight
+        self.weight = weight
 
     def forward(self, x: AudioSignal, y: AudioSignal):
         loss = 0.0

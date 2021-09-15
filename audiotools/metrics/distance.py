@@ -31,11 +31,13 @@ class SISDRLoss(nn.Module):
         reduction: str = " mean",
         zero_mean: int = True,
         clip_min: int = None,
+        weight: float = 1.0,
     ):
         self.scaling = scaling
         self.reduction = reduction
         self.zero_mean = zero_mean
         self.clip_min = clip_min
+        self.weight = weight
         super().__init__()
 
     def forward(self, x: AudioSignal, y: AudioSignal):
