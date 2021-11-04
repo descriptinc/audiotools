@@ -1,6 +1,7 @@
 import shlex
 import subprocess
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pyloudnorm
@@ -54,4 +55,12 @@ def test_ffmpeg_load():
         subprocess.check_call(shlex.split(command))
 
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(f.name)
+        assert og_signal.signal_length == signal_from_ffmpeg.signal_length
+
+    # test spaces in title
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_path = str(Path(tmpdir) / "Title with spaces.wav")
+        og_signal.write(out_path)
+        signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(out_path)
+
         assert og_signal.signal_length == signal_from_ffmpeg.signal_length
