@@ -79,7 +79,7 @@ class FFMPEGMixin:
     @classmethod
     def load_from_file_with_ffmpeg(cls, audio_path, quiet=True, **kwargs):
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-            command = f"ffmpeg -i {audio_path} {f.name} -y"
+            command = f"ffmpeg -i '{audio_path}' {f.name} -y"
             if quiet:
                 command += " -hide_banner -loglevel error"
 
