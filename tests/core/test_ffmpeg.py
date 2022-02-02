@@ -64,3 +64,11 @@ def test_ffmpeg_load():
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(out_path)
 
         assert og_signal.signal_length == signal_from_ffmpeg.signal_length
+
+    # test quotes in title
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_path = str(Path(tmpdir) / "Someone's title with spaces.wav")
+        og_signal.write(out_path)
+        signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(out_path)
+
+        assert og_signal.signal_length == signal_from_ffmpeg.signal_length
