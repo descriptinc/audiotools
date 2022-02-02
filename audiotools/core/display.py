@@ -33,6 +33,7 @@ class DisplayMixin:
 
     def upload_to_discourse(
         self,
+        label=None,
         api_username=None,
         api_key=None,
         batch_idx=0,
@@ -64,7 +65,7 @@ class DisplayMixin:
             )
             info = json.loads(subprocess.check_output(shlex.split(command)))
 
-            label = self.path_to_input_file
+            label = self.path_to_input_file if label is None else label
             if label is None:
                 label = "unknown"
 
