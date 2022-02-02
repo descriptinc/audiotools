@@ -88,7 +88,6 @@ class PlayMixin:
         self,
         batch_idx=0,
         ext=".mp3",
-        display=True,
         add_headers=True,
         player_width="100%",
         max_width="600px",
@@ -166,9 +165,7 @@ class PlayMixin:
         widget_html = widget_html.replace("IMAGE_SRC", tag)
         widget_html = widget_html.replace("PLAYER_ID", player_id)
 
-        if display:
-            IPython.display.display(IPython.display.HTML(widget_html))
-        return IPython.display.HTML(header_html + widget_html)
+        IPython.display.display(IPython.display.HTML(widget_html))
 
     def play(self, batch_idx=0):
         """
