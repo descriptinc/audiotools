@@ -4,12 +4,12 @@ repos:
   hooks:
     - id: reorder-python-imports
 - repo: https://github.com/psf/black
-  rev: 21.4b2
+  rev: 22.1.0
   hooks:
     - id: black
       language_version: python3
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v3.4.0
+  rev: v4.0.1
   hooks:
     - id: end-of-file-fixer
     - id: trailing-whitespace
