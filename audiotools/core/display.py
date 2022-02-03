@@ -56,7 +56,7 @@ class DisplayMixin:
             self.write(f.name, batch_idx=batch_idx)
 
             command = (
-                f"curl -X POST {discourse_server}/uploads.json "
+                f"curl -s -X POST {discourse_server}/uploads.json "
                 f"-H 'content-type: multipart/form-data;' "
                 f"-H 'Api-Key: {api_key}' "
                 f"-H 'Api-Username: {api_username}' "
