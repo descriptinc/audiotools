@@ -4,7 +4,9 @@ import shlex
 import subprocess
 import tempfile
 
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.gridspec import GridSpec
 
 
 class DisplayMixin:
@@ -30,6 +32,13 @@ class DisplayMixin:
         librosa.display.waveplot(
             audio_data, x_axis=x_axis, sr=self.sample_rate, **kwargs
         )
+
+    def wavespec(self, batch_idx=0, x_axis="time", **kwargs):
+        gs = GridSpec(6, 1)
+        plt.subplot(gs[0, :])
+        self.waveplot(batch_idx=batch_idx, x_axis=x_axis)
+        plt.subplot(gs[1:, :])
+        self.specshow(batch_idx=batch_idx, x_axis=x_axis, **kwargs)
 
     def upload_to_discourse(
         self,

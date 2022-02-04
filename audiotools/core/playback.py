@@ -8,12 +8,10 @@ import io
 import random
 import string
 import subprocess
-from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
 import importlib_resources as pkg_resources
 import matplotlib.pyplot as plt
-from PIL import Image
 
 from . import templates
 from .util import _close_temp_files
@@ -93,7 +91,7 @@ class PlayMixin:
         player_width="100%",
         max_width="600px",
         margin="10px",
-        plot_fn=None,
+        plot_fn="specshow",
         fig_size=(12, 4),
         return_html=False,
         **kwargs,
@@ -169,8 +167,8 @@ class PlayMixin:
 
         widget_html = widget
 
-        if plot_fn is None:
-            plot_fn = self.specshow
+        if isinstance(plot_fn, str):
+            plot_fn = getattr(self, plot_fn)
             kwargs["batch_idx"] = batch_idx
         plot_fn(**kwargs)
 
@@ -257,21 +255,14 @@ if __name__ == "__main__":
     )
 
     wave_html = signal.widget(
-        "Waveform plot", plot_fn=signal.waveplot, return_html=True, fig_size=(12, 2)
+        "Waveform", plot_fn="waveplot", return_html=True, fig_size=(12, 2)
     )
 
-    spec_html = signal.widget("Spectrogram plot", return_html=True, add_headers=False)
-
-    def plot_fn():
-        gs = GridSpec(6, 1)
-        plt.subplot(gs[0, :])
-        signal.waveplot()
-        plt.subplot(gs[1:, :])
-        signal.specshow()
+    spec_html = signal.widget("Spectrogram", return_html=True, add_headers=False)
 
     combined_html = signal.widget(
-        "Combined plot",
-        plot_fn=plot_fn,
+        "Waveform + spectrogram",
+        plot_fn="wavespec",
         return_html=True,
         fig_size=(12, 5),
         add_headers=False,
