@@ -95,6 +95,7 @@ class PlayMixin:
         margin="10px",
         plot_fn=None,
         fig_size=(12, 4),
+        return_html=False,
         **kwargs,
     ):
         """Creates a playable widget with spectrogram. Inspired (heavily) by
@@ -178,16 +179,18 @@ class PlayMixin:
         _adjust_figure(fig)
 
         if title is not None:
-            t = axs[0].text(
-                0.995,
-                0.92,
+            t = axs[0].annotate(
                 title,
-                size=25,
+                xy=(1, 1),
+                xycoords="axes fraction",
+                fontsize=25,
+                xytext=(-5, -5),
+                textcoords="offset points",
+                ha="right",
+                va="top",
                 color="white",
-                transform=axs[0].transAxes,
-                horizontalalignment="right",
             )
-            t.set_bbox(dict(facecolor="black", alpha=0.75, edgecolor="black"))
+            t.set_bbox(dict(facecolor="black", alpha=0.5, edgecolor="black"))
 
         tag = _save_fig_to_tag()
 
@@ -205,7 +208,16 @@ class PlayMixin:
         widget_html = widget_html.replace("LEVELS_SRC", levels_tag)
         widget_html = widget_html.replace("PLAYER_ID", player_id)
 
+        # Calculate height of figure based on figure size.
+        padding_amount = str(fig_size[1] * 9) + "%"
+        widget_html = widget_html.replace("PADDING_AMOUNT", padding_amount)
+
         IPython.display.display(IPython.display.HTML(widget_html))
+
+        if return_html:
+            html = header_html if add_headers else ""
+            html += widget_html
+            return html
 
     def play(self, batch_idx=0):
         """
@@ -234,3 +246,38 @@ class PlayMixin:
                 ]
             )
         return self
+
+
+if __name__ == "__main__":
+    from audiotools import AudioSignal
+    from matplotlib.gridspec import GridSpec
+
+    signal = AudioSignal(
+        "tests/audio/spk/f10_script4_produced.mp3", offset=5, duration=5
+    )
+
+    wave_html = signal.widget(
+        "Waveform plot", plot_fn=signal.waveplot, return_html=True, fig_size=(12, 2)
+    )
+
+    spec_html = signal.widget("Spectrogram plot", return_html=True, add_headers=False)
+
+    def plot_fn():
+        gs = GridSpec(6, 1)
+        plt.subplot(gs[0, :])
+        signal.waveplot()
+        plt.subplot(gs[1:, :])
+        signal.specshow()
+
+    combined_html = signal.widget(
+        "Combined plot",
+        plot_fn=plot_fn,
+        return_html=True,
+        fig_size=(12, 5),
+        add_headers=False,
+    )
+
+    with open("/tmp/index.html", "w") as f:
+        f.write(wave_html)
+        f.write(spec_html)
+        f.write(combined_html)
