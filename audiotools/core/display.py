@@ -14,6 +14,10 @@ class DisplayMixin:
         import librosa
         import librosa.display
 
+        # Always re-compute the STFT data before showing it, in case
+        # it changed.
+        self.stft_data = None
+
         log_mag = librosa.amplitude_to_db(self.magnitude.cpu().numpy(), ref=np.max)
         librosa.display.specshow(
             log_mag[batch_idx].mean(axis=0),

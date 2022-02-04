@@ -277,7 +277,16 @@ if __name__ == "__main__":  # pragma: no cover
         add_headers=False,
     )
 
+    signal.low_pass(8000)
+    lowpass_html = signal.widget(
+        "Lowpassed audio",
+        plot_fn="wavespec",
+        return_html=True,
+        add_headers=False,
+    )
+
     with open("/tmp/index.html", "w") as f:
         f.write(wave_html)
         f.write(spec_html)
         f.write(combined_html)
+        f.write(lowpass_html)
