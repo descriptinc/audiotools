@@ -167,7 +167,6 @@ class PlayMixin:
 
         if add_headers:
             header_html = headers.replace("PLAYER_WIDTH", str(player_width))
-            header_html = header_html.replace("MAX_WIDTH", str(max_width))
             header_html = header_html.replace("MARGIN", str(margin))
             IPython.display.display(IPython.display.HTML(header_html))
 
@@ -218,6 +217,7 @@ class PlayMixin:
         # Calculate height of figure based on figure size.
         padding_amount = str(fig_size[1] * 9) + "%"
         widget_html = widget_html.replace("PADDING_AMOUNT", padding_amount)
+        widget_html = widget_html.replace("MAX_WIDTH", str(max_width))
 
         IPython.display.display(IPython.display.HTML(widget_html))
 
