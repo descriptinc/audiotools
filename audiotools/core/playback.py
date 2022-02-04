@@ -19,6 +19,12 @@ from .util import _close_temp_files
 headers = pkg_resources.read_text(templates, "headers.html")
 widget = pkg_resources.read_text(templates, "widget.html")
 
+DEFAULT_FIG_SIZES = {
+    "specshow": (12, 4),
+    "waveplot": (12, 2),
+    "wavespec": (12, 5),
+}
+
 
 def _check_imports():  # pragma: no cover
     try:
@@ -92,7 +98,7 @@ class PlayMixin:
         max_width="600px",
         margin="10px",
         plot_fn="specshow",
-        fig_size=(12, 4),
+        fig_size=None,
         return_html=False,
         **kwargs,
     ):
@@ -130,8 +136,8 @@ class PlayMixin:
             HTML object.
         """
 
-        def _adjust_figure(fig):
-            fig.set_size_inches(*fig_size)
+        def _adjust_figure(fig, _fig_size):
+            fig.set_size_inches(*_fig_size)
             plt.ioff()
 
             axs = fig.axes
@@ -167,6 +173,9 @@ class PlayMixin:
 
         widget_html = widget
 
+        if fig_size is None:
+            fig_size = DEFAULT_FIG_SIZES.get(plot_fn, (12, 4))
+
         if isinstance(plot_fn, str):
             plot_fn = getattr(self, plot_fn)
             kwargs["batch_idx"] = batch_idx
@@ -174,7 +183,7 @@ class PlayMixin:
 
         fig = plt.gcf()
         axs = fig.axes
-        _adjust_figure(fig)
+        _adjust_figure(fig, fig_size)
 
         if title is not None:
             t = axs[0].annotate(
@@ -195,7 +204,7 @@ class PlayMixin:
         # Make the source image for the levels
         fig = plt.figure()
         self.specshow(batch_idx=batch_idx)
-        _adjust_figure(fig)
+        _adjust_figure(fig, (12, 1.5))
         levels_tag = _save_fig_to_tag()
 
         player_id = "".join(random.choice(string.ascii_uppercase) for _ in range(10))
@@ -254,7 +263,9 @@ if __name__ == "__main__":  # pragma: no cover
     )
 
     wave_html = signal.widget(
-        "Waveform", plot_fn="waveplot", return_html=True, fig_size=(12, 2)
+        "Waveform",
+        plot_fn="waveplot",
+        return_html=True,
     )
 
     spec_html = signal.widget("Spectrogram", return_html=True, add_headers=False)
@@ -263,7 +274,6 @@ if __name__ == "__main__":  # pragma: no cover
         "Waveform + spectrogram",
         plot_fn="wavespec",
         return_html=True,
-        fig_size=(12, 5),
         add_headers=False,
     )
 
