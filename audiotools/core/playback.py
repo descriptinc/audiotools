@@ -86,6 +86,7 @@ class PlayMixin:
 
     def widget(
         self,
+        title=None,
         batch_idx=0,
         ext=".mp3",
         add_headers=True,
@@ -93,6 +94,7 @@ class PlayMixin:
         max_width="600px",
         margin="10px",
         plot_fn=None,
+        fig_size=(12, 4),
         **kwargs,
     ):
         """Creates a playable widget with spectrogram. Inspired (heavily) by
@@ -116,6 +118,10 @@ class PlayMixin:
             Margin on all sides of player, by default "10px"
         plot_fn : function, optional
             Plotting function to use (by default self.specshow).
+        title : str, optional
+            Title of plot, placed in upper right of top-most axis.
+        fig_size : tuple, optional
+            Size of figure.
         kwargs : dict, optional
             Keyword arguments to plot_fn (by default self.specshow).
 
@@ -124,6 +130,32 @@ class PlayMixin:
         HTML
             HTML object.
         """
+
+        def _adjust_figure(fig):
+            fig.set_size_inches(*fig_size)
+            plt.ioff()
+
+            axs = fig.axes
+            for ax in axs:
+                ax.margins(0, 0)
+                ax.set_axis_off()
+                ax.xaxis.set_major_locator(plt.NullLocator())
+                ax.yaxis.set_major_locator(plt.NullLocator())
+
+            plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+
+        def _save_fig_to_tag():
+            buffer = io.BytesIO()
+
+            plt.savefig(buffer, bbox_inches="tight", pad_inches=0)
+            plt.close()
+
+            buffer.seek(0)
+            data_uri = base64.b64encode(buffer.read()).decode("ascii")
+            tag = "data:image/png;base64,{0}".format(data_uri)
+
+            return tag
+
         _, IPython = _check_imports()
 
         header_html = ""
@@ -138,31 +170,39 @@ class PlayMixin:
 
         if plot_fn is None:
             plot_fn = self.specshow
+            kwargs["batch_idx"] = batch_idx
         plot_fn(**kwargs)
 
-        plt.ioff()
-        plt.gca().set_axis_off()
-        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
-        plt.margins(0, 0)
-        plt.gca().xaxis.set_major_locator(plt.NullLocator())
-        plt.gca().yaxis.set_major_locator(plt.NullLocator())
+        fig = plt.gcf()
+        axs = fig.axes
+        _adjust_figure(fig)
 
-        buffer = io.BytesIO()
+        if title is not None:
+            t = axs[0].text(
+                0.995,
+                0.92,
+                title,
+                size=25,
+                color="white",
+                transform=axs[0].transAxes,
+                horizontalalignment="right",
+            )
+            t.set_bbox(dict(facecolor="black", alpha=0.75, edgecolor="black"))
 
-        plt.savefig(buffer, bbox_inches="tight", pad_inches=0)
-        plt.close()
+        tag = _save_fig_to_tag()
 
-        buffer.seek(0)
-
-        data_uri = base64.b64encode(buffer.read()).decode("ascii")
-
-        tag = "data:image/png;base64,{0}".format(data_uri)
+        # Make the source image for the levels
+        fig = plt.figure()
+        self.specshow(batch_idx=batch_idx)
+        _adjust_figure(fig)
+        levels_tag = _save_fig_to_tag()
 
         player_id = "".join(random.choice(string.ascii_uppercase) for _ in range(10))
 
         audio_elem = self.embed(batch_idx=batch_idx, ext=ext, display=False)
         widget_html = widget_html.replace("AUDIO_SRC", audio_elem.src_attr())
         widget_html = widget_html.replace("IMAGE_SRC", tag)
+        widget_html = widget_html.replace("LEVELS_SRC", levels_tag)
         widget_html = widget_html.replace("PLAYER_ID", player_id)
 
         IPython.display.display(IPython.display.HTML(widget_html))

@@ -130,6 +130,7 @@
         overflow:hidden;
         position: absolute;
         z-index: 10;
+        border-left: solid 1px rgba(0, 0, 0, 0.664);
 
         position: absolute;
         pointer-events: none;
@@ -223,7 +224,7 @@
             this.download.onclick = download_audio;
         }
 
-        load(audio_fname, img_fname) {
+        load(audio_fname, img_fname, levels_fname) {
             this.pause()
             window.cancelAnimationFrame(this.progress)
             this.playpause.disabled = true
@@ -233,7 +234,7 @@
             this.demo_img.setAttribute("src", img_fname)
             this.overlay.style.width = '0%'
 
-            fetch(img_fname)
+            fetch(levels_fname)
             .then(response => response.arrayBuffer())
             .then(text => {
                 this.mat = this.parse(text);
