@@ -8,18 +8,22 @@ import io
 import random
 import string
 import subprocess
-from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
 import importlib_resources as pkg_resources
 import matplotlib.pyplot as plt
-from PIL import Image
 
 from . import templates
 from .util import _close_temp_files
 
 headers = pkg_resources.read_text(templates, "headers.html")
 widget = pkg_resources.read_text(templates, "widget.html")
+
+DEFAULT_FIG_SIZES = {
+    "specshow": (12, 4),
+    "waveplot": (12, 2),
+    "wavespec": (12, 5),
+}
 
 
 def _check_imports():  # pragma: no cover
@@ -86,14 +90,16 @@ class PlayMixin:
 
     def widget(
         self,
+        title=None,
         batch_idx=0,
         ext=".mp3",
-        display=True,
         add_headers=True,
         player_width="100%",
         max_width="600px",
         margin="10px",
-        plot_fn=None,
+        plot_fn="specshow",
+        fig_size=None,
+        return_html=False,
         **kwargs,
     ):
         """Creates a playable widget with spectrogram. Inspired (heavily) by
@@ -117,6 +123,10 @@ class PlayMixin:
             Margin on all sides of player, by default "10px"
         plot_fn : function, optional
             Plotting function to use (by default self.specshow).
+        title : str, optional
+            Title of plot, placed in upper right of top-most axis.
+        fig_size : tuple, optional
+            Size of figure.
         kwargs : dict, optional
             Keyword arguments to plot_fn (by default self.specshow).
 
@@ -125,50 +135,96 @@ class PlayMixin:
         HTML
             HTML object.
         """
+
+        def _adjust_figure(fig, _fig_size):
+            fig.set_size_inches(*_fig_size)
+            plt.ioff()
+
+            axs = fig.axes
+            for ax in axs:
+                ax.margins(0, 0)
+                ax.set_axis_off()
+                ax.xaxis.set_major_locator(plt.NullLocator())
+                ax.yaxis.set_major_locator(plt.NullLocator())
+
+            plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+
+        def _save_fig_to_tag():
+            buffer = io.BytesIO()
+
+            plt.savefig(buffer, bbox_inches="tight", pad_inches=0)
+            plt.close()
+
+            buffer.seek(0)
+            data_uri = base64.b64encode(buffer.read()).decode("ascii")
+            tag = "data:image/png;base64,{0}".format(data_uri)
+
+            return tag
+
         _, IPython = _check_imports()
 
         header_html = ""
 
         if add_headers:
             header_html = headers.replace("PLAYER_WIDTH", str(player_width))
-            header_html = header_html.replace("MAX_WIDTH", str(max_width))
             header_html = header_html.replace("MARGIN", str(margin))
             IPython.display.display(IPython.display.HTML(header_html))
 
         widget_html = widget
 
-        if plot_fn is None:
-            plot_fn = self.specshow
+        if fig_size is None:
+            fig_size = DEFAULT_FIG_SIZES.get(plot_fn, (12, 4))
+
+        if isinstance(plot_fn, str):
+            plot_fn = getattr(self, plot_fn)
+            kwargs["batch_idx"] = batch_idx
         plot_fn(**kwargs)
 
-        plt.ioff()
-        plt.gca().set_axis_off()
-        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
-        plt.margins(0, 0)
-        plt.gca().xaxis.set_major_locator(plt.NullLocator())
-        plt.gca().yaxis.set_major_locator(plt.NullLocator())
+        fig = plt.gcf()
+        axs = fig.axes
+        _adjust_figure(fig, fig_size)
 
-        buffer = io.BytesIO()
+        if title is not None:
+            t = axs[0].annotate(
+                title,
+                xy=(1, 1),
+                xycoords="axes fraction",
+                fontsize=25,
+                xytext=(-5, -5),
+                textcoords="offset points",
+                ha="right",
+                va="top",
+                color="white",
+            )
+            t.set_bbox(dict(facecolor="black", alpha=0.5, edgecolor="black"))
 
-        plt.savefig(buffer, bbox_inches="tight", pad_inches=0)
-        plt.close()
+        tag = _save_fig_to_tag()
 
-        buffer.seek(0)
-
-        data_uri = base64.b64encode(buffer.read()).decode("ascii")
-
-        tag = "data:image/png;base64,{0}".format(data_uri)
+        # Make the source image for the levels
+        fig = plt.figure()
+        self.specshow(batch_idx=batch_idx)
+        _adjust_figure(fig, (12, 1.5))
+        levels_tag = _save_fig_to_tag()
 
         player_id = "".join(random.choice(string.ascii_uppercase) for _ in range(10))
 
         audio_elem = self.embed(batch_idx=batch_idx, ext=ext, display=False)
         widget_html = widget_html.replace("AUDIO_SRC", audio_elem.src_attr())
         widget_html = widget_html.replace("IMAGE_SRC", tag)
+        widget_html = widget_html.replace("LEVELS_SRC", levels_tag)
         widget_html = widget_html.replace("PLAYER_ID", player_id)
 
-        if display:
-            IPython.display.display(IPython.display.HTML(widget_html))
-        return IPython.display.HTML(header_html + widget_html)
+        # Calculate height of figure based on figure size.
+        padding_amount = str(fig_size[1] * 9) + "%"
+        widget_html = widget_html.replace("PADDING_AMOUNT", padding_amount)
+        widget_html = widget_html.replace("MAX_WIDTH", str(max_width))
+
+        IPython.display.display(IPython.display.HTML(widget_html))
+
+        if return_html:
+            html = header_html if add_headers else ""
+            html += widget_html
+            return html
 
     def play(self, batch_idx=0):
         """
@@ -197,3 +253,40 @@ class PlayMixin:
                 ]
             )
         return self
+
+
+if __name__ == "__main__":  # pragma: no cover
+    from audiotools import AudioSignal
+
+    signal = AudioSignal(
+        "tests/audio/spk/f10_script4_produced.mp3", offset=5, duration=5
+    )
+
+    wave_html = signal.widget(
+        "Waveform",
+        plot_fn="waveplot",
+        return_html=True,
+    )
+
+    spec_html = signal.widget("Spectrogram", return_html=True, add_headers=False)
+
+    combined_html = signal.widget(
+        "Waveform + spectrogram",
+        plot_fn="wavespec",
+        return_html=True,
+        add_headers=False,
+    )
+
+    signal.low_pass(8000)
+    lowpass_html = signal.widget(
+        "Lowpassed audio",
+        plot_fn="wavespec",
+        return_html=True,
+        add_headers=False,
+    )
+
+    with open("/tmp/index.html", "w") as f:
+        f.write(wave_html)
+        f.write(spec_html)
+        f.write(combined_html)
+        f.write(lowpass_html)

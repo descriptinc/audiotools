@@ -121,7 +121,10 @@ class DSPMixin:
         cutoffs = util.ensure_tensor(cutoffs, 2, self.batch_size)
         cutoffs = cutoffs / self.sample_rate
         filtered = torch.empty_like(self.audio_data)
+
         for i, cutoff in enumerate(cutoffs):
-            filtered[i] = julius.lowpass_filter(self.audio_data[i], cutoff, zeros=zeros)
+            lp_filter = julius.LowPassFilter(cutoff, zeros=zeros).to(self.device)
+            filtered[i] = lp_filter(self.audio_data[i])
+
         self.audio_data = filtered
         return self

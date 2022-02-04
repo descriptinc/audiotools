@@ -12,3 +12,8 @@ def test_specshow():
 def test_waveplot():
     array = np.zeros((1, 16000))
     AudioSignal(array, sample_rate=16000).waveplot()
+
+
+def test_wavespec():
+    array = np.zeros((1, 16000))
+    AudioSignal(array, sample_rate=16000).wavespec()

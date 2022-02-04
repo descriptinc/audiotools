@@ -2,6 +2,7 @@ import shlex
 import subprocess
 import tempfile
 
+import ffmpy
 import numpy as np
 import torch
 
@@ -79,10 +80,15 @@ class FFMPEGMixin:
     @classmethod
     def load_from_file_with_ffmpeg(cls, audio_path, quiet=True, **kwargs):
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-            command = f"ffmpeg -i '{audio_path}' {f.name} -y"
+            global_options = "-y"
             if quiet:
-                command += " -hide_banner -loglevel error"
+                global_options += " -loglevel error"
 
-            subprocess.check_call(shlex.split(command))
+            ff = ffmpy.FFmpeg(
+                inputs={audio_path: None},
+                outputs={f.name: None},
+                global_options=global_options,
+            )
+            ff.run()
             signal = cls(f.name, **kwargs)
         return signal

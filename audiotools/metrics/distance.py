@@ -77,7 +77,7 @@ class SISDRLoss(nn.Module):
         _references = references - mean_reference
         _estimates = estimates - mean_estimate
 
-        references_projection = (_references ** 2).sum(dim=-2) + eps
+        references_projection = (_references**2).sum(dim=-2) + eps
         references_on_estimates = (_estimates * _references).sum(dim=-2) + eps
 
         scale = (
@@ -89,8 +89,8 @@ class SISDRLoss(nn.Module):
         e_true = scale * _references
         e_res = _estimates - e_true
 
-        signal = (e_true ** 2).sum(dim=1)
-        noise = (e_res ** 2).sum(dim=1)
+        signal = (e_true**2).sum(dim=1)
+        noise = (e_res**2).sum(dim=1)
         sdr = -10 * torch.log10(signal / noise + eps)
 
         if self.clip_min is not None:
