@@ -21,3 +21,4 @@ def test_widget():
     AudioSignal(array, sample_rate=16000).widget()
     AudioSignal(array, sample_rate=16000).widget(ext=".wav")
     AudioSignal(array, sample_rate=16000).widget("Some title")
+    AudioSignal(array, sample_rate=16000).widget("Some title", return_html=True)

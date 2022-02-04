@@ -246,9 +246,8 @@ class PlayMixin:
         return self
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     from audiotools import AudioSignal
-    from matplotlib.gridspec import GridSpec
 
     signal = AudioSignal(
         "tests/audio/spk/f10_script4_produced.mp3", offset=5, duration=5
