@@ -161,3 +161,28 @@ def chdir(newdir):
         yield
     finally:
         os.chdir(curdir)
+
+
+def discourse_audio_table(audio_dict):  # pragma: no cover
+    """Creates a Markdown table out of a dictionary of
+    AudioSignal objects which looks something like:
+
+    | Label | Audio
+    | [key1] | [val1.audio_data embedded]
+    | [key2] | [val2.audio_data embedded]
+
+    Parameters
+    ----------
+    audio_dict : dict[str, AudioSignal]
+        Dictionary of strings mapped to AudioSignal objects.
+    """
+    FORMAT = "| Label | Audio \n" "|---|:-: \n"
+    uploads = []
+
+    for k, v in audio_dict.items():
+        upload = v.upload_to_discourse(k)
+        formatted_audio = upload[0].replace("|", "\|")
+        row = f"| {k} | {formatted_audio} |\n"
+        FORMAT += row
+        uploads.append(upload)
+    return FORMAT, uploads
