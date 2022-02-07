@@ -23,6 +23,7 @@ def test_io():
 
     assert signal == signal_from_file
     print(signal)
+    print(signal.markdown())
 
     mp3_signal = AudioSignal.excerpt(
         audio_path.replace("wav", "mp3"), offset=5, duration=5
