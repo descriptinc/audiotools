@@ -51,9 +51,9 @@ nz = AudioSignal("tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav")
 ```
 
 ## Mixing
-Let's first listen to the clean file:
+Let's first listen to the clean file (and also upload it to Discourse, a feature we'll be using throughout this post):
 
-```{.python .cb.nb show=code:none+stdout:raw}
+```{.python .cb.nb show=code:verbatim+stdout:raw}
 info = spk.upload_to_discourse(label="original", ext=".mp3")
 print(info[0])
 ```
