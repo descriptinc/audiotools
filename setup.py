@@ -40,7 +40,7 @@ setup(
         "ipython",
         "rich",
         "matplotlib",
-        "librosa",
+        "librosa==0.8.0",
         "pystoi",
         "torch_stoi",
     ],
