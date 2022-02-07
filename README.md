@@ -30,7 +30,7 @@ If you need to run it on all files:
 This README can be run, and then copy-pasted into Discourse to hear all the audio output by installing [codebraid](https://github.com/gpoore/codebraid), and then running:
 
 ```
-codebraid pandoc --from markdown --to markdown README.md --wrap=none -t gfm > pbcopy
+codebraid pandoc --from markdown --to markdown README.md --wrap=none -t gfm | pbcopy
 ```
 
 And then pasting the output to Discourse (already done [here](https://research.descript.com/t/audiotools-readme-with-audio-examples/562)).
