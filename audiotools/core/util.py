@@ -1,12 +1,15 @@
+import json
 import numbers
 import os
+import shlex
+import subprocess
+import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
-from functools import wraps
 from pathlib import Path
 from typing import List
-from typing import Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchaudio
@@ -163,7 +166,57 @@ def chdir(newdir):
         os.chdir(curdir)
 
 
-def discourse_audio_table(audio_dict):  # pragma: no cover
+def upload_file_to_discourse(
+    path, api_username=None, api_key=None, discourse_server=None
+):  # pragma: no cover
+    if api_username is None:
+        api_username = os.environ.get("DISCOURSE_API_USERNAME", None)
+    if api_key is None:
+        api_key = os.environ.get("DISCOURSE_API_KEY", None)
+    if discourse_server is None:
+        discourse_server = os.environ.get("DISCOURSE_SERVER", None)
+
+    if discourse_server is None or api_key is None or api_username is None:
+        raise RuntimeError(
+            "DISCOURSE_API_KEY, DISCOURSE_SERVER, DISCOURSE_API_USERNAME must be set in your environment!"
+        )
+
+    command = (
+        f"curl -s -X POST {discourse_server}/uploads.json "
+        f"-H 'content-type: multipart/form-data;' "
+        f"-H 'Api-Key: {api_key}' "
+        f"-H 'Api-Username: {api_username}' "
+        f"-F 'type=composer' "
+        f"-F 'files[]=@{path}' "
+    )
+    return json.loads(subprocess.check_output(shlex.split(command)))
+
+
+def upload_figure_to_discourse(
+    fig=None,
+    bbox_inches="tight",
+    pad_inches=0,
+    api_username=None,
+    api_key=None,
+    discourse_server=None,
+    **kwargs,
+):  # pragma: no cover
+    if fig is None:
+        fig = plt.gcf()
+
+    with tempfile.NamedTemporaryFile(suffix=".png") as f:
+        plt.savefig(f.name, bbox_inches=bbox_inches, pad_inches=pad_inches, **kwargs)
+
+        info = upload_file_to_discourse(
+            f.name,
+            api_username=api_username,
+            api_key=api_key,
+            discourse_server=discourse_server,
+        )
+    return info
+
+
+def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover
     """Creates a Markdown table out of a dictionary of
     AudioSignal objects which looks something like:
 
@@ -180,7 +233,7 @@ def discourse_audio_table(audio_dict):  # pragma: no cover
     uploads = []
 
     for k, v in audio_dict.items():
-        upload = v.upload_to_discourse(k)
+        upload = v.upload_to_discourse(k, **kwargs)
         formatted_audio = upload[0].replace("|", "\|")
         row = f"| {k} | {formatted_audio} |\n"
         FORMAT += row

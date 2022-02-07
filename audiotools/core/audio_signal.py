@@ -511,24 +511,8 @@ class AudioSignal(
         return self * other
 
     # Representation
-    def __str__(self):
+    def _info(self):
         dur = f"{self.signal_duration:0.3f}" if self.signal_duration else "[unknown]"
-        return (
-            f"{self.__class__.__name__}\n"
-            f"Duration: {dur} sec\n"
-            f"Batch size: {self.batch_size}\n"
-            f"Path: {self.path_to_input_file if self.path_to_input_file else 'path unknown'}\n"
-            f"Sample rate: {self.sample_rate if self.sample_rate else '[unknown]'} Hz\n"
-            f"Number of channels: {self.num_channels if self.num_channels else '[unknown]'} ch\n"
-            f"Audio data shape: {self.audio_data.shape}\n"
-            f"STFT Parameters: {self.stft_params}"
-        )
-
-    def __rich__(self):
-        from rich.table import Table
-
-        dur = f"{self.signal_duration:0.3f}" if self.signal_duration else "[unknown]"
-
         info = {
             "duration": f"{dur} seconds",
             "batch_size": self.batch_size,
@@ -540,6 +524,30 @@ class AudioSignal(
             "audio_data.shape": self.audio_data.shape,
             "stft_params": self.stft_params,
         }
+
+        return info
+
+    def markdown(self):
+        info = self._info()
+
+        FORMAT = "| Key | Value \n" "|---|--- \n"
+        for k, v in info.items():
+            row = f"| {k} | {v} |\n"
+            FORMAT += row
+        return FORMAT
+
+    def __str__(self):
+        info = self._info()
+
+        desc = ""
+        for k, v in info.items():
+            desc += f"{k}: {v}\n"
+        return desc
+
+    def __rich__(self):
+        from rich.table import Table
+
+        info = self._info()
 
         table = Table(title=f"{self.__class__.__name__}")
         table.add_column("Key", style="green")

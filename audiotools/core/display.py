@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 
+from . import util
+
 
 class DisplayMixin:
     def specshow(self, batch_idx=0, x_axis="time", y_axis="linear", **kwargs):
@@ -53,30 +55,15 @@ class DisplayMixin:
         discourse_server=None,
         ext=".wav",
     ):  # pragma: no cover
-        if api_username is None:
-            api_username = os.environ.get("DISCOURSE_API_USERNAME", None)
-        if api_key is None:
-            api_key = os.environ.get("DISCOURSE_API_KEY", None)
-        if discourse_server is None:
-            discourse_server = os.environ.get("DISCOURSE_SERVER", None)
-
-        if discourse_server is None or api_key is None or api_username is None:
-            raise RuntimeError(
-                "DISCOURSE_API_KEY, DISCOURSE_SERVER, DISCOURSE_API_USERNAME must be set in your environment!"
-            )
-
         with tempfile.NamedTemporaryFile(suffix=ext) as f:
             self.write(f.name, batch_idx=batch_idx)
 
-            command = (
-                f"curl -s -X POST {discourse_server}/uploads.json "
-                f"-H 'content-type: multipart/form-data;' "
-                f"-H 'Api-Key: {api_key}' "
-                f"-H 'Api-Username: {api_username}' "
-                f"-F 'type=composer' "
-                f"-F 'files[]=@{f.name}' "
+            info = util.upload_file_to_discourse(
+                f.name,
+                api_username=api_username,
+                api_key=api_key,
+                discourse_server=discourse_server,
             )
-            info = json.loads(subprocess.check_output(shlex.split(command)))
 
             label = self.path_to_input_file if label is None else label
             if label is None:
