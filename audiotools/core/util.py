@@ -193,6 +193,7 @@ def upload_file_to_discourse(
 
 
 def upload_figure_to_discourse(
+    label=None,
     fig=None,
     bbox_inches="tight",
     pad_inches=0,
@@ -213,7 +214,11 @@ def upload_figure_to_discourse(
             api_key=api_key,
             discourse_server=discourse_server,
         )
-    return info
+
+    if label is None:
+        label = "unknown"
+        formatted = f"![{label}|image]({info['short_path']})"
+    return formatted, info
 
 
 def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover

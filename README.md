@@ -41,6 +41,7 @@ import torch
 import audiotools
 from audiotools import AudioSignal
 import rich
+import matplotlib.pyplot as plt
 
 state = audiotools.util.random_state(0)
 
@@ -54,6 +55,15 @@ Let's first listen to the clean file:
 
 ```{.python .cb.nb show=code:none+stdout:raw}
 info = spk.upload_to_discourse(label="original", ext=".mp3")
+print(info[0])
+```
+
+Let's also visualize it:
+
+```{.python .cb.nb show=code:verbatim+stdout:raw}
+plt.figure(figsize=(12, 4))
+spk.specshow()
+info = audiotools.util.upload_figure_to_discourse()
 print(info[0])
 ```
 
