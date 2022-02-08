@@ -131,3 +131,6 @@ profile_speed.py.lprof
 
 scratch/
 *.ipynb
+_codebraid/
+test.md
+test_out.md
