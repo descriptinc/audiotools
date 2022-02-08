@@ -1,14 +1,10 @@
-import json
-import os
-import shlex
-import subprocess
 import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 
-from . import util
+from .. import post
 
 
 class DisplayMixin:
@@ -59,7 +55,7 @@ class DisplayMixin:
         with tempfile.NamedTemporaryFile(suffix=ext) as f:
             self.write(f.name, batch_idx=batch_idx)
 
-            info = util.upload_file_to_discourse(
+            info = post.upload_file_to_discourse(
                 f.name,
                 api_username=api_username,
                 api_key=api_key,
