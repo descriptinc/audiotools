@@ -10,10 +10,6 @@ from pathlib import Path
 import argbind
 import matplotlib.pyplot as plt
 
-import audiotools
-
-css = Path(audiotools.__file__).parent / "core" / "templates" / "pandoc.css"
-
 
 def upload_file_to_discourse(
     path, api_username=None, api_key=None, discourse_server=None
@@ -39,6 +35,34 @@ def upload_file_to_discourse(
         f"-F 'files[]=@{path}' "
     )
     return json.loads(subprocess.check_output(shlex.split(command)))
+
+
+class DiscourseMixin:
+    def upload_to_discourse(
+        self,
+        label=None,
+        api_username=None,
+        api_key=None,
+        batch_idx=0,
+        discourse_server=None,
+        ext=".wav",
+    ):  # pragma: no cover
+        with tempfile.NamedTemporaryFile(suffix=ext) as f:
+            self.write(f.name, batch_idx=batch_idx)
+
+            info = upload_file_to_discourse(
+                f.name,
+                api_username=api_username,
+                api_key=api_key,
+                discourse_server=discourse_server,
+            )
+
+            label = self.path_to_input_file if label is None else label
+            if label is None:
+                label = "unknown"
+
+            formatted = f"![{label}|audio]({info['short_path']})"
+            return formatted, info
 
 
 def upload_figure_to_discourse(
@@ -139,6 +163,10 @@ def create_post(
 ):  # pragma: no cover
     env = os.environ.copy()
 
+    import audiotools
+
+    css = Path(audiotools.__file__).parent / "core" / "templates" / "pandoc.css"
+
     if not discourse:
         command = (
             f"codebraid pandoc --from markdown --to html "
@@ -158,7 +186,7 @@ def create_post(
     print(output.decode(encoding="UTF-8"))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     args = argbind.parse_args()
     with argbind.scope(args):
         create_post()
