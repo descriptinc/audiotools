@@ -15,6 +15,8 @@ def test_embed():
 
     AudioSignal(array, sample_rate=16000).embed(ext=".wav")
 
+    AudioSignal(array, sample_rate=16000).embed(ext=".wav", return_html=True)
+
 
 def test_widget():
     array = np.zeros((1, 10000))

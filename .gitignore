@@ -134,3 +134,4 @@ scratch/
 _codebraid/
 test.md
 test_out.md
+*.html

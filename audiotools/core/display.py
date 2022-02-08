@@ -1,14 +1,8 @@
-import json
-import os
-import shlex
-import subprocess
 import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
-
-from . import util
 
 
 class DisplayMixin:
@@ -46,29 +40,3 @@ class DisplayMixin:
         self.waveplot(batch_idx=batch_idx, x_axis=x_axis)
         plt.subplot(gs[1:, :])
         self.specshow(batch_idx=batch_idx, x_axis=x_axis, **kwargs)
-
-    def upload_to_discourse(
-        self,
-        label=None,
-        api_username=None,
-        api_key=None,
-        batch_idx=0,
-        discourse_server=None,
-        ext=".wav",
-    ):  # pragma: no cover
-        with tempfile.NamedTemporaryFile(suffix=ext) as f:
-            self.write(f.name, batch_idx=batch_idx)
-
-            info = util.upload_file_to_discourse(
-                f.name,
-                api_username=api_username,
-                api_key=api_key,
-                discourse_server=discourse_server,
-            )
-
-            label = self.path_to_input_file if label is None else label
-            if label is None:
-                label = "unknown"
-
-            formatted = f"![{label}|audio]({info['short_path']})"
-            return formatted, info

@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setup(
     name="audiotools",
-    version="0.1.6",
+    version="0.1.7",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -26,8 +26,15 @@ setup(
     author_email="prem@descript.com",
     license="MIT",
     packages=find_packages(),
-    package_data={"": ["core/templates/headers.html", "core/templates/widget.html"]},
+    package_data={
+        "": [
+            "core/templates/headers.html",
+            "core/templates/widget.html",
+            "core/templates/pandoc.css",
+        ]
+    },
     install_requires=[
+        "argbind",
         "numpy",
         "soundfile",
         "pyloudnorm",
