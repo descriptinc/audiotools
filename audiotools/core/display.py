@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 
-from .. import post
-
 
 class DisplayMixin:
     def specshow(self, batch_idx=0, x_axis="time", y_axis="linear", **kwargs):
@@ -52,6 +50,9 @@ class DisplayMixin:
         discourse_server=None,
         ext=".wav",
     ):  # pragma: no cover
+
+        from audiotools import post
+
         with tempfile.NamedTemporaryFile(suffix=ext) as f:
             self.write(f.name, batch_idx=batch_idx)
 

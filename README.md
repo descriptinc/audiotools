@@ -52,6 +52,7 @@ import torch
 
 import audiotools
 from audiotools import AudioSignal
+from audiotools import post
 import rich
 import matplotlib.pyplot as plt
 
@@ -66,15 +67,15 @@ nz = AudioSignal("tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav")
 Let's first listen to the clean file (and also upload it to Discourse, a feature we'll be using throughout this post):
 
 ```{.python .cb.nb show=code:verbatim+stdout:raw}
-audiotools.util.disp(spk)
+post.disp(spk)
 ```
 
 Let's also visualize it:
 
-```{.python .cb.nb show=code:verbatim+rich_output+stdout:raw}
+```{.python .cb.nb show=code:verbatim+rich_output+stdout:raw+stderr}
 fig = plt.figure(figsize=(12, 4))
 spk.specshow()
-audiotools.util.disp(fig)
+post.disp(fig)
 ```
 
 Let's mix the speaker with noise at varying SNRs. We'll make a deep copy
@@ -86,7 +87,7 @@ outputs = {}
 for snr in [0, 10, 20]:
     output = spk.deepcopy().mix(nz, snr=snr)
     outputs[f"snr={snr}"] = output
-audiotools.util.disp(outputs)
+post.disp(outputs)
 ```
 
 ## Batching signals
@@ -110,7 +111,7 @@ outputs = {}
 for idx in [0, 2, 5]:
     output = AudioSignal(spk_batch[idx], spk_batch.sample_rate)
     outputs[f"batch_idx={idx}"] = output
-audiotools.util.disp(outputs)
+post.disp(outputs)
 ```
 
 We can mix each item in the batch at a different SNR:
@@ -127,7 +128,7 @@ outputs = {}
 for idx in [0, -1]:
     output = AudioSignal(spk_plus_nz_batch[idx], spk_plus_nz_batch.sample_rate)
     outputs[f"batch_idx={idx}"] = output
-audiotools.util.disp(outputs)
+post.disp(outputs)
 ```
 
 The first item was mixed at -10 dB SNR, and the last at 10 dB SNR.
@@ -168,7 +169,7 @@ convolved = spk.deepcopy().convolve(ir)
 ```
 
 ```{.python .cb.nb show=code:none+stdout:raw}
-audiotools.util.disp(convolved)
+post.disp(convolved)
 ```
 
 We can convolve every item in the batch with this impulse response.
@@ -224,7 +225,7 @@ output = spk.deepcopy().convolve(eq_ir)
 ```
 
 ```{.python .cb.nb show=code:none+stdout:raw}
-audiotools.util.disp(output)
+post.disp(output)
 ```
 
 ## Pitch shifting and time stretching
@@ -236,7 +237,7 @@ outputs = {
     "pitch_shifted": spk.deepcopy().pitch_shift(2),
     "time_stretched": spk.deepcopy().time_stretch(0.8),
 }
-audiotools.util.disp(outputs)
+post.disp(outputs)
 ```
 
 Like other transformations, they also get applied
@@ -257,7 +258,7 @@ output = spk.deepcopy().apply_codec("Ogg")
 ```
 
 ```{.python .cb.nb show=code:none+stdout:raw}
-audiotools.util.disp(output)
+post.disp(output)
 ```
 
 ## Putting it all together
@@ -343,5 +344,5 @@ for i in range(clean_spk.batch_size):
         "clean": AudioSignal(clean_spk[i], sr),
         "noisy": AudioSignal(noisy_spk[i], sr),
     }
-    audiotools.util.disp(outputs)
+    post.disp(outputs)
 ```
