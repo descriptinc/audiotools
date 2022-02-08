@@ -221,6 +221,17 @@ def upload_figure_to_discourse(
     return formatted, info
 
 
+def audio_table(audio_dict):
+    FORMAT = "| Label | Audio \n" "|---|:-: \n"
+
+    for k, v in audio_dict.items():
+        formatted_audio = v.embed(display=False, return_html=True)
+        row = f"| {k} | {formatted_audio} |\n"
+        FORMAT += row
+
+    return FORMAT
+
+
 def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover
     """Creates a Markdown table out of a dictionary of
     AudioSignal objects which looks something like:
@@ -244,3 +255,29 @@ def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover
         FORMAT += row
         uploads.append(upload)
     return FORMAT, uploads
+
+
+def disp(obj, label=None):  # pragma: no cover
+    from audiotools import AudioSignal
+
+    DISCOURSE = bool(os.environ.get("UPLOAD_TO_DISCOURSE", False))
+
+    if isinstance(obj, AudioSignal):
+        if DISCOURSE:
+            info = obj.upload_to_discourse(label=label, ext=".mp3")
+            print(info[0])
+        else:
+            audio_elem = obj.embed(display=False, return_html=True)
+            print(audio_elem)
+    if isinstance(obj, dict):
+        if DISCOURSE:
+            table = discourse_audio_table(obj, ext=".mp3")[0]
+        else:
+            table = audio_table(obj)
+        print(table)
+    if isinstance(obj, plt.Figure):
+        if DISCOURSE:
+            info = upload_figure_to_discourse()
+            print(info[0])
+        else:
+            plt.show()

@@ -40,7 +40,7 @@ def _check_imports():  # pragma: no cover
 
 
 class PlayMixin:
-    def embed(self, batch_idx=0, ext=".mp3", display=True):
+    def embed(self, batch_idx=0, ext=".mp3", display=True, return_html=False):
         """
         Write a numpy array to a temporary mp3 file using ffmpy, then embeds the mp3
         into the notebook.
@@ -86,6 +86,14 @@ class PlayMixin:
             audio_element = IPython.display.Audio(data=tmp_converted.name, rate=sr)
             if display:
                 IPython.display.display(audio_element)
+
+        if return_html:
+            audio_element = (
+                f"<audio "
+                f"  controls "
+                f"  src='{audio_element.src_attr()}'> "
+                f"</audio> "
+            )
         return audio_element
 
     def widget(

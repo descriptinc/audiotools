@@ -1,3 +1,7 @@
+---
+title: AudioTools
+---
+
 # AudioTools
 
 Object-oriented handling of audio signals, with fast augmentation routines, batching, padding, and more.
@@ -27,15 +31,23 @@ If you need to run it on all files:
 
 # Feature tour
 
-This README can be run, and then copy-pasted into Discourse to hear all the audio output by installing [codebraid](https://github.com/gpoore/codebraid), and then running:
+This README can be run, and then copy-pasted into Discourse to hear all the audio output by installing [codebraid](https://github.com/gpoore/codebraid). To build the README as a standalone HTML:
 
 ```
-codebraid pandoc --from markdown --to markdown README.md --wrap=none -t gfm | pbcopy
+python -m audiotools.post README.md > README.html
 ```
 
-And then pasting the output to Discourse (already done [here](https://research.descript.com/t/audiotools-readme-with-audio-examples/562)).
+To build the README into something you can copy/paste
+into Discourse:
 
-```{.python .cb.nb}
+```
+python -m audiotools.post --discourse README.md | pbcopy
+```
+
+And then you can paste the output to Discourse (already done [here](https://research.descript.com/t/audiotools-readme-with-audio-examples/562)).
+
+
+```{.python .cb.nb jupyter_kernel=python3}
 import torch
 
 import audiotools
@@ -54,31 +66,27 @@ nz = AudioSignal("tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav")
 Let's first listen to the clean file (and also upload it to Discourse, a feature we'll be using throughout this post):
 
 ```{.python .cb.nb show=code:verbatim+stdout:raw}
-info = spk.upload_to_discourse(label="original", ext=".mp3")
-print(info[0])
+audiotools.util.disp(spk)
 ```
 
 Let's also visualize it:
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-plt.figure(figsize=(12, 4))
+```{.python .cb.nb show=code:verbatim+rich_output+stdout:raw}
+fig = plt.figure(figsize=(12, 4))
 spk.specshow()
-info = audiotools.util.upload_figure_to_discourse()
-print(info[0])
+audiotools.util.disp(fig)
 ```
 
 Let's mix the speaker with noise at varying SNRs. We'll make a deep copy
 before each mix, to preserve the original signal in `spk`, as the `mix` function
 is applied in-place.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{.python .cb.nb show=code:verbatim+rich_output+stdout:raw}
 outputs = {}
 for snr in [0, 10, 20]:
     output = spk.deepcopy().mix(nz, snr=snr)
     outputs[f"snr={snr}"] = output
-
-table = audiotools.util.discourse_audio_table(outputs, ext=".mp3")[0]
-print(table)
+audiotools.util.disp(outputs)
 ```
 
 ## Batching signals
@@ -102,9 +110,7 @@ outputs = {}
 for idx in [0, 2, 5]:
     output = AudioSignal(spk_batch[idx], spk_batch.sample_rate)
     outputs[f"batch_idx={idx}"] = output
-
-table = audiotools.util.discourse_audio_table(outputs, ext=".mp3")[0]
-print(table)
+audiotools.util.disp(outputs)
 ```
 
 We can mix each item in the batch at a different SNR:
@@ -121,9 +127,7 @@ outputs = {}
 for idx in [0, -1]:
     output = AudioSignal(spk_plus_nz_batch[idx], spk_plus_nz_batch.sample_rate)
     outputs[f"batch_idx={idx}"] = output
-
-table = audiotools.util.discourse_audio_table(outputs, ext=".mp3")[0]
-print(table)
+audiotools.util.disp(outputs)
 ```
 
 The first item was mixed at -10 dB SNR, and the last at 10 dB SNR.
@@ -164,8 +168,7 @@ convolved = spk.deepcopy().convolve(ir)
 ```
 
 ```{.python .cb.nb show=code:none+stdout:raw}
-info = convolved.upload_to_discourse(label="original", ext=".mp3")
-print(info[0])
+audiotools.util.disp(convolved)
 ```
 
 We can convolve every item in the batch with this impulse response.
@@ -221,8 +224,7 @@ output = spk.deepcopy().convolve(eq_ir)
 ```
 
 ```{.python .cb.nb show=code:none+stdout:raw}
-info = output.upload_to_discourse(label="original", ext=".mp3")
-print(info[0])
+audiotools.util.disp(output)
 ```
 
 ## Pitch shifting and time stretching
@@ -234,8 +236,7 @@ outputs = {
     "pitch_shifted": spk.deepcopy().pitch_shift(2),
     "time_stretched": spk.deepcopy().time_stretch(0.8),
 }
-table = audiotools.util.discourse_audio_table(outputs, ext=".mp3")[0]
-print(table)
+audiotools.util.disp(outputs)
 ```
 
 Like other transformations, they also get applied
@@ -256,8 +257,7 @@ output = spk.deepcopy().apply_codec("Ogg")
 ```
 
 ```{.python .cb.nb show=code:none+stdout:raw}
-info = output.upload_to_discourse(label="original", ext=".mp3")
-print(info[0])
+audiotools.util.disp(output)
 ```
 
 ## Putting it all together
@@ -343,6 +343,5 @@ for i in range(clean_spk.batch_size):
         "clean": AudioSignal(clean_spk[i], sr),
         "noisy": AudioSignal(noisy_spk[i], sr),
     }
-    table = audiotools.util.discourse_audio_table(outputs, ext=".mp3")[0]
-    print(table)
+    audiotools.util.disp(outputs)
 ```
