@@ -35,9 +35,10 @@ class DisplayMixin:
 
         audio_data = self.audio_data[batch_idx].mean(dim=0)
         audio_data = audio_data.cpu().numpy()
-        librosa.display.waveplot(
-            audio_data, x_axis=x_axis, sr=self.sample_rate, **kwargs
-        )
+
+        plot_fn = "waveshow" if hasattr(librosa.display, "waveshow") else "waveplot"
+        wave_plot_fn = getattr(librosa.display, plot_fn)
+        wave_plot_fn(audio_data, x_axis=x_axis, sr=self.sample_rate, **kwargs)
 
     def wavespec(self, batch_idx=0, x_axis="time", **kwargs):
         gs = GridSpec(6, 1)
