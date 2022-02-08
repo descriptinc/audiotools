@@ -456,7 +456,11 @@ class AudioSignal(
 
         nf = magnitude.shape[2]
         mel_basis = librosa_mel_fn(
-            self.sample_rate, 2 * (nf - 1), n_mels, mel_fmin, mel_fmax
+            sr=self.sample_rate,
+            n_fft=2 * (nf - 1),
+            n_mels=n_mels,
+            fmin=mel_fmin,
+            fmax=mel_fmax,
         )
         mel_basis = torch.from_numpy(mel_basis).to(self.device)
 
