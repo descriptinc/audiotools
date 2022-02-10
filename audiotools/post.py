@@ -156,7 +156,6 @@ def disp(obj, label=None):  # pragma: no cover
             plt.show()
 
 
-@argbind.bind(without_prefix=True, positional=True)
 def create_post(
     in_file: str,
     discourse: bool = False,
@@ -187,6 +186,7 @@ def create_post(
 
 
 if __name__ == "__main__":  # pragma: no cover
+    create_post = argbind.bind(create_post, without_prefix=True, positional=True)
     args = argbind.parse_args()
     with argbind.scope(args):
         create_post()
