@@ -338,11 +338,12 @@ Let's augment and then listen to each item in the batch.
 ```{.python .cb.nb show=code:verbatim+stdout:raw}
 clean_spk, noisy_spk = augment(0)
 sr = clean_spk.sample_rate
+outputs = {}
 for i in range(clean_spk.batch_size):
-    print(f"**Sample {i+1}**\n")
-    outputs = {
+    _outputs = {
         "clean": AudioSignal(clean_spk[i], sr),
         "noisy": AudioSignal(noisy_spk[i], sr),
     }
-    post.disp(outputs)
+    outputs[f"{i+1}"] = _outputs
+post.disp(outputs)
 ```
