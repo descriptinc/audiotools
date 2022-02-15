@@ -94,57 +94,76 @@ def upload_figure_to_discourse(
     return formatted, info
 
 
-def audio_table(audio_dict):  # pragma: no cover
-    FORMAT = "| Label | Audio \n" "|---|:-: \n"
+def audio_table(audio_dict, format_fn=None):  # pragma: no cover
+    output = []
+    columns = None
+
+    def _default_format_fn(label, x):
+        return x.embed(display=False, return_html=True)
+
+    if format_fn is None:
+        format_fn = _default_format_fn
 
     for k, v in audio_dict.items():
-        formatted_audio = v.embed(display=False, return_html=True)
-        row = f"| {k} | {formatted_audio} |\n"
-        FORMAT += row
+        if not isinstance(v, dict):
+            v = {"Audio": v}
 
-    return FORMAT
+        v_keys = list(v.keys())
+        if columns is None:
+            columns = ["Label"] + v_keys
+            output.append(" | ".join(columns))
+
+            layout = "|---" + len(v_keys) * "|:-:"
+            output.append(layout)
+
+        formatted_audio = []
+        for col in columns[1:]:
+            formatted_audio.append(format_fn(col, v[col]))
+
+        row = f"| {k} | "
+        row += " | ".join(formatted_audio)
+        output.append(row)
+
+    output = "\n".join(output)
+    return output
 
 
 def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover
     """Creates a Markdown table out of a dictionary of
-    AudioSignal objects which looks something like:
-
-    | Label | Audio
-    | [key1] | [val1.audio_data embedded]
-    | [key2] | [val2.audio_data embedded]
+    AudioSignal objects.
 
     Parameters
     ----------
-    audio_dict : dict[str, AudioSignal]
-        Dictionary of strings mapped to AudioSignal objects.
+    audio_dict : dict[str, dict]
+        Dictionary of strings mapped to dictionaries of AudioSignal objects.
     """
-    FORMAT = "| Label | Audio \n" "|---|:-: \n"
     uploads = []
 
-    for k, v in audio_dict.items():
-        upload = v.upload_to_discourse(k, **kwargs)
+    def format_fn(label, x):
+        upload = x.upload_to_discourse(label, **kwargs)
         formatted_audio = upload[0].replace("|", "\|")
-        row = f"| {k} | {formatted_audio} |\n"
-        FORMAT += row
         uploads.append(upload)
-    return FORMAT, uploads
+        return formatted_audio
+
+    output = audio_table(audio_dict, format_fn)
+    return output, uploads
 
 
-def disp(obj, label=None):  # pragma: no cover
+def disp(obj, label=None, **kwargs):  # pragma: no cover
     from audiotools import AudioSignal
 
     DISCOURSE = bool(os.environ.get("UPLOAD_TO_DISCOURSE", False))
 
     if isinstance(obj, AudioSignal):
         if DISCOURSE:
-            info = obj.upload_to_discourse(label=label, ext=".mp3")
+            info = obj.upload_to_discourse(label=label, **kwargs)
             print(info[0])
         else:
             audio_elem = obj.embed(display=False, return_html=True)
             print(audio_elem)
     if isinstance(obj, dict):
         if DISCOURSE:
-            table = discourse_audio_table(obj, ext=".mp3")[0]
+            table = discourse_audio_table(obj, **kwargs)[0]
         else:
             table = audio_table(obj)
         print(table)
@@ -159,6 +178,7 @@ def disp(obj, label=None):  # pragma: no cover
 def create_post(
     in_file: str,
     discourse: bool = False,
+    use_cache: bool = False,
 ):  # pragma: no cover
     env = os.environ.copy()
 
@@ -170,15 +190,16 @@ def create_post(
         command = (
             f"codebraid pandoc --from markdown --to html "
             f"--css '{str(css)}' --standalone --wrap=none "
-            f"--self-contained --no-cache"
+            f"--self-contained "
         )
     else:
         env["UPLOAD_TO_DISCOURSE"] = str(int(discourse))
         command = (
-            f"codebraid pandoc "
-            f"--from markdown --to markdown "
-            f"--wrap=none -t gfm --no-cache "
+            f"codebraid pandoc " f"--from markdown --to markdown " f"--wrap=none -t gfm"
         )
+
+    if not use_cache:
+        command += " --no-cache"
 
     command += f" {in_file}"
     output = subprocess.check_output(shlex.split(command), env=env)
