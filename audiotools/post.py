@@ -94,7 +94,7 @@ def upload_figure_to_discourse(
     return formatted, info
 
 
-def audio_table(audio_dict, format_fn=None):  # pragma: no cover
+def audio_table(audio_dict, first_column=None, format_fn=None):  # pragma: no cover
     output = []
     columns = None
 
@@ -104,13 +104,17 @@ def audio_table(audio_dict, format_fn=None):  # pragma: no cover
     if format_fn is None:
         format_fn = _default_format_fn
 
+    if first_column is None:
+        first_column = "."
+
     for k, v in audio_dict.items():
         if not isinstance(v, dict):
             v = {"Audio": v}
 
         v_keys = list(v.keys())
         if columns is None:
-            columns = ["Label"] + v_keys
+
+            columns = [first_column] + v_keys
             output.append(" | ".join(columns))
 
             layout = "|---" + len(v_keys) * "|:-:"
@@ -128,7 +132,7 @@ def audio_table(audio_dict, format_fn=None):  # pragma: no cover
     return output
 
 
-def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover
+def discourse_audio_table(audio_dict, first_column=None, **kwargs):  # pragma: no cover
     """Creates a Markdown table out of a dictionary of
     AudioSignal objects.
 
@@ -145,7 +149,7 @@ def discourse_audio_table(audio_dict, **kwargs):  # pragma: no cover
         uploads.append(upload)
         return formatted_audio
 
-    output = audio_table(audio_dict, format_fn)
+    output = audio_table(audio_dict, first_column=first_column, format_fn=format_fn)
     return output, uploads
 
 
