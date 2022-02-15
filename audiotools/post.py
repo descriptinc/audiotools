@@ -99,6 +99,8 @@ def audio_table(audio_dict, first_column=None, format_fn=None):  # pragma: no co
     columns = None
 
     def _default_format_fn(label, x):
+        if x is None:
+            return "."
         return x.embed(display=False, return_html=True)
 
     if format_fn is None:
@@ -144,6 +146,8 @@ def discourse_audio_table(audio_dict, first_column=None, **kwargs):  # pragma: n
     uploads = []
 
     def format_fn(label, x):
+        if x is None:
+            return "."
         upload = x.upload_to_discourse(label, **kwargs)
         formatted_audio = upload[0].replace("|", "\|")
         uploads.append(upload)
