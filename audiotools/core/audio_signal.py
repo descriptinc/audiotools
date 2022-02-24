@@ -21,6 +21,7 @@ from .effects import ImpulseResponseMixin
 from .ffmpeg import FFMPEGMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
+from audiotools.core import loudness
 
 
 STFTParams = namedtuple("STFTParams", ["window_length", "hop_length", "window_type"])
@@ -199,7 +200,11 @@ class AudioSignal(
         return copy.deepcopy(self)
 
     def copy(self):
-        return copy.copy(self)
+        copied = copy.copy(self)
+        copied.audio_data = self.audio_data.clone()
+        copied.stft_data = None
+        copied._loudness = None
+        return copied
 
     def hash(self, batch_idx=0):
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
@@ -243,6 +248,10 @@ class AudioSignal(
         device = device if torch.cuda.is_available() else "cpu"
         self.audio_data = self.audio_data.to(device).float()
         self.audio_mask = self.audio_mask.to(device).float()
+
+        if self._loudness is not None:
+            self._loudness = self._loudness.to(device)
+
         return self
 
     def float(self):
@@ -580,7 +589,9 @@ class AudioSignal(
 
     # Indexing
     def __getitem__(self, key):
-        return self.audio_data[key]
+        copy = self.copy()
+        copy.audio_data = self.audio_data[key]
+        return copy
 
     def __setitem__(self, key, value):
         self.audio_data[key] = value

@@ -35,6 +35,21 @@ def test_normalize():
     assert np.allclose(signal.loudness(), db, 1e-1)
 
 
+def test_volume_boost():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=10)
+
+    boost = 3
+    before_db = signal.loudness().clone()
+    signal = signal.volume_boost(boost)
+    after_db = signal.loudness()
+    assert np.allclose(before_db + boost, after_db)
+
+    signal._loudness = None
+    after_db = signal.loudness()
+    assert np.allclose(before_db + boost, after_db, 1e-1)
+
+
 def test_mix():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     spk = AudioSignal(audio_path, offset=10, duration=10)
@@ -210,6 +225,45 @@ def test_equalizer(n_bands):
     output = spk_batch.deepcopy().equalizer(db)
 
     assert output == spk_batch
+
+
+def test_clip_percentile():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+    clipped = spk.deepcopy().clip_distortion(0.05)
+
+    spk_batch = AudioSignal.batch(
+        [
+            AudioSignal.excerpt("tests/audio/spk/f10_script4_produced.wav", duration=2)
+            for _ in range(16)
+        ]
+    )
+    clipped_batch = spk_batch.deepcopy().clip_distortion(0.05)
+
+    assert clipped.audio_data.abs().max() < 1.0
+    assert clipped_batch.audio_data.abs().max() < 1.0
+
+
+@pytest.mark.parametrize("quant_ch", [2, 4, 8, 16, 32, 64, 128])
+def test_quantization(quant_ch):
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+
+    quantized = spk.deepcopy().quantization(quant_ch)
+
+    found_quant_ch = len(np.unique(quantized.audio_data))
+    assert found_quant_ch <= quant_ch
+
+
+@pytest.mark.parametrize("quant_ch", [2, 4, 8, 16, 32, 64, 128])
+def test_mulaw_quantization(quant_ch):
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+
+    quantized = spk.deepcopy().mulaw_quantization(quant_ch)
+
+    found_quant_ch = len(np.unique(quantized.audio_data))
+    assert found_quant_ch <= quant_ch
 
 
 def test_impulse_response_augmentation():

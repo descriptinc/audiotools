@@ -20,10 +20,11 @@ class EffectMixin:
         "Amr-nb": {"format": "amr-nb"},
     }
 
-    def mix(self, other, snr=10):
+    def mix(self, other, snr=10, other_eq=None):
         """
         Mixes noise with signal at specified
-        signal-to-noise ratio.
+        signal-to-noise ratio. Optionally, the
+        other signal can be equalized in-place.
         """
         snr = util.ensure_tensor(snr).to(self.device)
 
@@ -31,6 +32,9 @@ class EffectMixin:
         other.zero_pad(0, pad_len)
         other.truncate_samples(self.signal_length)
         tgt_loudness = self.loudness() - snr
+
+        if other_eq is not None:
+            other = other.equalizer(other_eq)
 
         other = other.normalize(tgt_loudness)
         self.audio_data = self.audio_data + other.audio_data
@@ -86,14 +90,41 @@ class EffectMixin:
 
         return self
 
+    def apply_ir(self, ir, drr=None, ir_eq=None):
+        if ir_eq is not None:
+            ir = ir.equalizer(ir_eq)
+        if drr is not None:
+            ir = ir.alter_drr(drr)
+
+        # Augment the impulse response to simulate microphone effects
+        # and with varying direct-to-reverberant ratio.
+        self.convolve(ir)
+
+        # Rescale to the input's amplitude
+        max_spk = self.audio_data.abs().max(dim=-1, keepdims=True).values
+        max_transformed = self.audio_data.abs().max(dim=-1, keepdims=True).values
+        scale_factor = max_spk / max_transformed
+        self *= scale_factor
+
+        return self
+
     def normalize(self, db=-24.0):
         db = util.ensure_tensor(db).to(self.device)
-        audio_signal_loudness = self.loudness()
-        gain = db - audio_signal_loudness
+        ref_db = self.loudness()
+        gain = db - ref_db
         gain = torch.exp(gain * self.GAIN_FACTOR)
 
         self.audio_data = self.audio_data * gain[:, None, None]
         self._loudness = None
+        return self
+
+    def volume_boost(self, db_boost):
+        db_boost = util.ensure_tensor(db_boost).to(self.device)
+        gain = torch.exp(db_boost * self.GAIN_FACTOR)
+        self.audio_data = self.audio_data * gain[:, None, None]
+
+        if self._loudness is not None:
+            self._loudness += db_boost
         return self
 
     def _to_2d(self):
@@ -210,6 +241,62 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
+        return self
+
+    def clip_distortion(self, clip_percentile):
+        """Clips the signal at a given percentile. The higher it is,
+        the lower the threshold for clipping.
+
+        Parameters
+        ----------
+        clip_percentile : float
+            Values are between 0.0 to 1.0. Typical values are 0.1 or below.
+
+        Returns
+        -------
+        AudioSignal
+            Audio signal with clipped audio data.
+        """
+        clip_percentile = util.ensure_tensor(clip_percentile)
+        min_thresh = torch.quantile(self.audio_data, clip_percentile / 2)
+        max_thresh = torch.quantile(self.audio_data, 1 - (clip_percentile / 2))
+
+        if clip_percentile.ndim == 1:
+            min_thresh = min_thresh[:, None, None]
+            max_thresh = max_thresh[:, None, None]
+
+        self.audio_data[self.audio_data < min_thresh] = min_thresh
+        self.audio_data[self.audio_data > max_thresh] = max_thresh
+        return self
+
+    def quantization(self, quantization_channels: int):
+        quantization_channels = util.ensure_tensor(quantization_channels)
+
+        x = self.audio_data
+        x = (x + 1) / 2
+        x = x * quantization_channels
+        x = x.floor()
+        x = x / quantization_channels
+        x = 2 * x - 1
+
+        self.audio_data = x
+        return self
+
+    def mulaw_quantization(self, quantization_channels: int):
+        mu = quantization_channels - 1.0
+        mu = util.ensure_tensor(mu)
+
+        x = self.audio_data
+
+        # quantize
+        x = torch.sign(x) * torch.log1p(mu * torch.abs(x)) / torch.log1p(mu)
+        x = ((x + 1) / 2 * mu + 0.5).to(torch.int64)
+
+        # unquantize
+        x = (x / mu) * 2 - 1.0
+        x = torch.sign(x) * (torch.exp(torch.abs(x) * torch.log1p(mu)) - 1.0) / mu
+
+        self.audio_data = x
         return self
 
     def __matmul__(self, other):

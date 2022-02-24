@@ -68,7 +68,9 @@ def test_salient_excerpt(loudness_cutoff):
         sr = 44100
         signal = AudioSignal(torch.zeros(sr * 60), sr)
 
-        signal[..., sr * 20 : sr * 21] = MAP[loudness_cutoff] * torch.randn(44100)
+        signal[..., sr * 20 : sr * 21].audio_data = MAP[loudness_cutoff] * torch.randn(
+            44100
+        )
 
         signal.write(f.name)
         signal = AudioSignal.salient_excerpt(
@@ -162,10 +164,7 @@ def test_indexing():
     sig1 = AudioSignal(array, sample_rate=16000)
 
     assert np.allclose(sig1[0], array[0])
-    assert np.allclose(sig1[0, :, 8000], array[0, :, 8000])
-
-    sig1[0, :, 8000] = 10
-    assert np.allclose(sig1.audio_data[0, :, 8000], 10)
+    assert np.allclose(sig1[0, :, 8000].audio_data, array[0, :, 8000])
 
 
 def test_copy():
