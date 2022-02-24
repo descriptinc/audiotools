@@ -27,12 +27,12 @@ class BaseTransform:
 
         return batch
 
-    def apply_mask(self, batch):
+    def apply_mask(self, batch, copy_key="copy"):
         mask_key = f"{self.__class__.__name__}.mask"
         if mask_key not in batch:
             return batch
         mask = batch[mask_key]
-        copy = batch["copy"]
+        copy = batch[copy_key]
         batch["signal"].audio_data[mask] = copy.audio_data[mask]
         return batch
 
@@ -71,8 +71,11 @@ class Compose(BaseTransform):
         self.transforms = transforms
 
     def transform(self, batch: dict):
+        batch = self.validate(batch)
+        batch["compose_copy"] = batch["signal"].copy()
         for transform in self.transforms:
             batch = transform(batch)
+        batch = self.apply_mask(batch, "compose_copy")
         return batch
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
