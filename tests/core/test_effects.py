@@ -78,6 +78,12 @@ def test_mix():
     snr = spk_batch.loudness() - nz_batch.loudness()
     assert np.allclose(snr, tgt_snr, atol=1)
 
+    # Test with "EQing" the other signal
+    db = 0 + 0 * torch.rand(10)
+    spk_batch.deepcopy().mix(nz_batch, snr=tgt_snr, other_eq=db)
+    snr = spk_batch.loudness() - nz_batch.loudness()
+    assert np.allclose(snr, tgt_snr, atol=1)
+
 
 def test_convolve():
     np.random.seed(6)  # Found a failing seed
@@ -290,3 +296,15 @@ def test_impulse_response_augmentation():
     altered_ir = ir_batch.deepcopy().alter_drr(target_drr)
     drr = altered_ir.measure_drr()
     assert np.allclose(drr.flatten(), target_drr.flatten())
+
+
+def test_apply_ir():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    ir_path = "tests/audio/ir/h179_Bar_1txts.wav"
+
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+    ir = AudioSignal(ir_path)
+    db = 0 + 0 * torch.rand(10)
+    output = spk.deepcopy().apply_ir(ir, drr=10, ir_eq=db)
+
+    assert np.allclose(ir.measure_drr().flatten(), 10)
