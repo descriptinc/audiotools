@@ -95,9 +95,7 @@ def test_salient_excerpt(loudness_cutoff):
         sr = 44100
         signal = AudioSignal(torch.zeros(sr * 60), sr)
 
-        signal.audio_data[..., sr * 20 : sr * 21] = MAP[loudness_cutoff] * torch.randn(
-            44100
-        )
+        signal[..., sr * 20 : sr * 21] = MAP[loudness_cutoff] * torch.randn(44100)
 
         signal.write(f.name)
         signal = AudioSignal.salient_excerpt(
