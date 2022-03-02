@@ -3,7 +3,6 @@ import hashlib
 import pathlib
 import tempfile
 from collections import namedtuple
-from unittest.mock import NonCallableMock
 
 import julius
 import librosa
