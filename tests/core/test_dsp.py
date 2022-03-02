@@ -66,7 +66,7 @@ def test_inplace_overlap_add(duration, sample_rate, window_duration):
             for i, window in enumerate(
                 signal.deepcopy().windows(window_duration, hop_duration)
             ):
-                assert np.allclose(window, windowed_signal[i])
+                assert np.allclose(window.audio_data, windowed_signal.audio_data[i])
 
         _test(nz_signal)
         _test(spk_signal)

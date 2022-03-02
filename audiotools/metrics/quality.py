@@ -16,8 +16,8 @@ def stoi(
     stois = []
     for i in range(estimates.batch_size):
         _stoi = pystoi.stoi(
-            references[i, 0].detach().cpu().numpy(),
-            estimates[i, 0].detach().cpu().numpy(),
+            references.audio_data[i, 0].detach().cpu().numpy(),
+            estimates.audio_data[i, 0].detach().cpu().numpy(),
             references.sample_rate,
             extended=extended,
         )
@@ -40,8 +40,8 @@ def pesq(
     for i in range(estimates.batch_size):
         _pesq = pesq_fn(
             estimates.sample_rate,
-            references[i, 0].detach().cpu().numpy(),
-            estimates[i, 0].detach().cpu().numpy(),
+            references.audio_data[i, 0].detach().cpu().numpy(),
+            estimates.audio_data[i, 0].detach().cpu().numpy(),
             mode,
         )
         pesqs.append(_pesq)

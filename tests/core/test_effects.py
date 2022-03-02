@@ -160,7 +160,7 @@ def test_pitch_shift():
 
     batched = spk_batch.deepcopy().pitch_shift(5)
 
-    assert np.allclose(batched[0], single[0])
+    assert np.allclose(batched[0].audio_data, single[0].audio_data)
 
 
 def test_time_stretch():
@@ -174,7 +174,7 @@ def test_time_stretch():
 
     batched = spk_batch.deepcopy().time_stretch(0.8)
 
-    assert np.allclose(batched[0], single[0])
+    assert np.allclose(batched[0].audio_data, single[0].audio_data)
 
 
 @pytest.mark.parametrize("n_bands", [1, 2, 4, 8, 12, 16])

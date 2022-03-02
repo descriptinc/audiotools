@@ -22,19 +22,15 @@ class BaseTransform:
             assert k in batch.keys(), f"{k} not in batch"
 
         if "original" not in batch:
-            batch["original"] = batch["signal"].copy()
-        batch["copy"] = batch["signal"].copy()
+            batch["original"] = batch["signal"].clone()
 
         return batch
 
-    def apply_mask(self, batch, copy_key="copy"):
+    def get_mask(self, batch):
         mask_key = f"{self.__class__.__name__}.mask"
         if mask_key not in batch:
-            return batch
-        mask = batch[mask_key]
-        copy = batch[copy_key]
-        batch["signal"].audio_data[mask] = copy.audio_data[mask]
-        return batch
+            return slice(None, None, None)
+        return batch[mask_key]
 
     def _transform(self, batch: dict):
         raise NotImplementedError
@@ -44,8 +40,14 @@ class BaseTransform:
 
     def transform(self, batch: dict):
         batch = self.validate(batch)
-        batch = self._transform(batch)
-        batch = self.apply_mask(batch)
+        mask = self.get_mask(batch)
+
+        masked_batch = batch.copy()
+        masked_batch["signal"] = batch["signal"][mask]
+        masked_batch = self._transform(masked_batch)
+
+        batch["signal"][mask] = masked_batch["signal"]
+
         return batch
 
     def __call__(self, batch: dict):
@@ -54,7 +56,7 @@ class BaseTransform:
     def instantiate(self, state: RandomState, signal: AudioSignal = None):
         state = util.random_state(state)
         params = self._instantiate(state, signal)
-        mask = state.rand() <= (1 - self.prob)
+        mask = state.rand() <= self.prob
         params.update({f"{self.__class__.__name__}.mask": mask})
 
         for k, v in params.items():
@@ -65,17 +67,15 @@ class BaseTransform:
 
 
 class Compose(BaseTransform):
-    def __init__(self, transforms: list, prob: float = 1.0):
-        super().__init__(prob=prob)
-
+    def __init__(self, transforms: list):
+        # Compose can't use masking, because the indexing will break
+        # within each transform.
+        super().__init__(prob=1.0)
         self.transforms = transforms
 
-    def transform(self, batch: dict):
-        batch = self.validate(batch)
-        batch["compose_copy"] = batch["signal"].copy()
+    def _transform(self, batch: dict):
         for transform in self.transforms:
             batch = transform(batch)
-        batch = self.apply_mask(batch, "compose_copy")
         return batch
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):

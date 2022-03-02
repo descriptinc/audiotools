@@ -43,7 +43,7 @@ class DSPMixin:
                 end_idx = start_idx + window_length
                 if end_idx > self.signal_length:
                     break
-                yield self.audio_data[b, ..., start_idx:end_idx]
+                yield self[b, ..., start_idx:end_idx]
 
     def collect_windows(self, window_duration, hop_duration):
         """Function which collects overlapping windows from
