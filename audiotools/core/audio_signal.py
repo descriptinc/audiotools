@@ -3,6 +3,7 @@ import hashlib
 import pathlib
 import tempfile
 from collections import namedtuple
+from unittest.mock import NonCallableMock
 
 import julius
 import librosa
@@ -21,7 +22,6 @@ from .effects import ImpulseResponseMixin
 from .ffmpeg import FFMPEGMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
-from audiotools.core import loudness
 
 
 STFTParams = namedtuple("STFTParams", ["window_length", "hop_length", "window_type"])
@@ -29,8 +29,7 @@ STFTParams.__new__.__defaults__ = (None,) * len(STFTParams._fields)
 """
 STFTParams object is a container that holds STFT parameters - window_length,
 hop_length, and window_type. Not all parameters need to be specified. Ones that
-are not specified will be inferred by the AudioSignal parameters and the settings
-in `nussl.core.constants`.
+are not specified will be inferred by the AudioSignal parameters.
 """
 
 
@@ -201,10 +200,28 @@ class AudioSignal(
 
     def copy(self):
         copied = copy.copy(self)
-        copied.audio_data = self.audio_data.clone()
-        copied.stft_data = None
-        copied._loudness = None
         return copied
+
+    def clone(self):
+        clone = type(self)(
+            self.audio_data.clone(),
+            self.sample_rate,
+            stft_params=self.stft_params,
+        )
+        if self.stft_data is not None:
+            clone.stft_data = self.stft_data.clone()
+        if self._loudness is not None:
+            clone._loudness = self._loudness.clone()
+        return clone
+
+    def detach(self):
+        self.audio_data = self.audio_data.detach()
+        self.audio_mask = self.audio_mask.detach()
+        if self.stft_data is not None:
+            self.stft_data = self.stft_data.detach()
+        if self._loudness is not None:
+            self._loudness = self._loudness.detach()
+        return self
 
     def hash(self, batch_idx=0):
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
@@ -589,12 +606,31 @@ class AudioSignal(
 
     # Indexing
     def __getitem__(self, key):
-        copy = self.copy()
-        copy.audio_data = self.audio_data[key]
+        # This copy always happens.
+        copy = type(self)(
+            self.audio_data[key], self.sample_rate, stft_params=self.stft_params
+        )
+        if isinstance(key, (int, slice)):
+            # Indexing only on the batch dimension.
+            # Then let's copy over relevant stuff.
+            # Future work: make this work for time-indexing
+            # as well, using the hop length.
+            if self._loudness is not None:
+                copy._loudness = self._loudness[key]
+            if self.stft_data is not None:
+                copy.stft_data = self.stft_data[key]
         return copy
 
     def __setitem__(self, key, value):
-        self.audio_data[key] = value
+        if isinstance(value, type(self)):
+            self.audio_data[key] = value.audio_data
+            if isinstance(key, (int, slice)):
+                if self._loudness is not None and value._loudness is not None:
+                    self._loudness[key] = value._loudness
+                if self.stft_data is not None and value.stft_data is not None:
+                    self.stft_data[key] = value.stft_data
+        else:
+            self.audio_data[key] = value
 
     def __ne__(self, other):
         return not self == other

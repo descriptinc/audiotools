@@ -35,7 +35,7 @@ signal = AudioSignal(audio_path, offset=10, duration=2)
 
 transform = tfm.Compose([
     tfm.ClippingDistortion(),
-    tfm.Equalizer(eq_amount=3.0),
+    tfm.Equalizer(),
 ])
 
 outputs = {}
