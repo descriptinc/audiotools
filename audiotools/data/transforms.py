@@ -18,14 +18,14 @@ class BaseTransform:
         self.prefix = self.__class__.__name__
 
     def prepare(self, batch: dict):
-        for k in self.keys:
-            if k != "signal" and self.prefix is not None:
-                k_with_prefix = f"{self.prefix}.{k}"
-            else:
-                k_with_prefix = k
-            assert k_with_prefix in batch.keys(), f"{k_with_prefix} not in batch"
+        sub_batch = batch[self.prefix]
+        # Elevate the arguments to the main batch
+        # to be used by the transform function.
+        for k, v in sub_batch.items():
+            batch[k] = v
 
-            batch[k] = batch[k_with_prefix]
+        for k in self.keys:
+            assert k in batch.keys(), f"{k} not in batch"
 
         if "original" not in batch:
             batch["original"] = batch["signal"].clone()
@@ -58,9 +58,10 @@ class BaseTransform:
             batch["signal"][mask] = masked_batch["signal"]
             batch["original"][mask] = masked_batch["original"]
 
-        for k in self.keys:
-            if k != "signal":
-                batch.pop(k)
+        # Reset the batch keys to how it was before
+        # this function altered its keys.
+        for k in batch[self.prefix].keys():
+            batch.pop(k)
         return batch
 
     def __call__(self, batch: dict):
@@ -69,32 +70,30 @@ class BaseTransform:
     def instantiate(self, state: RandomState, signal: AudioSignal = None):
         state = util.random_state(state)
 
+        # Not all instantiates need the signal. Check if signal
+        # is needed before passing it in, so that the end-user
+        # doesn't need to have variables they're not using flowing
+        # into their function.
         needs_signal = "signal" in set(signature(self._instantiate).parameters.keys())
         kwargs = {}
         if needs_signal:
             kwargs = {"signal": signal}
 
+        # Instantiate the parameters for the transform.
         params = self._instantiate(state, **kwargs)
-
-        def _prefix(k):
-            # Basically check if this was already prefixed. It means we are
-            # in Compose, and are working with nested transforms.
-            if "." in k:
-                return k
-            return f"{self.prefix}.{k}"
-
         for k in list(params.keys()):
             v = params[k]
-            pk = _prefix(k)
-            if isinstance(v, AudioSignal) or torch.is_tensor(v):
-                params[_prefix(k)] = v
+            if isinstance(v, (AudioSignal, torch.Tensor, dict)):
+                params[k] = v
             else:
-                params[_prefix(k)] = tt(v)
-            if k != pk:
-                params.pop(k)
-
+                params[k] = tt(v)
         mask = state.rand() <= self.prob
-        params[f"{self.prefix}.mask"] = tt(mask)
+        params[f"mask"] = tt(mask)
+
+        # Put the params into a nested dictionary that will be
+        # used later when calling the transform. This is to avoid
+        # collisions in the dictionary.
+        params = {self.prefix: params}
 
         return params
 
@@ -191,6 +190,9 @@ class BackgroundNoise(BaseTransform):
         n_bands: int = 3,
         prob: float = 1.0,
     ):
+        """
+        min and max refer to SNR.
+        """
         keys = ["eq", "snr", "bg_signal"]
         super().__init__(keys=keys, prob=prob)
 
@@ -206,6 +208,8 @@ class BackgroundNoise(BaseTransform):
 
         bg_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
 
+        # Get properties of input signal to use when creating
+        # background signal.
         duration = signal.signal_duration
         sample_rate = signal.sample_rate
         is_mono = signal.num_channels == 1
@@ -235,6 +239,9 @@ class RoomImpulseResponse(BaseTransform):
         n_bands: int = 6,
         prob: float = 1.0,
     ):
+        """
+        min and max refer to DRR.
+        """
         keys = ["eq", "drr", "ir_signal"]
         super().__init__(keys=keys, prob=prob)
 
@@ -249,6 +256,9 @@ class RoomImpulseResponse(BaseTransform):
         drr = state.uniform(self.min, self.max)
 
         ir_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
+
+        # Get properties of input signal to use when creating
+        # background signal.
         sample_rate = signal.sample_rate
         is_mono = signal.num_channels == 1
 

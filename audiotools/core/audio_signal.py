@@ -349,6 +349,10 @@ class AudioSignal(
         return self.audio_data.shape[-1]
 
     @property
+    def shape(self):
+        return self.audio_data.shape
+
+    @property
     def signal_duration(self):
         return self.signal_length / self.sample_rate
 

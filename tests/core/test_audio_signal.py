@@ -38,6 +38,7 @@ def test_io():
 
     signal = AudioSignal(array)
     assert signal.sample_rate == 44100
+    signal.shape
 
     with pytest.raises(ValueError):
         signal = AudioSignal(5, sample_rate=16000)

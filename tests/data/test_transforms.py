@@ -45,7 +45,9 @@ def test_transform(transform_name):
 
     batch = transform.instantiate(seed, signal)
     if transform_name == "VolumeNorm":
-        batch["VolumeNorm.loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
+        batch["VolumeNorm"]["loudness"] = (
+            AudioSignal(audio_path).ffmpeg_loudness().item()
+        )
 
     batch["signal"] = signal
     batch = transform(batch)
@@ -109,7 +111,7 @@ def test_masking():
     )
     for batch in dataloader:
         batch = dataset.transform(batch)
-        mask = batch["Silence.mask"]
+        mask = batch["Silence"]["mask"]
 
         zeros = torch.zeros_like(batch["signal"][mask].audio_data)
         original = batch["original"][~mask].audio_data

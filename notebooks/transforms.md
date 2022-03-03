@@ -63,9 +63,11 @@ for seed in range(10):
     batch = transform(batch)
 
     output["input"] = batch["original"]
-    for k, v in batch.items():
-        if not isinstance(v, AudioSignal):
-            output[k] = v
+    params = batch["Compose"]
+    for k1, v1 in params.items():
+        if isinstance(v1, dict):
+            for k2, v2 in v1.items():
+                output[f"{k1}.{k2}"] = v2
     output["output"] = batch["signal"]
     outputs[seed] = output
 
