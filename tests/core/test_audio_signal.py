@@ -316,6 +316,7 @@ def test_trim():
 def test_to_from_ops():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path)
+    signal.stft()
     signal = signal.to("cpu")
     assert signal.audio_data.device == torch.device("cpu")
 

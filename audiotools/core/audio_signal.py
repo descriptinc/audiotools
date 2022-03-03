@@ -69,6 +69,7 @@ class AudioSignal(
             )
 
         self.path_to_input_file = None
+        self.stft_data = None
 
         if audio_path is not None:
             self.load_from_file(
@@ -79,7 +80,6 @@ class AudioSignal(
 
         self.window = None
         self.stft_params = stft_params
-        self.stft_data = None
 
         self.metadata = {}
 
@@ -266,6 +266,8 @@ class AudioSignal(
 
         if self._loudness is not None:
             self._loudness = self._loudness.to(device)
+        if self.stft_data is not None:
+            self.stft_data = self.stft_data.to(device)
 
         return self
 
@@ -613,10 +615,7 @@ class AudioSignal(
             self.audio_data[key], self.sample_rate, stft_params=self.stft_params
         )
 
-        valid_tensor = False
-        if torch.is_tensor(key):
-            if key.ndim == 1:
-                valid_tensor = True
+        valid_tensor = torch.is_tensor(key) and key.ndim == 1
 
         if isinstance(key, (int, slice)) or valid_tensor:
             # Indexing only on the batch dimension.
@@ -630,10 +629,7 @@ class AudioSignal(
         return copy
 
     def __setitem__(self, key, value):
-        valid_tensor = False
-        if torch.is_tensor(key):
-            if key.ndim == 1:
-                valid_tensor = True
+        valid_tensor = torch.is_tensor(key) and key.ndim == 1
 
         if isinstance(value, type(self)):
             self.audio_data[key] = value.audio_data
