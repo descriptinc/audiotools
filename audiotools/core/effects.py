@@ -120,13 +120,13 @@ class EffectMixin:
         self._loudness = None
         return self
 
-    def volume_boost(self, db_boost):
-        db_boost = util.ensure_tensor(db_boost).to(self.device)
-        gain = torch.exp(db_boost * self.GAIN_FACTOR)
+    def volume_change(self, db):
+        db = util.ensure_tensor(db).to(self.device)
+        gain = torch.exp(db * self.GAIN_FACTOR)
         self.audio_data = self.audio_data * gain[:, None, None]
 
         if self._loudness is not None:
-            self._loudness += db_boost
+            self._loudness += db
         return self
 
     def _to_2d(self):

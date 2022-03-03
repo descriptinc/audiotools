@@ -48,6 +48,7 @@ transform = tfm.Compose([
     tfm.ClippingDistortion(),
     tfm.MuLawQuantization(),
     tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
+    tfm.VolumeChange(),
 ])
 
 outputs = {}

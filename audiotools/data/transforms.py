@@ -248,3 +248,28 @@ class RoomImpulseResponse(BaseTransform):
             batch["ir_signal"], batch["drr"], batch["ir_eq_curve"]
         )
         return batch
+
+
+class VolumeChange(BaseTransform):
+    def __init__(
+        self,
+        min: float = -12,
+        max: float = 0.0,
+        prob: float = 1.0,
+        apply_to_original: bool = True,
+    ):
+        keys = ["db_change"]
+        super().__init__(keys=keys, prob=prob)
+
+        self.min = min
+        self.max = max
+        self.apply_to_original = apply_to_original
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        return {"db_change": state.uniform(self.min, self.max)}
+
+    def _transform(self, batch):
+        batch["signal"] = batch["signal"].volume_change(batch["db_change"])
+        if self.apply_to_original:
+            batch["original"] = batch["original"].volume_change(batch["db_change"])
+        return batch

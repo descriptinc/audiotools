@@ -35,13 +35,13 @@ def test_normalize():
     assert np.allclose(signal.loudness(), db, 1e-1)
 
 
-def test_volume_boost():
+def test_volume_change():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=10)
 
     boost = 3
     before_db = signal.loudness().clone()
-    signal = signal.volume_boost(boost)
+    signal = signal.volume_change(boost)
     after_db = signal.loudness()
     assert np.allclose(before_db + boost, after_db)
 
