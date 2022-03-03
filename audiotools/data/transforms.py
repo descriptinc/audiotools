@@ -58,6 +58,9 @@ class BaseTransform:
             batch["signal"][mask] = masked_batch["signal"]
             batch["original"][mask] = masked_batch["original"]
 
+        for k in self.keys:
+            if k != "signal":
+                batch.pop(k)
         return batch
 
     def __call__(self, batch: dict):
