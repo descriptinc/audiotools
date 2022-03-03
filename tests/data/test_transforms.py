@@ -44,8 +44,8 @@ def test_transform(transform_name):
     transform = transform_cls(prob=1.0, **kwargs)
 
     batch = transform.instantiate(seed, signal)
-    if transform_name == "FileLevelVolumeNorm":
-        batch["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
+    if transform_name == "VolumeNorm":
+        batch["VolumeNorm.loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
 
     batch["signal"] = signal
     batch = transform(batch)
