@@ -312,3 +312,35 @@ class Silence(BaseTransform):
         if self.apply_to_original:
             batch["original"] = torch.zeros_like(batch["original"].audio_data)
         return super()._transform(batch)
+
+
+class LowPass(BaseTransform):
+    def __init__(self, min: float = 0.0, max: float = 8000, prob: float = 1):
+        keys = ["lp_cutoff"]
+        super().__init__(keys=keys, prob=prob)
+
+        self.min = min
+        self.max = max
+
+    def _instantiate(self, state: RandomState):
+        return {"lp_cutoff": state.uniform(self.min, self.max)}
+
+    def _transform(self, batch):
+        batch["signal"] = batch["signal"].low_pass(batch["lp_cutoff"])
+        return batch
+
+
+class HighPass(BaseTransform):
+    def __init__(self, min: float = 0.0, max: float = 8000, prob: float = 1):
+        keys = ["hp_cutoff"]
+        super().__init__(keys=keys, prob=prob)
+
+        self.min = min
+        self.max = max
+
+    def _instantiate(self, state: RandomState):
+        return {"hp_cutoff": state.uniform(self.min, self.max)}
+
+    def _transform(self, batch):
+        batch["signal"] = batch["signal"].high_pass(batch["hp_cutoff"])
+        return batch
