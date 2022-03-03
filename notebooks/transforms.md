@@ -44,10 +44,11 @@ preprocess.create_csv(
 )
 
 transform = tfm.Compose([
+    tfm.Silence(prob=0.1),
     tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
+    tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
     tfm.ClippingDistortion(),
     tfm.MuLawQuantization(),
-    tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
     tfm.VolumeChange(),
 ])
 

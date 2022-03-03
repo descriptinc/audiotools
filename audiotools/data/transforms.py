@@ -172,9 +172,9 @@ class MuLawQuantization(BaseTransform):
 class BackgroundNoise(BaseTransform):
     def __init__(
         self,
-        csv_files: List[str] = None,
         min: float = 10.0,
         max: float = 30,
+        csv_files: List[str] = None,
         eq_amount: float = 1.0,
         n_bands: int = 3,
         prob: float = 1.0,
@@ -216,9 +216,9 @@ class BackgroundNoise(BaseTransform):
 class RoomImpulseResponse(BaseTransform):
     def __init__(
         self,
-        csv_files: List[str] = None,
         min: float = 0.0,
         max: float = 30,
+        csv_files: List[str] = None,
         eq_amount: float = 1.0,
         n_bands: int = 6,
         prob: float = 1.0,
@@ -299,3 +299,16 @@ class FileLevelVolumeNorm(BaseTransform):
         if self.apply_to_original:
             batch["original"] = batch["original"].volume_change(db_change)
         return batch
+
+
+class Silence(BaseTransform):
+    def __init__(self, prob: float = 0.1, apply_to_original: bool = True):
+        super().__init__(prob=prob)
+
+        self.apply_to_original = apply_to_original
+
+    def _transform(self, batch: dict):
+        batch["signal"] = torch.zeros_like(batch["signal"].audio_data)
+        if self.apply_to_original:
+            batch["original"] = torch.zeros_like(batch["original"].audio_data)
+        return super()._transform(batch)

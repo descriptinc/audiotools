@@ -139,7 +139,7 @@ def audio_table(audio_dict, first_column=None, format_fn=None):  # pragma: no co
         row += " | ".join(formatted_audio)
         output.append(row)
 
-    output = "\n".join(output)
+    output = "\n" + "\n".join(output)
     return output
 
 

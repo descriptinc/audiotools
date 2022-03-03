@@ -209,6 +209,14 @@ def test_indexing():
     assert np.allclose(indexed.stft_data, sig1.stft_data[0:2])
     assert np.allclose(indexed._loudness, sig1._loudness[0:2])
 
+    # Test using a boolean tensor to index batch
+    mask = torch.tensor([True, False, True, False])
+    indexed = sig1[mask]
+
+    assert np.allclose(indexed.audio_data, sig1.audio_data[mask])
+    assert np.allclose(indexed.stft_data, sig1.stft_data[mask])
+    assert np.allclose(indexed._loudness, sig1._loudness[mask])
+
     # Set parts of signal using tensor
     other_array = torch.from_numpy(np.random.randn(4, 2, 16000))
     sig1 = AudioSignal(array, sample_rate=16000)
@@ -236,13 +244,15 @@ def test_indexing():
     sig1.stft()
     sig1.loudness()
 
-    sig1[0] = sig2[0]
+    # Test using a boolean tensor to index batch
+    mask = torch.tensor([True, False, True, False])
+    sig1[mask] = sig2[mask]
 
     for k in ["stft_data", "audio_data", "_loudness"]:
         a1 = getattr(sig1, k)
         a2 = getattr(sig2, k)
 
-        assert np.allclose(a1[0], a2[0])
+        assert np.allclose(a1[mask], a2[mask])
 
 
 def test_zero_pad():

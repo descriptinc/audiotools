@@ -41,7 +41,7 @@ def test_transform(transform_name):
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
-    transform = transform_cls(**kwargs)
+    transform = transform_cls(prob=1.0, **kwargs)
 
     batch = transform.instantiate(seed, signal)
     if transform_name == "FileLevelVolumeNorm":

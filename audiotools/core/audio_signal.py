@@ -609,7 +609,13 @@ class AudioSignal(
         copy = type(self)(
             self.audio_data[key], self.sample_rate, stft_params=self.stft_params
         )
-        if isinstance(key, (int, slice)):
+
+        valid_tensor = False
+        if torch.is_tensor(key):
+            if key.ndim == 1:
+                valid_tensor = True
+
+        if isinstance(key, (int, slice)) or valid_tensor:
             # Indexing only on the batch dimension.
             # Then let's copy over relevant stuff.
             # Future work: make this work for time-indexing
@@ -621,9 +627,14 @@ class AudioSignal(
         return copy
 
     def __setitem__(self, key, value):
+        valid_tensor = False
+        if torch.is_tensor(key):
+            if key.ndim == 1:
+                valid_tensor = True
+
         if isinstance(value, type(self)):
             self.audio_data[key] = value.audio_data
-            if isinstance(key, (int, slice)):
+            if isinstance(key, (int, slice)) or valid_tensor:
                 if self._loudness is not None and value._loudness is not None:
                     self._loudness[key] = value._loudness
                 if self.stft_data is not None and value.stft_data is not None:
