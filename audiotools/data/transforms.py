@@ -93,16 +93,15 @@ class Compose(BaseTransform):
 
 
 class ClippingDistortion(BaseTransform):
-    def __init__(self, clip_range: list = [0.0, 0.1], prob: float = 1.0):
+    def __init__(self, min: float = 0.0, max: float = 0.1, prob: float = 1.0):
         keys = ["clip_percentile"]
         super().__init__(keys=keys, prob=prob)
 
-        self.clip_range = clip_range
+        self.min = min
+        self.max = max
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        return {
-            "clip_percentile": state.uniform(self.clip_range[0], self.clip_range[1])
-        }
+        return {"clip_percentile": state.uniform(self.min, self.max)}
 
     def _transform(self, batch):
         signal = batch["signal"]
@@ -126,4 +125,21 @@ class Equalizer(BaseTransform):
         signal = batch["signal"]
         eq_curve = batch["eq_curve"]
         batch["signal"] = signal.equalizer(eq_curve)
+        return batch
+
+
+class Quantization(BaseTransform):
+    def __init__(self, min: int = 8, max: int = 32, prob: float = 1.0):
+        super().__init__(prob=prob)
+
+        self.min = min
+        self.max = max
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        return {"quantization_channels": state.uniform(self.min, self.max)}
+
+    def _transform(self, batch: dict):
+        signal = batch["signal"]
+        quant_ch = batch["quantization_channels"]
+        batch["signal"] = signal.quantization(quant_ch)
         return batch
