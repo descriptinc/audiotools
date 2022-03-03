@@ -27,16 +27,27 @@ Which you can then open in a browser to view. -->
 
 ```{.python .cb.nb show=code:none+rich_output+stdout:raw+stderr jupyter_kernel=python3}
 from audiotools import AudioSignal
-from audiotools import post
+from audiotools import post, util
 import audiotools.data.transforms as tfm
+from audiotools.data import preprocess
 
 audio_path = "tests/audio/spk/f10_script4_produced.wav"
 signal = AudioSignal(audio_path, offset=10, duration=2)
 
+preprocess.create_csv(
+    util.find_audio("tests/audio/nz"),
+    "/tmp/noises.csv"
+)
+preprocess.create_csv(
+    util.find_audio("tests/audio/ir"),
+    "/tmp/irs.csv"
+)
+
 transform = tfm.Compose([
+    tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
     tfm.ClippingDistortion(),
-    tfm.Equalizer(),
     tfm.MuLawQuantization(),
+    tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
 ])
 
 outputs = {}
@@ -44,7 +55,7 @@ outputs = {}
 for seed in range(10):
     output = {}
 
-    batch = transform.instantiate(seed)
+    batch = transform.instantiate(seed, signal)
     batch["signal"] = signal.clone()
     batch = transform(batch)
 

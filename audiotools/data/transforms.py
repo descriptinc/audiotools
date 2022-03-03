@@ -1,6 +1,3 @@
-import math
-from inspect import signature
-from readline import parse_and_bind
 from typing import List
 
 import torch
@@ -69,7 +66,7 @@ class BaseTransform:
         params.update({f"{self.__class__.__name__}.mask": mask})
 
         for k, v in params.items():
-            if not torch.is_tensor(v):
+            if not torch.is_tensor(v) and not isinstance(v, AudioSignal):
                 params[k] = tt(v)
 
         return params
@@ -112,7 +109,8 @@ class ClippingDistortion(BaseTransform):
 
 class Equalizer(BaseTransform):
     def __init__(self, eq_amount: float = 1.0, n_bands: int = 6, prob: float = 1.0):
-        super().__init__(prob=prob)
+        keys = ["eq_curve"]
+        super().__init__(keys=keys, prob=prob)
 
         self.eq_amount = eq_amount
         self.n_bands = n_bands
@@ -130,7 +128,8 @@ class Equalizer(BaseTransform):
 
 class Quantization(BaseTransform):
     def __init__(self, min: int = 8, max: int = 32, prob: float = 1.0):
-        super().__init__(prob=prob)
+        keys = ["quantization_channels"]
+        super().__init__(keys=keys, prob=prob)
 
         self.min = min
         self.max = max
@@ -147,7 +146,8 @@ class Quantization(BaseTransform):
 
 class MuLawQuantization(BaseTransform):
     def __init__(self, min: int = 8, max: int = 32, prob: float = 1.0):
-        super().__init__(prob=prob)
+        keys = ["quantization_channels"]
+        super().__init__(keys=keys, prob=prob)
 
         self.min = min
         self.max = max
@@ -162,13 +162,89 @@ class MuLawQuantization(BaseTransform):
         return batch
 
 
-class Mix(BaseTransform):
+class BackgroundNoise(BaseTransform):
     def __init__(
         self,
+        csv_files: List[str] = None,
         min: float = 10.0,
         max: float = 30,
         eq_amount: float = 1.0,
         n_bands: int = 3,
         prob: float = 1.0,
     ):
-        pass
+        keys = ["bg_eq_curve", "snr", "bg_signal"]
+        super().__init__(keys=keys, prob=prob)
+
+        self.min = min
+        self.max = max
+        self.eq_amount = eq_amount
+        self.n_bands = n_bands
+        self.audio_files = util.read_csv(csv_files)
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        bg_eq_curve = -self.eq_amount * state.rand(self.n_bands)
+        snr = state.uniform(self.min, self.max)
+
+        bg_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
+
+        duration = signal.signal_duration
+        sample_rate = signal.sample_rate
+        is_mono = signal.num_channels == 1
+
+        bg_signal = AudioSignal.excerpt(
+            bg_path, duration=duration, state=state
+        ).resample(sample_rate)
+        if is_mono:
+            bg_signal = bg_signal.to_mono()
+
+        return {"bg_eq_curve": bg_eq_curve, "bg_signal": bg_signal, "snr": snr}
+
+    def _transform(self, batch: dict):
+        batch["signal"] = batch["signal"].mix(
+            batch["bg_signal"], batch["snr"], batch["bg_eq_curve"]
+        )
+        return batch
+
+
+class RoomImpulseResponse(BaseTransform):
+    def __init__(
+        self,
+        csv_files: List[str] = None,
+        min: float = 0.0,
+        max: float = 30,
+        eq_amount: float = 1.0,
+        n_bands: int = 6,
+        prob: float = 1.0,
+    ):
+        keys = ["ir_eq_curve", "drr", "ir_signal"]
+        super().__init__(keys=keys, prob=prob)
+
+        self.min = min
+        self.max = max
+        self.eq_amount = eq_amount
+        self.n_bands = n_bands
+        self.audio_files = util.read_csv(csv_files)
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        ir_eq_curve = -self.eq_amount * state.rand(self.n_bands)
+        drr = state.uniform(self.min, self.max)
+
+        ir_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
+        sample_rate = signal.sample_rate
+        is_mono = signal.num_channels == 1
+
+        ir_signal = (
+            AudioSignal(ir_path, duration=1.0)
+            .resample(sample_rate)
+            .zero_pad_to(sample_rate)
+        )
+        if is_mono:
+            ir_signal = ir_signal.to_mono()
+
+        return {"ir_eq_curve": ir_eq_curve, "ir_signal": ir_signal, "drr": drr}
+
+    def _transform(self, batch: dict):
+        batch["signal"] = batch["signal"].apply_ir(
+            batch["ir_signal"], batch["drr"], batch["ir_eq_curve"]
+        )
+        return batch
