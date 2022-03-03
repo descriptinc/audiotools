@@ -158,5 +158,5 @@ class MuLawQuantization(BaseTransform):
     def _transform(self, batch: dict):
         signal = batch["signal"]
         quant_ch = batch["quantization_channels"]
-        batch["signal"] = signal.quantization(quant_ch)
+        batch["signal"] = signal.mulaw_quantization(quant_ch)
         return batch
