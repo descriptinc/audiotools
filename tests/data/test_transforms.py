@@ -76,29 +76,30 @@ def test_compose():
     _compare_transform("Compose", output)
 
 
+class DummyData(torch.utils.data.Dataset):
+    def __init__(self, audio_path):
+        super().__init__()
+
+        self.audio_path = audio_path
+        self.length = 100
+        self.transform = tfm.Silence(prob=0.5)
+
+    def __getitem__(self, idx):
+        state = util.random_state(idx)
+        signal = AudioSignal.salient_excerpt(
+            self.audio_path, state=state, duration=1.0
+        ).resample(44100)
+
+        item = self.transform.instantiate(state, signal=signal)
+        item["signal"] = signal
+
+        return item
+
+    def __len__(self):
+        return self.length
+
+
 def test_masking():
-    class DummyData(torch.utils.data.Dataset):
-        def __init__(self, audio_path):
-            super().__init__()
-
-            self.audio_path = audio_path
-            self.length = 100
-            self.transform = tfm.Silence(prob=0.5)
-
-        def __getitem__(self, idx):
-            state = util.random_state(idx)
-            signal = AudioSignal.salient_excerpt(
-                self.audio_path, state=state, duration=1.0
-            ).resample(44100)
-
-            item = self.transform.instantiate(state, signal=signal)
-            item["signal"] = signal
-
-            return item
-
-        def __len__(self):
-            return self.length
-
     dataset = DummyData("tests/audio/spk/f10_script4_produced.wav")
     dataloader = torch.utils.data.DataLoader(
         dataset,
