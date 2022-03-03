@@ -90,18 +90,20 @@ class EffectMixin:
 
         return self
 
-    def apply_ir(self, ir, drr=None, ir_eq=None):
+    def apply_ir(self, ir, drr=None, ir_eq=None, rescale=True):
         if ir_eq is not None:
             ir = ir.equalizer(ir_eq)
         if drr is not None:
             ir = ir.alter_drr(drr)
+
+        # Save the peak before
+        max_spk = self.audio_data.abs().max(dim=-1, keepdims=True).values
 
         # Augment the impulse response to simulate microphone effects
         # and with varying direct-to-reverberant ratio.
         self.convolve(ir)
 
         # Rescale to the input's amplitude
-        max_spk = self.audio_data.abs().max(dim=-1, keepdims=True).values
         max_transformed = self.audio_data.abs().max(dim=-1, keepdims=True).values
         scale_factor = max_spk / max_transformed
         self *= scale_factor
