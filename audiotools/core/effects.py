@@ -227,9 +227,7 @@ class EffectMixin:
         return filtered.permute(1, 2, 3, 0)
 
     def equalizer(self, db):
-        db = util.ensure_tensor(db, ndim=2)
-        if not torch.is_tensor(db):
-            db = torch.from_numpy(db)
+        db = util.ensure_tensor(db)
         n_bands = db.shape[-1]
         fbank = self.mel_filterbank(n_bands)
 

@@ -26,8 +26,6 @@ class BaseTransform:
 
     def get_mask(self, batch):
         mask_key = f"{self.__class__.__name__}.mask"
-        if mask_key not in batch:
-            return slice(None, None, None)
         mask = batch[mask_key]
         return mask
 
