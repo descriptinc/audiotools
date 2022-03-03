@@ -77,7 +77,9 @@ class BaseTransform:
         params = self._instantiate(state, **kwargs)
 
         def _prefix(k):
-            if isinstance(self, META_TRANSFORMS):
+            # Basically check if this was already prefixed. It means we are
+            # in Compose, and are working with nested transforms.
+            if "." in k:
                 return k
             return f"{self.prefix}.{k}"
 
@@ -112,9 +114,6 @@ class Compose(BaseTransform):
         for transform in self.transforms:
             parameters.update(transform.instantiate(state, signal=signal))
         return parameters
-
-
-META_TRANSFORMS = (Compose,)
 
 
 class ClippingDistortion(BaseTransform):
