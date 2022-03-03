@@ -198,8 +198,7 @@ class AudioSignal(
         return copy.deepcopy(self)
 
     def copy(self):
-        copied = copy.copy(self)
-        return copied
+        return copy.copy(self)
 
     def clone(self):
         clone = type(self)(
