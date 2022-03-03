@@ -1,3 +1,4 @@
+from inspect import signature
 from typing import List
 
 import torch
@@ -61,7 +62,13 @@ class BaseTransform:
 
     def instantiate(self, state: RandomState, signal: AudioSignal = None):
         state = util.random_state(state)
-        params = self._instantiate(state, signal)
+
+        needs_signal = "signal" in set(signature(self._instantiate).parameters.keys())
+        kwargs = {}
+        if needs_signal:
+            kwargs = {"signal": signal}
+
+        params = self._instantiate(state, **kwargs)
         mask = state.rand() <= self.prob
         params.update({f"{self.__class__.__name__}.mask": mask})
 
@@ -97,7 +104,7 @@ class ClippingDistortion(BaseTransform):
         self.min = min
         self.max = max
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState):
         return {"clip_percentile": state.uniform(self.min, self.max)}
 
     def _transform(self, batch):
@@ -115,7 +122,7 @@ class Equalizer(BaseTransform):
         self.eq_amount = eq_amount
         self.n_bands = n_bands
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState):
         eq_curve = -self.eq_amount * state.rand(self.n_bands)
         return {"eq_curve": eq_curve}
 
@@ -134,7 +141,7 @@ class Quantization(BaseTransform):
         self.min = min
         self.max = max
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState):
         return {"quantization_channels": state.randint(self.min, self.max)}
 
     def _transform(self, batch: dict):
@@ -152,7 +159,7 @@ class MuLawQuantization(BaseTransform):
         self.min = min
         self.max = max
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState):
         return {"quantization_channels": state.randint(self.min, self.max)}
 
     def _transform(self, batch: dict):
@@ -265,7 +272,7 @@ class VolumeChange(BaseTransform):
         self.max = max
         self.apply_to_original = apply_to_original
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState):
         return {"db_change": state.uniform(self.min, self.max)}
 
     def _transform(self, batch):
