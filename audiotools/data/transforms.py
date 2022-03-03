@@ -136,7 +136,24 @@ class Quantization(BaseTransform):
         self.max = max
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        return {"quantization_channels": state.uniform(self.min, self.max)}
+        return {"quantization_channels": state.randint(self.min, self.max)}
+
+    def _transform(self, batch: dict):
+        signal = batch["signal"]
+        quant_ch = batch["quantization_channels"]
+        batch["signal"] = signal.quantization(quant_ch)
+        return batch
+
+
+class MuLawQuantization(BaseTransform):
+    def __init__(self, min: int = 8, max: int = 32, prob: float = 1.0):
+        super().__init__(prob=prob)
+
+        self.min = min
+        self.max = max
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        return {"quantization_channels": state.randint(self.min, self.max)}
 
     def _transform(self, batch: dict):
         signal = batch["signal"]

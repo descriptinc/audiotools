@@ -36,18 +36,24 @@ signal = AudioSignal(audio_path, offset=10, duration=2)
 transform = tfm.Compose([
     tfm.ClippingDistortion(),
     tfm.Equalizer(),
-    tfm.Quantization(),
+    tfm.MuLawQuantization(),
 ])
 
 outputs = {}
 
 for seed in range(10):
+    output = {}
+
     batch = transform.instantiate(seed)
     batch["signal"] = signal.clone()
     batch = transform(batch)
-    outputs[f"transformed_{seed}"] = batch["signal"]
 
-outputs["original"] = batch["original"]
+    output["input"] = batch["original"]
+    for k, v in batch.items():
+        if not isinstance(v, AudioSignal):
+            output[k] = v
+    output["output"] = batch["signal"]
+    outputs[seed] = output
 
-post.disp(outputs)
+post.disp(outputs, first_column="seed")
 ```

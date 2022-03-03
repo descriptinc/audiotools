@@ -9,6 +9,7 @@ from pathlib import Path
 
 import argbind
 import matplotlib.pyplot as plt
+import torch
 
 
 def upload_file_to_discourse(
@@ -95,13 +96,21 @@ def upload_figure_to_discourse(
 
 
 def audio_table(audio_dict, first_column=None, format_fn=None):  # pragma: no cover
+    from audiotools import AudioSignal
+
     output = []
     columns = None
 
     def _default_format_fn(label, x):
+        if torch.is_tensor(x):
+            x = x.tolist()
+
         if x is None:
             return "."
-        return x.embed(display=False, return_html=True)
+        elif isinstance(x, AudioSignal):
+            return x.embed(display=False, return_html=True)
+        else:
+            return str(x)
 
     if format_fn is None:
         format_fn = _default_format_fn
@@ -143,15 +152,24 @@ def discourse_audio_table(audio_dict, first_column=None, **kwargs):  # pragma: n
     audio_dict : dict[str, dict]
         Dictionary of strings mapped to dictionaries of AudioSignal objects.
     """
+    from audiotools import AudioSignal
+
     uploads = []
 
     def format_fn(label, x):
+        if torch.is_tensor(x):
+            x = x.tolist()
+            x = ["{:.2f}".format(_x) for _x in x]
+
         if x is None:
             return "."
-        upload = x.upload_to_discourse(label, **kwargs)
-        formatted_audio = upload[0].replace("|", "\|")
-        uploads.append(upload)
-        return formatted_audio
+        elif isinstance(x, AudioSignal):
+            upload = x.upload_to_discourse(label, **kwargs)
+            formatted_audio = upload[0].replace("|", "\|")
+            uploads.append(upload)
+            return formatted_audio
+        else:
+            return str(x)
 
     output = audio_table(audio_dict, first_column=first_column, format_fn=format_fn)
     return output, uploads
@@ -173,11 +191,11 @@ def disp(obj, label=None, **kwargs):  # pragma: no cover
         if DISCOURSE:
             table = discourse_audio_table(obj, **kwargs)[0]
         else:
-            table = audio_table(obj)
+            table = audio_table(obj, **kwargs)
         print(table)
     if isinstance(obj, plt.Figure):
         if DISCOURSE:
-            info = upload_figure_to_discourse()
+            info = upload_figure_to_discourse(**kwargs)
             print(info[0])
         else:
             plt.show()
