@@ -32,7 +32,7 @@ class BaseTransform:
         return mask
 
     def _transform(self, batch: dict):
-        raise NotImplementedError
+        return batch
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         return {}
