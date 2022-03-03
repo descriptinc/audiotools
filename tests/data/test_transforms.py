@@ -17,17 +17,15 @@ for x in dir(tfm):
             transforms_to_test.append(x)
 
 
-def _compare_transform(transform_name, data):
-    regression_data = Path(f"tests/regression/transforms/{transform_name}.json")
+def _compare_transform(transform_name, signal):
+    regression_data = Path(f"tests/regression/transforms/{transform_name}.wav")
     regression_data.parent.mkdir(exist_ok=True, parents=True)
 
     if regression_data.exists():
-        with open(regression_data, "r") as f:
-            target_data = json.load(f)
-        assert data["hash"] == target_data["hash"]
+        regression_signal = AudioSignal(regression_data)
+        assert signal == regression_signal
     else:
-        with open(regression_data, "w") as f:
-            json.dump(data, f, indent=4)
+        signal.write(regression_data)
 
 
 @pytest.mark.parametrize("transform_name", transforms_to_test)
@@ -53,10 +51,8 @@ def test_transform(transform_name):
     batch = transform(batch)
 
     output = batch["signal"]
-    output_hash = output.hash()
-    data = {"hash": output_hash}
 
-    _compare_transform(transform_name, data)
+    _compare_transform(transform_name, output)
 
 
 def test_compose():
@@ -76,11 +72,8 @@ def test_compose():
     batch["signal"] = signal.clone()
     batch = transform(batch)
     output = batch["signal"]
-    output_hash = output.hash()
 
-    data = {"hash": output_hash}
-
-    _compare_transform("Compose", data)
+    _compare_transform("Compose", output)
 
 
 def test_masking():
