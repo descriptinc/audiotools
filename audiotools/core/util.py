@@ -31,7 +31,7 @@ def info(audio_path):
     return info
 
 
-def ensure_tensor(x, ndim=None, batch_size=None):
+def ensure_tensor(x, ndim=None, expand_idx=0, batch_size=None):
     if isinstance(x, (float, int, numbers.Integral)):
         x = np.array([x])
     if isinstance(x, (list, tuple)):
@@ -41,7 +41,7 @@ def ensure_tensor(x, ndim=None, batch_size=None):
     if ndim is not None:
         if x.ndim < ndim:
             for _ in range(ndim - 1):
-                x = x.unsqueeze(-1)
+                x = x.unsqueeze(expand_idx)
     if batch_size is not None:
         if x.shape[0] != batch_size:
             shape = list(x.shape)

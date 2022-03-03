@@ -30,7 +30,8 @@ class BaseTransform:
         mask_key = f"{self.__class__.__name__}.mask"
         if mask_key not in batch:
             return slice(None, None, None)
-        return batch[mask_key]
+        mask = batch[mask_key]
+        return mask
 
     def _transform(self, batch: dict):
         raise NotImplementedError
@@ -42,11 +43,19 @@ class BaseTransform:
         batch = self.validate(batch)
         mask = self.get_mask(batch)
 
-        masked_batch = batch.copy()
-        masked_batch["signal"] = batch["signal"][mask]
-        masked_batch = self._transform(masked_batch)
+        if torch.any(mask):
+            masked_batch = batch.copy()
+            for k in self.keys:
+                if isinstance(batch[k], AudioSignal):
+                    _mask = mask
+                    if len(_mask.shape) == 0:
+                        _mask = _mask.unsqueeze(0)
+                    masked_batch[k] = batch[k][_mask]
+                elif torch.is_tensor(batch[k]):
+                    masked_batch[k] = batch[k][mask]
 
-        batch["signal"][mask] = masked_batch["signal"]
+            masked_batch = self._transform(masked_batch)
+            batch["signal"][mask] = masked_batch["signal"]
 
         return batch
 
@@ -67,10 +76,8 @@ class BaseTransform:
 
 
 class Compose(BaseTransform):
-    def __init__(self, transforms: list):
-        # Compose can't use masking, because the indexing will break
-        # within each transform.
-        super().__init__(prob=1.0)
+    def __init__(self, transforms: list, prob: float = 1.0):
+        super().__init__(prob=prob)
         self.transforms = transforms
 
     def _transform(self, batch: dict):

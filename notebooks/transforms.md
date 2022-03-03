@@ -40,9 +40,9 @@ transform = tfm.Compose([
 
 outputs = {}
 
-for seed in range(3):
+for seed in range(10):
     batch = transform.instantiate(seed)
-    batch["signal"] = signal.deepcopy()
+    batch["signal"] = signal.clone()
     batch = transform(batch)
     outputs[f"transformed_{seed}"] = batch["signal"]
 
