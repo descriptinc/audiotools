@@ -160,3 +160,15 @@ class MuLawQuantization(BaseTransform):
         quant_ch = batch["quantization_channels"]
         batch["signal"] = signal.mulaw_quantization(quant_ch)
         return batch
+
+
+class Mix(BaseTransform):
+    def __init__(
+        self,
+        min: float = 10.0,
+        max: float = 30,
+        eq_amount: float = 1.0,
+        n_bands: int = 3,
+        prob: float = 1.0,
+    ):
+        pass
