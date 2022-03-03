@@ -35,7 +35,7 @@ class BaseTransform:
         raise NotImplementedError
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        raise NotImplementedError
+        return {}
 
     def transform(self, batch: dict):
         batch = self.validate(batch)
@@ -43,7 +43,7 @@ class BaseTransform:
 
         if torch.any(mask):
             masked_batch = batch.copy()
-            for k in self.keys:
+            for k in self.keys + ["original"]:
                 if isinstance(batch[k], AudioSignal):
                     _mask = mask
                     if len(_mask.shape) == 0:
@@ -53,7 +53,9 @@ class BaseTransform:
                     masked_batch[k] = batch[k][mask]
 
             masked_batch = self._transform(masked_batch)
+
             batch["signal"][mask] = masked_batch["signal"]
+            batch["original"][mask] = masked_batch["original"]
 
         return batch
 
@@ -279,4 +281,23 @@ class VolumeChange(BaseTransform):
         batch["signal"] = batch["signal"].volume_change(batch["db_change"])
         if self.apply_to_original:
             batch["original"] = batch["original"].volume_change(batch["db_change"])
+        return batch
+
+
+class FileLevelVolumeNorm(BaseTransform):
+    def __init__(
+        self, db: float = -24, apply_to_original: bool = True, prob: float = 1.0
+    ):
+        keys = ["file_loudness"]
+        super().__init__(keys=keys, prob=prob)
+
+        self.db = db
+        self.apply_to_original = apply_to_original
+
+    def _transform(self, batch):
+        db_change = self.db - batch["file_loudness"]
+
+        batch["signal"] = batch["signal"].volume_change(db_change)
+        if self.apply_to_original:
+            batch["original"] = batch["original"].volume_change(db_change)
         return batch
