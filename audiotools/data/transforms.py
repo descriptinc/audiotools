@@ -314,6 +314,9 @@ class VolumeNorm(BaseTransform):
         self.db = db
         self.apply_to_original = apply_to_original
 
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        return {"loudness": signal.metadata["file_loudness"]}
+
     def _transform(self, batch):
         db_change = self.db - batch["loudness"]
 

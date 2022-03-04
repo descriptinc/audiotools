@@ -41,13 +41,12 @@ def test_transform(transform_name):
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
+    signal.metadata["file_loudness"] = {
+        AudioSignal(audio_path).ffmpeg_loudness().item()
+    }
     transform = transform_cls(prob=1.0, **kwargs)
 
     batch = transform.instantiate(seed, signal)
-    if transform_name == "VolumeNorm":
-        batch["VolumeNorm"]["loudness"] = (
-            AudioSignal(audio_path).ffmpeg_loudness().item()
-        )
 
     batch["signal"] = signal
     batch = transform(batch)
