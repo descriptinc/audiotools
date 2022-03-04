@@ -127,6 +127,7 @@ class DSPMixin:
             filtered[i] = lp_filter(self.audio_data[i])
 
         self.audio_data = filtered
+        self.stft_data = None
         return self
 
     def high_pass(self, cutoffs, zeros=51):
@@ -139,4 +140,5 @@ class DSPMixin:
             filtered[i] = lp_filter(self.audio_data[i])
 
         self.audio_data = self.audio_data - filtered
+        self.stft_data = None
         return self
