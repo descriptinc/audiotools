@@ -28,8 +28,7 @@ STFTParams.__new__.__defaults__ = (None,) * len(STFTParams._fields)
 """
 STFTParams object is a container that holds STFT parameters - window_length,
 hop_length, and window_type. Not all parameters need to be specified. Ones that
-are not specified will be inferred by the AudioSignal parameters and the settings
-in `nussl.core.constants`.
+are not specified will be inferred by the AudioSignal parameters.
 """
 
 
@@ -70,6 +69,7 @@ class AudioSignal(
             )
 
         self.path_to_input_file = None
+        self.stft_data = None
 
         if audio_path is not None:
             self.load_from_file(
@@ -80,7 +80,6 @@ class AudioSignal(
 
         self.window = None
         self.stft_params = stft_params
-        self.stft_data = None
 
         self.metadata = {}
 
@@ -201,6 +200,27 @@ class AudioSignal(
     def copy(self):
         return copy.copy(self)
 
+    def clone(self):
+        clone = type(self)(
+            self.audio_data.clone(),
+            self.sample_rate,
+            stft_params=self.stft_params,
+        )
+        if self.stft_data is not None:
+            clone.stft_data = self.stft_data.clone()
+        if self._loudness is not None:
+            clone._loudness = self._loudness.clone()
+        return clone
+
+    def detach(self):
+        self.audio_data = self.audio_data.detach()
+        self.audio_mask = self.audio_mask.detach()
+        if self.stft_data is not None:
+            self.stft_data = self.stft_data.detach()
+        if self._loudness is not None:
+            self._loudness = self._loudness.detach()
+        return self
+
     def hash(self, batch_idx=0):
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
             self.write(f.name, batch_idx)
@@ -243,6 +263,12 @@ class AudioSignal(
         device = device if torch.cuda.is_available() else "cpu"
         self.audio_data = self.audio_data.to(device).float()
         self.audio_mask = self.audio_mask.to(device).float()
+
+        if self._loudness is not None:
+            self._loudness = self._loudness.to(device)
+        if self.stft_data is not None:
+            self.stft_data = self.stft_data.to(device)
+
         return self
 
     def float(self):
@@ -322,6 +348,10 @@ class AudioSignal(
     @property
     def signal_length(self):
         return self.audio_data.shape[-1]
+
+    @property
+    def shape(self):
+        return self.audio_data.shape
 
     @property
     def signal_duration(self):
@@ -580,10 +610,36 @@ class AudioSignal(
 
     # Indexing
     def __getitem__(self, key):
-        return self.audio_data[key]
+        # This copy always happens.
+        copy = type(self)(
+            self.audio_data[key], self.sample_rate, stft_params=self.stft_params
+        )
+
+        valid_tensor = torch.is_tensor(key) and key.ndim == 1
+
+        if isinstance(key, (int, slice)) or valid_tensor:
+            # Indexing only on the batch dimension.
+            # Then let's copy over relevant stuff.
+            # Future work: make this work for time-indexing
+            # as well, using the hop length.
+            if self._loudness is not None:
+                copy._loudness = self._loudness[key]
+            if self.stft_data is not None:
+                copy.stft_data = self.stft_data[key]
+        return copy
 
     def __setitem__(self, key, value):
-        self.audio_data[key] = value
+        valid_tensor = torch.is_tensor(key) and key.ndim == 1
+
+        if isinstance(value, type(self)):
+            self.audio_data[key] = value.audio_data
+            if isinstance(key, (int, slice)) or valid_tensor:
+                if self._loudness is not None and value._loudness is not None:
+                    self._loudness[key] = value._loudness
+                if self.stft_data is not None and value.stft_data is not None:
+                    self.stft_data[key] = value.stft_data
+        else:
+            self.audio_data[key] = value
 
     def __ne__(self, other):
         return not self == other

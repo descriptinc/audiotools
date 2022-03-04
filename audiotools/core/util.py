@@ -1,15 +1,11 @@
-import json
+import csv
 import numbers
 import os
-import shlex
-import subprocess
-import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchaudio
@@ -145,6 +141,26 @@ def find_audio(folder: str, ext: List[str] = ["wav", "flac", "mp3"]):
     for x in ext:
         files += folder.glob(f"**/*.{x}")
     return files
+
+
+def read_csv(filelists):
+    files = []
+    data_path = Path(os.getenv("PATH_TO_DATA", ""))
+    for filelist in filelists:
+        with open(filelist, "r") as f:
+            reader = csv.DictReader(f)
+            _files = []
+            for x in reader:
+                x["path"] = data_path / x["path"]
+                _files.append(x)
+        files.append(sorted(_files, key=lambda x: x["path"]))
+    return files
+
+
+def choose_from_list_of_lists(state, list_of_lists):
+    idx = state.randint(len(list_of_lists))
+    item_idx = state.randint(len(list_of_lists[idx]))
+    return list_of_lists[idx][item_idx]
 
 
 @contextmanager

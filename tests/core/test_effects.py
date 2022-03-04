@@ -35,6 +35,21 @@ def test_normalize():
     assert np.allclose(signal.loudness(), db, 1e-1)
 
 
+def test_volume_change():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=10)
+
+    boost = 3
+    before_db = signal.loudness().clone()
+    signal = signal.volume_change(boost)
+    after_db = signal.loudness()
+    assert np.allclose(before_db + boost, after_db)
+
+    signal._loudness = None
+    after_db = signal.loudness()
+    assert np.allclose(before_db + boost, after_db, 1e-1)
+
+
 def test_mix():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     spk = AudioSignal(audio_path, offset=10, duration=10)
@@ -60,6 +75,12 @@ def test_mix():
     nz_batch = AudioSignal.batch([nz.deepcopy() for _ in range(batch_size)])
 
     spk_batch.deepcopy().mix(nz_batch, snr=tgt_snr)
+    snr = spk_batch.loudness() - nz_batch.loudness()
+    assert np.allclose(snr, tgt_snr, atol=1)
+
+    # Test with "EQing" the other signal
+    db = 0 + 0 * torch.rand(10)
+    spk_batch.deepcopy().mix(nz_batch, snr=tgt_snr, other_eq=db)
     snr = spk_batch.loudness() - nz_batch.loudness()
     assert np.allclose(snr, tgt_snr, atol=1)
 
@@ -145,7 +166,7 @@ def test_pitch_shift():
 
     batched = spk_batch.deepcopy().pitch_shift(5)
 
-    assert np.allclose(batched[0], single[0])
+    assert np.allclose(batched[0].audio_data, single[0].audio_data)
 
 
 def test_time_stretch():
@@ -159,7 +180,7 @@ def test_time_stretch():
 
     batched = spk_batch.deepcopy().time_stretch(0.8)
 
-    assert np.allclose(batched[0], single[0])
+    assert np.allclose(batched[0].audio_data, single[0].audio_data)
 
 
 @pytest.mark.parametrize("n_bands", [1, 2, 4, 8, 12, 16])
@@ -212,6 +233,45 @@ def test_equalizer(n_bands):
     assert output == spk_batch
 
 
+def test_clip_percentile():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+    clipped = spk.deepcopy().clip_distortion(0.05)
+
+    spk_batch = AudioSignal.batch(
+        [
+            AudioSignal.excerpt("tests/audio/spk/f10_script4_produced.wav", duration=2)
+            for _ in range(16)
+        ]
+    )
+    clipped_batch = spk_batch.deepcopy().clip_distortion(0.05)
+
+    assert clipped.audio_data.abs().max() < 1.0
+    assert clipped_batch.audio_data.abs().max() < 1.0
+
+
+@pytest.mark.parametrize("quant_ch", [2, 4, 8, 16, 32, 64, 128])
+def test_quantization(quant_ch):
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+
+    quantized = spk.deepcopy().quantization(quant_ch)
+
+    found_quant_ch = len(np.unique(quantized.audio_data))
+    assert found_quant_ch <= quant_ch
+
+
+@pytest.mark.parametrize("quant_ch", [2, 4, 8, 16, 32, 64, 128])
+def test_mulaw_quantization(quant_ch):
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+
+    quantized = spk.deepcopy().mulaw_quantization(quant_ch)
+
+    found_quant_ch = len(np.unique(quantized.audio_data))
+    assert found_quant_ch <= quant_ch
+
+
 def test_impulse_response_augmentation():
     audio_path = "tests/audio/ir/h179_Bar_1txts.wav"
     batch_size = 16
@@ -236,3 +296,15 @@ def test_impulse_response_augmentation():
     altered_ir = ir_batch.deepcopy().alter_drr(target_drr)
     drr = altered_ir.measure_drr()
     assert np.allclose(drr.flatten(), target_drr.flatten())
+
+
+def test_apply_ir():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    ir_path = "tests/audio/ir/h179_Bar_1txts.wav"
+
+    spk = AudioSignal(audio_path, offset=10, duration=2)
+    ir = AudioSignal(ir_path)
+    db = 0 + 0 * torch.rand(10)
+    output = spk.deepcopy().apply_ir(ir, drr=10, ir_eq=db)
+
+    assert np.allclose(ir.measure_drr().flatten(), 10)

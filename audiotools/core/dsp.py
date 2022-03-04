@@ -43,7 +43,7 @@ class DSPMixin:
                 end_idx = start_idx + window_length
                 if end_idx > self.signal_length:
                     break
-                yield self.audio_data[b, ..., start_idx:end_idx]
+                yield self[b, ..., start_idx:end_idx]
 
     def collect_windows(self, window_duration, hop_duration):
         """Function which collects overlapping windows from
@@ -127,4 +127,18 @@ class DSPMixin:
             filtered[i] = lp_filter(self.audio_data[i])
 
         self.audio_data = filtered
+        self.stft_data = None
+        return self
+
+    def high_pass(self, cutoffs, zeros=51):
+        cutoffs = util.ensure_tensor(cutoffs, 2, self.batch_size)
+        cutoffs = cutoffs / self.sample_rate
+        filtered = torch.empty_like(self.audio_data)
+
+        for i, cutoff in enumerate(cutoffs):
+            lp_filter = julius.LowPassFilter(cutoff, zeros=zeros).to(self.device)
+            filtered[i] = lp_filter(self.audio_data[i])
+
+        self.audio_data = self.audio_data - filtered
+        self.stft_data = None
         return self

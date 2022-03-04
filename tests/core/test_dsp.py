@@ -66,7 +66,7 @@ def test_inplace_overlap_add(duration, sample_rate, window_duration):
             for i, window in enumerate(
                 signal.deepcopy().windows(window_duration, hop_duration)
             ):
-                assert np.allclose(window, windowed_signal[i])
+                assert np.allclose(window.audio_data, windowed_signal.audio_data[i])
 
         _test(nz_signal)
         _test(spk_signal)
@@ -94,3 +94,15 @@ def test_low_pass():
     assert out.audio_data[0].abs().max() < 1e-4
     assert out.audio_data[2].abs().max() < 1e-4
     assert (out - batch).audio_data[1].abs().max() < 1e-3
+
+
+def test_high_pass():
+    sample_rate = 44100
+    f = 440
+    t = torch.arange(0, 1, 1 / sample_rate)
+    sine_wave = torch.sin(2 * np.pi * f * t)
+    window = AudioSignal.get_window("hanning", sine_wave.shape[-1], sine_wave.device)
+    sine_wave = sine_wave * window
+    signal = AudioSignal(sine_wave.unsqueeze(0), sample_rate=sample_rate)
+    out = signal.deepcopy().high_pass(220)
+    assert (signal - out).audio_data.abs().max() < 1e-4

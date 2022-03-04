@@ -38,6 +38,7 @@ def test_io():
 
     signal = AudioSignal(array)
     assert signal.sample_rate == 44100
+    signal.shape
 
     with pytest.raises(ValueError):
         signal = AudioSignal(5, sample_rate=16000)
@@ -59,6 +60,33 @@ def test_io():
     assert (
         AudioSignal(audio_path).hash() != AudioSignal(audio_path).normalize(-20).hash()
     )
+
+
+def test_copy_and_clone():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path)
+    signal.stft()
+    signal.loudness()
+
+    copied = signal.copy()
+    deep_copied = signal.deepcopy()
+    cloned = signal.clone()
+
+    for a in ["audio_data", "stft_data", "_loudness"]:
+        a1 = getattr(signal, a)
+        a2 = getattr(cloned, a)
+        a3 = getattr(copied, a)
+        a4 = getattr(deep_copied, a)
+
+        assert id(a1) != id(a2)
+        assert id(a1) == id(a3)
+        assert id(a1) != id(a4)
+
+        assert np.allclose(a1, a2)
+        assert np.allclose(a1, a3)
+        assert np.allclose(a1, a4)
+
+    signal = signal.detach()
 
 
 @pytest.mark.parametrize("loudness_cutoff", [-np.inf, -160, -80, -40, -20])
@@ -161,19 +189,71 @@ def test_indexing():
     array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
 
-    assert np.allclose(sig1[0], array[0])
-    assert np.allclose(sig1[0, :, 8000], array[0, :, 8000])
+    assert np.allclose(sig1[0].audio_data, array[0])
+    assert np.allclose(sig1[0, :, 8000].audio_data, array[0, :, 8000])
 
-    sig1[0, :, 8000] = 10
-    assert np.allclose(sig1.audio_data[0, :, 8000], 10)
-
-
-def test_copy():
-    array = np.random.randn(2, 16000)
+    # Test with the associated STFT data.
+    array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
+    sig1.loudness()
+    sig1.stft()
 
-    assert sig1 == sig1.copy()
-    assert sig1 == sig1.deepcopy()
+    indexed = sig1[0]
+
+    assert np.allclose(indexed.audio_data, array[0])
+    assert np.allclose(indexed.stft_data, sig1.stft_data[0])
+    assert np.allclose(indexed._loudness, sig1._loudness[0])
+
+    indexed = sig1[0:2]
+
+    assert np.allclose(indexed.audio_data, array[0:2])
+    assert np.allclose(indexed.stft_data, sig1.stft_data[0:2])
+    assert np.allclose(indexed._loudness, sig1._loudness[0:2])
+
+    # Test using a boolean tensor to index batch
+    mask = torch.tensor([True, False, True, False])
+    indexed = sig1[mask]
+
+    assert np.allclose(indexed.audio_data, sig1.audio_data[mask])
+    assert np.allclose(indexed.stft_data, sig1.stft_data[mask])
+    assert np.allclose(indexed._loudness, sig1._loudness[mask])
+
+    # Set parts of signal using tensor
+    other_array = torch.from_numpy(np.random.randn(4, 2, 16000))
+    sig1 = AudioSignal(array, sample_rate=16000)
+    sig1[0, :, 6000:8000] = other_array[0, :, 6000:8000]
+
+    assert np.allclose(sig1[0, :, 6000:8000].audio_data, other_array[0, :, 6000:8000])
+
+    # Set parts of signal using AudioSignal
+    sig2 = AudioSignal(other_array, sample_rate=16000)
+
+    sig1 = AudioSignal(array, sample_rate=16000)
+    sig1[0, :, 6000:8000] = sig2[0, :, 6000:8000]
+
+    assert np.allclose(
+        sig1[0, :, 6000:8000].audio_data, sig2[0, :, 6000:8000].audio_data
+    )
+
+    # Check that loudnesses and stft_data get set as well, if only the batch
+    # dim is indexed.
+    sig2 = AudioSignal(other_array, sample_rate=16000)
+    sig2.stft()
+    sig2.loudness()
+
+    sig1 = AudioSignal(array, sample_rate=16000)
+    sig1.stft()
+    sig1.loudness()
+
+    # Test using a boolean tensor to index batch
+    mask = torch.tensor([True, False, True, False])
+    sig1[mask] = sig2[mask]
+
+    for k in ["stft_data", "audio_data", "_loudness"]:
+        a1 = getattr(sig1, k)
+        a2 = getattr(sig2, k)
+
+        assert np.allclose(a1[mask], a2[mask])
 
 
 def test_zero_pad():
@@ -236,6 +316,7 @@ def test_trim():
 def test_to_from_ops():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path)
+    signal.stft()
     signal = signal.to("cpu")
     assert signal.audio_data.device == torch.device("cpu")
 
