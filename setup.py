@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setup(
     name="audiotools",
-    version="0.2.1",
+    version="0.2.2",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -50,6 +50,7 @@ setup(
         "librosa",
         "pystoi",
         "torch_stoi",
+        "flatten-dict",
     ],
     extras_require={
         "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "pesq"],

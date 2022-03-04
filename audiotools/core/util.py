@@ -9,6 +9,8 @@ from typing import List
 import numpy as np
 import torch
 import torchaudio
+from flatten_dict import flatten
+from flatten_dict import unflatten
 
 
 @dataclass
@@ -180,3 +182,23 @@ def chdir(newdir):
         yield
     finally:
         os.chdir(curdir)
+
+
+def prepare_batch(batch, device="cpu"):
+    if isinstance(batch, dict):
+        batch = flatten(batch)
+        for key, val in batch.items():
+            try:
+                batch[key] = val.to(device).float()
+            except:
+                pass
+        batch = unflatten(batch)
+    elif torch.is_tensor(batch):
+        batch = batch.to(device).float()
+    elif isinstance(batch, list):
+        for i in range(len(batch)):
+            try:
+                batch[i] = batch[i].to(device).float()
+            except:
+                pass
+    return batch

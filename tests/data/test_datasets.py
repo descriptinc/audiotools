@@ -144,3 +144,21 @@ def test_csv_dataset():
 
         assert torch.allclose(batch["signal"][mask].audio_data, zeros)
         assert torch.allclose(batch["signal"][~mask].audio_data, original)
+
+
+def test_dataset_pipeline():
+    transform = tfm.Compose(
+        [
+            tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
+            tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
+        ]
+    )
+    dataset = audiotools.data.datasets.CSVDataset(
+        44100, 10, csv_files=["tests/audio/spk.csv"], transform=transform
+    )
+    dataloader = torch.utils.data.DataLoader(
+        dataset, num_workers=0, batch_size=1, collate_fn=dataset.collate
+    )
+    for batch in dataloader:
+        batch = audiotools.core.util.prepare_batch(batch, device="cpu")
+        batch = dataset.transform(batch)
