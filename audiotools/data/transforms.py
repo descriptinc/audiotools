@@ -19,19 +19,18 @@ class BaseTransform:
 
     def prepare(self, batch: dict):
         sub_batch = batch[self.prefix]
-
         # Elevate the arguments to the main batch
         # to be used by the transform function.
-        sub_batch["signal"] = batch["signal"]
-        if "original" not in batch:
-            sub_batch["original"] = batch["signal"].clone()
-        else:
-            sub_batch["original"] = batch["original"]
+        for k, v in sub_batch.items():
+            batch[k] = v
 
         for k in self.keys:
-            assert k in sub_batch.keys(), f"{k} not in batch"
+            assert k in batch.keys(), f"{k} not in batch"
 
-        return sub_batch
+        if "original" not in batch:
+            batch["original"] = batch["signal"].clone()
+
+        return batch
 
     def _transform(self, batch: dict):
         return batch
@@ -40,21 +39,29 @@ class BaseTransform:
         return {}
 
     def transform(self, batch: dict):
-        tfm_batch = self.prepare(batch)
-        mask = tfm_batch["mask"]
+        batch = self.prepare(batch)
+        mask = batch["mask"]
 
         if torch.any(mask):
-            if mask.ndim == 0:
-                tfm_batch = {k: v for k, v in tfm_batch.items() if k in self.keys}
-            else:
-                tfm_batch = {k: v[mask] for k, v in tfm_batch.items() if k in self.keys}
+            masked_batch = batch.copy()
+            for k in self.keys + ["original"]:
+                if isinstance(batch[k], AudioSignal):
+                    _mask = mask
+                    if len(_mask.shape) == 0:
+                        _mask = _mask.unsqueeze(0)
+                    masked_batch[k] = batch[k][_mask]
+                elif torch.is_tensor(batch[k]):
+                    masked_batch[k] = batch[k][mask]
 
-            tfm_batch = self._transform(tfm_batch)
+            masked_batch = self._transform(masked_batch)
 
-            if mask.ndim == 0:
-                batch["signal"] = tfm_batch["signal"]
-            else:
-                batch["signal"][mask] = tfm_batch["signal"]
+            batch["signal"][mask] = masked_batch["signal"]
+            batch["original"][mask] = masked_batch["original"]
+
+        # Reset the batch keys to how it was before
+        # this function altered its keys.
+        for k in batch[self.prefix].keys():
+            batch.pop(k)
         return batch
 
     def __call__(self, batch: dict):
@@ -95,7 +102,6 @@ class Compose(BaseTransform):
     def __init__(self, transforms: list, prob: float = 1.0):
         super().__init__(prob=prob)
         self.transforms = transforms
-        self.keys += [tfm.prefix for tfm in self.transforms]
 
     def _transform(self, batch: dict):
         for transform in self.transforms:
@@ -282,8 +288,6 @@ class VolumeChange(BaseTransform):
         apply_to_original: bool = True,
     ):
         keys = ["db"]
-        if apply_to_original:
-            keys += ["original"]
         super().__init__(keys=keys, prob=prob)
 
         self.min = min
@@ -305,8 +309,6 @@ class VolumeNorm(BaseTransform):
         self, db: float = -24, apply_to_original: bool = True, prob: float = 1.0
     ):
         keys = ["loudness"]
-        if apply_to_original:
-            keys += ["original"]
         super().__init__(keys=keys, prob=prob)
 
         self.db = db
@@ -326,8 +328,7 @@ class VolumeNorm(BaseTransform):
 
 class Silence(BaseTransform):
     def __init__(self, prob: float = 0.1, apply_to_original: bool = True):
-        keys = ["original"] if apply_to_original else []
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(prob=prob)
 
         self.apply_to_original = apply_to_original
 
