@@ -5,12 +5,6 @@ import audiotools
 from audiotools import AudioSignal
 from audiotools.data import transforms as tfm
 
-audiotools.data.preprocess.create_csv(
-    audiotools.util.find_audio("tests/audio/spk", ext=["wav"]),
-    "tests/audio/spk.csv",
-    loudness=True,
-)
-
 
 def test_static_shared_args():
     dataset = audiotools.data.datasets.CSVDataset(
