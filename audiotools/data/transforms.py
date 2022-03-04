@@ -40,7 +40,7 @@ class BaseTransform:
 
     def transform(self, batch: dict):
         batch = self.prepare(batch)
-        mask = batch["mask"].bool()
+        mask = batch["mask"]
 
         if torch.any(mask):
             masked_batch = batch.copy()

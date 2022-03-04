@@ -189,16 +189,16 @@ def prepare_batch(batch, device="cpu"):
         batch = flatten(batch)
         for key, val in batch.items():
             try:
-                batch[key] = val.to(device).float()
+                batch[key] = val.to(device)
             except:
                 pass
         batch = unflatten(batch)
     elif torch.is_tensor(batch):
-        batch = batch.to(device).float()
+        batch = batch.to(device)
     elif isinstance(batch, list):
         for i in range(len(batch)):
             try:
-                batch[i] = batch[i].to(device).float()
+                batch[i] = batch[i].to(device)
             except:
                 pass
     return batch
