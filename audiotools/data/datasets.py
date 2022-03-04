@@ -1,8 +1,9 @@
 from multiprocessing import Manager
 from typing import List
 
-import numpy as np
 import torch
+from flatten_dict import flatten
+from flatten_dict import unflatten
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
@@ -70,7 +71,10 @@ class BaseDataset:
 
     @staticmethod
     def collate(list_of_dicts):
+        # Flatten the dictionaries to avoid recursion.
+        list_of_dicts = [flatten(d) for d in list_of_dicts]
         dict_of_lists = {k: [dic[k] for dic in list_of_dicts] for k in list_of_dicts[0]}
+
         batch = {}
         for k, v in dict_of_lists.items():
             if isinstance(v, list):
@@ -80,7 +84,7 @@ class BaseDataset:
                 else:
                     # Borrow the default collate fn from torch.
                     batch[k] = torch.utils.data._utils.collate.default_collate(v)
-        return batch
+        return unflatten(batch)
 
 
 class CSVDataset(BaseDataset):

@@ -1,6 +1,5 @@
 import os
 import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -51,3 +50,14 @@ def test_chdir():
     with tempfile.TemporaryDirectory(suffix="tmp") as d:
         with util.chdir(d):
             assert os.path.samefile(d, os.path.realpath("."))
+
+
+def test_prepare_batch():
+    batch = {"tensor": torch.randn(1), "non_tensor": np.random.randn(1)}
+    util.prepare_batch(batch)
+
+    batch = torch.randn(1)
+    util.prepare_batch(batch)
+
+    batch = [torch.randn(1), np.random.randn(1)]
+    util.prepare_batch(batch)

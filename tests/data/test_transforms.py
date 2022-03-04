@@ -1,14 +1,13 @@
-import json
 from pathlib import Path
 
 import pytest
 import torch
-from numpy.random import RandomState
 
 import audiotools
 from audiotools import AudioSignal
 from audiotools import util
 from audiotools.data import transforms as tfm
+from audiotools.data.datasets import CSVDataset
 
 transforms_to_test = []
 for x in dir(tfm):
@@ -63,7 +62,7 @@ def test_compose():
         [
             tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
             tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
-        ]
+        ],
     )
 
     batch = transform.instantiate(seed, signal)
@@ -115,3 +114,25 @@ def test_masking():
 
         assert torch.allclose(batch["signal"][mask].audio_data, zeros)
         assert torch.allclose(batch["signal"][~mask].audio_data, original)
+
+
+def test_nested_masking():
+    transform = tfm.Compose(
+        [
+            tfm.VolumeNorm(prob=0.5),
+            tfm.Silence(prob=0.9),
+        ],
+        prob=0.9,
+    )
+
+    dataset = CSVDataset(
+        44100, 1000, 0.5, csv_files=["tests/audio/spk.csv"], transform=transform
+    )
+    dataloader = torch.utils.data.DataLoader(
+        dataset, num_workers=0, batch_size=10, collate_fn=dataset.collate
+    )
+
+    for batch in dataloader:
+        batch = util.prepare_batch(batch, device="cpu")
+        with torch.no_grad():
+            batch = dataset.transform(batch)
