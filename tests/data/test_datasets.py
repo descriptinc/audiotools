@@ -117,7 +117,12 @@ def test_shared_transform():
 
 
 def test_csv_dataset():
-    transform = tfm.Silence(prob=0.5)
+    transform = tfm.Compose(
+        [
+            tfm.VolumeNorm(),
+            tfm.Silence(prob=0.5),
+        ]
+    )
     dataset = audiotools.data.datasets.CSVDataset(
         44100,
         n_examples=100,
@@ -132,7 +137,7 @@ def test_csv_dataset():
     )
     for batch in dataloader:
         batch = dataset.transform(batch)
-        mask = batch["Silence"]["mask"]
+        mask = batch["Compose"]["Silence"]["mask"]
 
         zeros = torch.zeros_like(batch["signal"][mask].audio_data)
         original = batch["original"][~mask].audio_data

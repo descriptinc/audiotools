@@ -1,17 +1,13 @@
-import csv
-import os
 from multiprocessing import Manager
-from pathlib import Path
 from typing import List
 
 import numpy as np
 import torch
+from torch.utils.data import SequentialSampler
+from torch.utils.data.distributed import DistributedSampler
 
-import audiotools
 from ..core import AudioSignal
 from ..core import util
-from audiotools.core import loudness
-
 
 # We need to set SHARED_KEYS statically, with no relationship to the
 # BaseDataset object, or we'll hit RecursionErrors in the lookup.
@@ -118,6 +114,7 @@ class CSVDataset(BaseDataset):
             state=state,
             loudness_cutoff=self.loudness_cutoff,
         )
+        signal.metadata["file_loudness"] = float(audio_info["loudness"])
         if self.mono:
             signal = signal.to_mono()
         signal = signal.resample(self.sample_rate)
@@ -126,4 +123,32 @@ class CSVDataset(BaseDataset):
         item = {"signal": signal}
         if self.transform is not None:
             item.update(self.transform.instantiate(state, signal=signal))
+
         return item
+
+
+# Samplers
+class ResumableDistributedSampler(DistributedSampler):  # pragma: no cover
+    def __init__(self, dataset, start_idx=None, **kwargs):
+        super().__init__(dataset, **kwargs)
+        # Start index, allows to resume an experiment at the index it was
+        self.start_idx = start_idx // self.num_replicas if start_idx is not None else 0
+
+    def __iter__(self):
+        for i, idx in enumerate(super().__iter__()):
+            if i >= self.start_idx:
+                yield idx
+        self.start_idx = 0  # set the index back to 0 so for the next epoch
+
+
+class ResumableSequentialSampler(SequentialSampler):  # pragma: no cover
+    def __init__(self, dataset, start_idx=None, **kwargs):
+        super().__init__(dataset, **kwargs)
+        # Start index, allows to resume an experiment at the index it was
+        self.start_idx = start_idx if start_idx is not None else 0
+
+    def __iter__(self):
+        for i, idx in enumerate(super().__iter__()):
+            if i >= self.start_idx:
+                yield idx
+        self.start_idx = 0  # set the index back to 0 so for the next epoch
