@@ -66,19 +66,19 @@ def test_static_shared_args():
 # This transform just adds the ID of the object, so we
 # can see if it's the same across processes.
 class IDTransform(audiotools.data.transforms.BaseTransform):
-    def __init__(self):
+    def __init__(self, id):
         super().__init__(["id"])
-        self.id = 1
+        self.id = id
 
     def _instantiate(self, state):
         return {"id": self.id}
 
 
 def test_shared_transform():
-    transform = IDTransform()
+    transform = IDTransform(1)
     dataset = audiotools.data.datasets.CSVDataset(
         44100,
-        n_examples=100,
+        n_examples=10,
         csv_files=["tests/audio/spk.csv"],
         transform=transform,
     )
@@ -91,14 +91,29 @@ def test_shared_transform():
             collate_fn=dataset.collate,
         )
 
-        collected_ids = []
+        targets = {"id": [transform.id]}
+        observed = {"id": []}
 
         for batch in dataloader:
-            batch = dataset.augment(batch)
-            collected_ids.append(batch["IDTransform"]["id"])
+            new_id = np.random.randint(100)
 
-        collected_ids = list(set([x.item() for x in collected_ids]))
-        assert len(collected_ids) == 1
+            # Create a new transform with a different ID.
+            # This gets propagated to all processes.
+            transform = IDTransform(new_id)
+            dataloader.dataset.transform = transform
+
+            targets["id"].append(new_id)
+            observed["id"].append(batch["IDTransform"]["id"])
+
+        for k in targets:
+            _targets = targets[k]
+            _observed = [x.item() for x in observed[k]]
+
+            num_succeeded = 0
+            for val in np.unique(_observed):
+                assert np.any(np.abs(np.array(_targets) - val) < 1e-3)
+                num_succeeded += 1
+            assert num_succeeded >= 2
 
 
 def test_csv_dataset():
