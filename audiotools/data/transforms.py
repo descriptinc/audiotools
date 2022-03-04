@@ -2,6 +2,8 @@ from inspect import signature
 from typing import List
 
 import torch
+from flatten_dict import flatten
+from flatten_dict import unflatten
 from numpy.random import RandomState
 
 from ..core import AudioSignal
@@ -42,17 +44,24 @@ class BaseTransform:
         batch = self.prepare(batch)
         mask = batch["mask"]
 
+        def _apply_mask(v):
+            if isinstance(v, AudioSignal):
+                _mask = mask
+                if len(_mask.shape) == 0:
+                    _mask = _mask.unsqueeze(0)
+                return v[_mask]
+            elif torch.is_tensor(v):
+                return v[mask]
+
         if torch.any(mask):
             masked_batch = batch.copy()
             for k in self.keys + ["original"]:
-                if isinstance(batch[k], AudioSignal):
-                    _mask = mask
-                    if len(_mask.shape) == 0:
-                        _mask = _mask.unsqueeze(0)
-                    masked_batch[k] = batch[k][_mask]
-                elif torch.is_tensor(batch[k]):
-                    masked_batch[k] = batch[k][mask]
-
+                if not isinstance(batch[k], dict):
+                    masked_batch[k] = _apply_mask(batch[k])
+                else:
+                    masked_batch[k] = {}
+                    for kk in batch[k]:
+                        masked_batch[k][kk] = _apply_mask(batch[k][kk])
             masked_batch = self._transform(masked_batch)
 
             batch["signal"][mask] = masked_batch["signal"]
@@ -100,7 +109,8 @@ class BaseTransform:
 
 class Compose(BaseTransform):
     def __init__(self, transforms: list, prob: float = 1.0):
-        super().__init__(prob=prob)
+        keys = [tfm.prefix for tfm in transforms]
+        super().__init__(keys=keys, prob=prob)
         self.transforms = transforms
 
     def _transform(self, batch: dict):
