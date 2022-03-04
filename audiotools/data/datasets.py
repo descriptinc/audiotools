@@ -72,11 +72,6 @@ class BaseDataset:
     def __len__(self):
         return self.length
 
-    def augment(self, batch):
-        if self.transform is None:
-            return batch
-        return self.transform(batch)
-
     @staticmethod
     def collate(list_of_dicts):
         dict_of_lists = {k: [dic[k] for dic in list_of_dicts] for k in list_of_dicts[0]}
