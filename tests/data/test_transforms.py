@@ -45,6 +45,7 @@ def test_transform(transform_name):
     transform = transform_cls(prob=1.0, **kwargs)
 
     batch = transform.instantiate(seed, signal)
+
     batch["signal"] = signal
     batch = transform(batch)
 
