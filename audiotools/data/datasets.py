@@ -1,3 +1,4 @@
+import copy
 from multiprocessing import Manager
 from typing import List
 
@@ -12,7 +13,7 @@ from ..core import util
 
 # We need to set SHARED_KEYS statically, with no relationship to the
 # BaseDataset object, or we'll hit RecursionErrors in the lookup.
-SHARED_KEYS = ["duration", "sample_rate"]
+SHARED_KEYS = ["duration", "transform_", "sample_rate"]
 
 
 class BaseDataset:
@@ -25,7 +26,7 @@ class BaseDataset:
     quirks in multiprocessing.
     """
 
-    def __init__(self, length, **kwargs):
+    def __init__(self, length, transform=None, **kwargs):
         super().__init__()
         self.length = length
         # The following snippet of code is how we share a
@@ -43,10 +44,20 @@ class BaseDataset:
         for k, v in kwargs.items():
             if k in SHARED_KEYS:
                 self.shared_dict[k] = v
-            else:
-                setattr(self, k, v)
 
+        self.shared_dict["transform_"] = transform
         self.length = length
+
+    @property
+    def transform(self):
+        # Copy the transform from the shared dict, so that it's
+        # up to date, but execution of "instantiate" will be
+        # done within each worker.
+        return copy.deepcopy(self.transform_)
+
+    @transform.setter
+    def transform(self, value):
+        self.transform_ = value
 
     def __getattribute__(self, name: str):
         # Look up the name in SHARED_KEYS (see above). If it's there,
