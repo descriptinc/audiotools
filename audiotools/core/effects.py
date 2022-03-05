@@ -110,6 +110,13 @@ class EffectMixin:
 
         return self
 
+    def ensure_max_of_audio(self, max=1.0):
+        peak = self.audio_data.abs().max(dim=-1, keepdims=True)[0]
+        peak_gain = torch.ones_like(peak)
+        peak_gain[peak > max] = max / peak[peak > max]
+        self.audio_data = self.audio_data * peak_gain
+        return self
+
     def normalize(self, db=-24.0):
         db = util.ensure_tensor(db).to(self.device)
         ref_db = self.loudness()

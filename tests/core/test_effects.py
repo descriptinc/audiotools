@@ -308,3 +308,19 @@ def test_apply_ir():
     output = spk.deepcopy().apply_ir(ir, drr=10, ir_eq=db)
 
     assert np.allclose(ir.measure_drr().flatten(), 10)
+
+
+def test_ensure_max_of_audio():
+    spk = AudioSignal(torch.randn(1, 1, 44100), 44100)
+
+    max_vals = [1.0] + [np.random.rand() for _ in range(10)]
+    for val in max_vals:
+        after = spk.deepcopy().ensure_max_of_audio(val)
+        assert after.audio_data.abs().max() <= val + 1e-3
+
+    # Make sure it does nothing to a tiny signal
+    spk = AudioSignal(torch.rand(1, 1, 44100))
+    spk.audio_data = spk.audio_data * 0.5
+    after = spk.deepcopy().ensure_max_of_audio()
+
+    assert torch.allclose(after.audio_data, spk.audio_data)
