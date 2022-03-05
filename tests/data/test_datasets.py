@@ -103,6 +103,9 @@ def test_shared_transform():
             _targets = [int(x) for x in targets[k]]
             _observed = [int(x.item()) for x in observed[k]]
 
+            print(_targets)
+            print(_observed)
+
             num_succeeded = 0
             for val in np.unique(_observed):
                 assert any([x == val for x in _targets])
