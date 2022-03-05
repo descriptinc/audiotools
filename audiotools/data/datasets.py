@@ -45,7 +45,7 @@ class BaseDataset:
             if k in SHARED_KEYS:
                 self.shared_dict[k] = v
 
-        self.shared_dict["transform_"] = transform
+        self._transform = transform
         self.length = length
 
     @property
@@ -53,7 +53,7 @@ class BaseDataset:
         # Copy the transform from the shared dict, so that it's
         # up to date, but execution of "instantiate" will be
         # done within each worker.
-        return copy.deepcopy(self.transform_)
+        return self._transform
 
     @transform.setter
     def transform(self, value):
