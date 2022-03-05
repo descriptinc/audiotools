@@ -57,7 +57,7 @@ class BaseDataset:
 
     @transform.setter
     def transform(self, value):
-        self.transform_ = value
+        self._transform = value
 
     def __getattribute__(self, name: str):
         # Look up the name in SHARED_KEYS (see above). If it's there,
