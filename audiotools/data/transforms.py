@@ -106,6 +106,9 @@ class BaseTransform:
 
         return params
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
 
 class Compose(BaseTransform):
     def __init__(self, transforms: list, prob: float = 1.0):
