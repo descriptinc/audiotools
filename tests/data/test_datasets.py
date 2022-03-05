@@ -69,15 +69,15 @@ class IDTransform(audiotools.data.transforms.BaseTransform):
 
 
 def test_shared_transform():
-    transform = IDTransform(1)
-    dataset = audiotools.data.datasets.CSVDataset(
-        44100,
-        n_examples=10,
-        csv_files=["tests/audio/spk.csv"],
-        transform=transform,
-    )
-
     for nw in (0, 1, 2):
+        transform = IDTransform(1)
+        dataset = audiotools.data.datasets.CSVDataset(
+            44100,
+            n_examples=10,
+            csv_files=["tests/audio/spk.csv"],
+            transform=transform,
+        )
+
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=1,
@@ -102,9 +102,6 @@ def test_shared_transform():
         for k in targets:
             _targets = [int(x) for x in targets[k]]
             _observed = [int(x.item()) for x in observed[k]]
-
-            print(_targets)
-            print(_observed)
 
             num_succeeded = 0
             for val in np.unique(_observed):
