@@ -12,7 +12,7 @@ from ..core import util
 
 # We need to set SHARED_KEYS statically, with no relationship to the
 # BaseDataset object, or we'll hit RecursionErrors in the lookup.
-SHARED_KEYS = ["duration", "transform", "sample_rate"]
+SHARED_KEYS = ["duration", "sample_rate"]
 
 
 class BaseDataset:
@@ -43,6 +43,8 @@ class BaseDataset:
         for k, v in kwargs.items():
             if k in SHARED_KEYS:
                 self.shared_dict[k] = v
+            else:
+                setattr(self, k, v)
 
         self.length = length
 
