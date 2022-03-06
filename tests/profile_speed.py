@@ -3,6 +3,7 @@ import time
 import numpy as np
 import torch
 from rich.console import Console
+from rich.progress import track
 from rich.table import Table
 
 from audiotools.core import util
@@ -25,10 +26,13 @@ def run(batch_size=64, duration=5.0, device="cuda"):
     )
 
     timings = []
-    end_to_end_time = time.time()
+    end_to_end_time = None
 
-    for batch in dataloader:
+    for batch in track(dataloader, "Generating data"):
         batch = util.prepare_batch(batch, device=device)
+        # This skips the load time of the first batch.
+        if end_to_end_time is None:
+            end_to_end_time = time.time()
         with torch.no_grad():
             start_time = time.time()
             batch = dataset.transform(batch)
@@ -45,6 +49,7 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         "device": device,
         "transform_time": transform_time,
         "total_time": total_time,
+        "items_per_sec": (len(dataset) - batch_size) / total_time,
     }
 
     table = Table(expand=False)
