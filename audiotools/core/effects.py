@@ -279,6 +279,7 @@ class EffectMixin:
 
     def quantization(self, quantization_channels: int):
         quantization_channels = util.ensure_tensor(quantization_channels)
+        quantization_channels = quantization_channels[:, None, None]
 
         x = self.audio_data
         x = (x + 1) / 2
@@ -293,6 +294,7 @@ class EffectMixin:
     def mulaw_quantization(self, quantization_channels: int):
         mu = quantization_channels - 1.0
         mu = util.ensure_tensor(mu)
+        mu = mu[:, None, None]
 
         x = self.audio_data
 
