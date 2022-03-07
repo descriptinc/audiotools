@@ -136,7 +136,7 @@ class DSPMixin:
         filtered = torch.empty_like(self.audio_data)
 
         for i, cutoff in enumerate(cutoffs):
-            lp_filter = julius.LowPassFilter(cutoff, zeros=zeros).to(self.device)
+            lp_filter = julius.LowPassFilter(cutoff.cpu(), zeros=zeros).to(self.device)
             filtered[i] = lp_filter(self.audio_data[i])
 
         self.audio_data = self.audio_data - filtered
