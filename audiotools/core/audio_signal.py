@@ -101,8 +101,9 @@ class AudioSignal(
 
     @classmethod
     def salient_excerpt(
-        cls, audio_path, loudness_cutoff=-np.inf, num_tries=None, state=None, **kwargs
+        cls, audio_path, loudness_cutoff=None, num_tries=None, state=None, **kwargs
     ):
+        loudness_cutoff = -np.inf if loudness_cutoff is None else loudness_cutoff
         state = util.random_state(state)
         loudness = -np.inf
         num_try = 0
@@ -149,13 +150,11 @@ class AudioSignal(
                 )
         # Concatenate along the batch dimension
         audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
-        audio_mask = torch.cat([x.audio_mask for x in audio_signals], dim=0)
 
         batched_signal = cls(
             audio_data,
             sample_rate=audio_signals[0].sample_rate,
         )
-        batched_signal.audio_mask = audio_mask
         return batched_signal
 
     # I/O
@@ -172,7 +171,6 @@ class AudioSignal(
         self.audio_data = data
         self.original_signal_length = self.signal_length
 
-        self.audio_mask = torch.ones_like(self.audio_data)
         self.sample_rate = sample_rate
         self.path_to_input_file = audio_path
         return self.to(device)
@@ -181,10 +179,6 @@ class AudioSignal(
         self.audio_data = audio_array
         self.original_signal_length = self.signal_length
 
-        if self.device == "numpy":
-            self.audio_mask = np.ones_like(audio_array)
-        else:
-            self.audio_mask = torch.ones_like(self.audio_data)
         if sample_rate is None:
             sample_rate = 44100
         self.sample_rate = sample_rate
@@ -214,7 +208,6 @@ class AudioSignal(
 
     def detach(self):
         self.audio_data = self.audio_data.detach()
-        self.audio_mask = self.audio_mask.detach()
         if self.stft_data is not None:
             self.stft_data = self.stft_data.detach()
         if self._loudness is not None:
@@ -236,7 +229,6 @@ class AudioSignal(
     # Signal operations
     def to_mono(self):
         self.audio_data = self.audio_data.mean(1, keepdim=True)
-        self.audio_mask = self.audio_mask.mean(1, keepdim=True)
         return self
 
     def resample(self, sample_rate):
@@ -246,9 +238,6 @@ class AudioSignal(
         self.audio_data = julius.resample_frac(
             self.audio_data, self.sample_rate, sample_rate
         )
-        self.audio_mask = julius.resample_frac(
-            self.audio_mask, self.sample_rate, sample_rate
-        )
         self.sample_rate = sample_rate
         return self
 
@@ -256,13 +245,10 @@ class AudioSignal(
     def to(self, device=None):
         if isinstance(self.audio_data, np.ndarray):
             self.audio_data = torch.from_numpy(self.audio_data)
-        if isinstance(self.audio_mask, np.ndarray):
-            self.audio_mask = torch.from_numpy(self.audio_mask)
         if device is None:
             device = self.device
         device = device if torch.cuda.is_available() else "cpu"
         self.audio_data = self.audio_data.to(device).float()
-        self.audio_mask = self.audio_mask.to(device).float()
 
         if self._loudness is not None:
             self._loudness = self._loudness.to(device)
@@ -273,7 +259,6 @@ class AudioSignal(
 
     def float(self):
         self.audio_data = self.audio_data.float()
-        self.audio_mask = self.audio_mask.float()
         return self
 
     def cpu(self):
@@ -284,12 +269,10 @@ class AudioSignal(
 
     def numpy(self):
         self.audio_data = self.audio_data.detach().cpu().numpy()
-        self.audio_mask = self.audio_mask.detach().cpu().numpy()
         return self
 
     def zero_pad(self, before, after):
         self.audio_data = torch.nn.functional.pad(self.audio_data, (before, after))
-        self.audio_mask = torch.nn.functional.pad(self.audio_mask, (before, after))
         return self
 
     def zero_pad_to(self, length, mode="after"):
@@ -302,15 +285,12 @@ class AudioSignal(
     def trim(self, before, after):
         if after == 0:
             self.audio_data = self.audio_data[..., before:]
-            self.audio_mask = self.audio_mask[..., before:]
         else:
             self.audio_data = self.audio_data[..., before:-after]
-            self.audio_mask = self.audio_mask[..., before:-after]
         return self
 
     def truncate_samples(self, length_in_samples):
         self.audio_data = self.audio_data[..., :length_in_samples]
-        self.audio_mask = self.audio_mask[..., :length_in_samples]
         return self
 
     @property

@@ -260,6 +260,20 @@ def test_quantization(quant_ch):
     found_quant_ch = len(np.unique(quantized.audio_data))
     assert found_quant_ch <= quant_ch
 
+    spk_batch = AudioSignal.batch(
+        [
+            AudioSignal.excerpt("tests/audio/spk/f10_script4_produced.wav", duration=2)
+            for _ in range(16)
+        ]
+    )
+
+    quant_ch = np.random.choice([2, 4, 8, 16, 32, 64, 128], size=(16,), replace=True)
+    quantized = spk_batch.deepcopy().quantization(quant_ch)
+
+    for i, q_ch in enumerate(quant_ch):
+        found_quant_ch = len(np.unique(quantized.audio_data[i]))
+        assert found_quant_ch <= q_ch
+
 
 @pytest.mark.parametrize("quant_ch", [2, 4, 8, 16, 32, 64, 128])
 def test_mulaw_quantization(quant_ch):
@@ -270,6 +284,20 @@ def test_mulaw_quantization(quant_ch):
 
     found_quant_ch = len(np.unique(quantized.audio_data))
     assert found_quant_ch <= quant_ch
+
+    spk_batch = AudioSignal.batch(
+        [
+            AudioSignal.excerpt("tests/audio/spk/f10_script4_produced.wav", duration=2)
+            for _ in range(16)
+        ]
+    )
+
+    quant_ch = np.random.choice([2, 4, 8, 16, 32, 64, 128], size=(16,), replace=True)
+    quantized = spk_batch.deepcopy().mulaw_quantization(quant_ch)
+
+    for i, q_ch in enumerate(quant_ch):
+        found_quant_ch = len(np.unique(quantized.audio_data[i]))
+        assert found_quant_ch <= q_ch
 
 
 def test_impulse_response_augmentation():
@@ -308,3 +336,19 @@ def test_apply_ir():
     output = spk.deepcopy().apply_ir(ir, drr=10, ir_eq=db)
 
     assert np.allclose(ir.measure_drr().flatten(), 10)
+
+
+def test_ensure_max_of_audio():
+    spk = AudioSignal(torch.randn(1, 1, 44100), 44100)
+
+    max_vals = [1.0] + [np.random.rand() for _ in range(10)]
+    for val in max_vals:
+        after = spk.deepcopy().ensure_max_of_audio(val)
+        assert after.audio_data.abs().max() <= val + 1e-3
+
+    # Make sure it does nothing to a tiny signal
+    spk = AudioSignal(torch.rand(1, 1, 44100))
+    spk.audio_data = spk.audio_data * 0.5
+    after = spk.deepcopy().ensure_max_of_audio()
+
+    assert torch.allclose(after.audio_data, spk.audio_data)

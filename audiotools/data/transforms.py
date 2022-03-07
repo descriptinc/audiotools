@@ -379,3 +379,14 @@ class HighPass(BaseTransform):
     def _transform(self, batch):
         batch["signal"] = batch["signal"].high_pass(batch["cutoff"])
         return batch
+
+
+class RescaleAudio(BaseTransform):
+    def __init__(self, val: float = 1.0, prob: float = 1):
+        super().__init__(prob=prob)
+
+        self.val = val
+
+    def _transform(self, batch: dict):
+        batch["signal"] = batch["signal"].ensure_max_of_audio(self.val)
+        return batch

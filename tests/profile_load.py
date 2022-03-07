@@ -22,7 +22,6 @@ class LibrosaSignal(AudioSignal):
         self.audio_data = data
         self.original_signal_length = self.signal_length
 
-        self.audio_mask = torch.ones_like(self.audio_data)
         self.sample_rate = sample_rate
         self.path_to_input_file = audio_path
         return self.to(device)
@@ -51,7 +50,6 @@ class TorchSignal(AudioSignal):
         self.audio_data = data
         self.original_signal_length = self.signal_length
 
-        self.audio_mask = torch.ones_like(self.audio_data)
         self.sample_rate = sample_rate
         self.path_to_input_file = audio_path
         return self.to(device)
@@ -59,7 +57,7 @@ class TorchSignal(AudioSignal):
 
 # Load 2 second excerpt from a 2 hour file
 with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-    signal = AudioSignal(torch.randn(44100 * 60 * 2), 44100)
+    signal = AudioSignal(torch.randn(44100 * 60 * 60), 44100)
     signal.write(f.name)
 
     def func():

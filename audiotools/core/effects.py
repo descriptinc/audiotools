@@ -110,6 +110,13 @@ class EffectMixin:
 
         return self
 
+    def ensure_max_of_audio(self, max=1.0):
+        peak = self.audio_data.abs().max(dim=-1, keepdims=True)[0]
+        peak_gain = torch.ones_like(peak)
+        peak_gain[peak > max] = max / peak[peak > max]
+        self.audio_data = self.audio_data * peak_gain
+        return self
+
     def normalize(self, db=-24.0):
         db = util.ensure_tensor(db).to(self.device)
         ref_db = self.loudness()
@@ -271,7 +278,7 @@ class EffectMixin:
         return self
 
     def quantization(self, quantization_channels: int):
-        quantization_channels = util.ensure_tensor(quantization_channels)
+        quantization_channels = util.ensure_tensor(quantization_channels, ndim=3)
 
         x = self.audio_data
         x = (x + 1) / 2
@@ -285,7 +292,7 @@ class EffectMixin:
 
     def mulaw_quantization(self, quantization_channels: int):
         mu = quantization_channels - 1.0
-        mu = util.ensure_tensor(mu)
+        mu = util.ensure_tensor(mu, ndim=3)
 
         x = self.audio_data
 
