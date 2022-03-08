@@ -596,7 +596,7 @@ class AudioSignal(
             _loudness = self._loudness
             stft_data = self.stft_data
 
-        elif isinstance(key, (bool, int, list, slice)) or (
+        elif isinstance(key, (bool, int, list, slice, tuple)) or (
             torch.is_tensor(key) and key.ndim <= 1
         ):
             # Indexing only on the batch dimension.
@@ -625,7 +625,7 @@ class AudioSignal(
             self.stft_data = value.stft_data
             return
 
-        elif isinstance(key, (bool, int, list, slice)) or (
+        elif isinstance(key, (bool, int, list, slice, tuple)) or (
             torch.is_tensor(key) and key.ndim <= 1
         ):
             self.audio_data[key] = value.audio_data
