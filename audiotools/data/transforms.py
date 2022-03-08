@@ -126,15 +126,14 @@ class Compose(BaseTransform):
 
 
 class ClippingDistortion(BaseTransform):
-    def __init__(self, min: float = 0.0, max: float = 0.1, prob: float = 1.0):
+    def __init__(self, perc: tuple = ("uniform", 0.0, 0.1), prob: float = 1.0):
         keys = ["perc"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.perc = perc
 
     def _instantiate(self, state: RandomState):
-        return {"perc": state.uniform(self.min, self.max)}
+        return {"perc": util.sample_from_dist(self.perc, state)}
 
     def _transform(self, batch):
         batch["signal"] = batch["signal"].clip_distortion(batch["perc"])
@@ -142,7 +141,9 @@ class ClippingDistortion(BaseTransform):
 
 
 class Equalizer(BaseTransform):
-    def __init__(self, eq_amount: float = 1.0, n_bands: int = 6, prob: float = 1.0):
+    def __init__(
+        self, eq_amount: tuple = ("const", 1.0), n_bands: int = 6, prob: float = 1.0
+    ):
         keys = ["eq"]
         super().__init__(keys=keys, prob=prob)
 
@@ -150,7 +151,8 @@ class Equalizer(BaseTransform):
         self.n_bands = n_bands
 
     def _instantiate(self, state: RandomState):
-        eq = -self.eq_amount * state.rand(self.n_bands)
+        eq_amount = util.sample_from_dist(self.eq_amount, state)
+        eq = -eq_amount * state.rand(self.n_bands)
         return {"eq": eq}
 
     def _transform(self, batch):
@@ -159,15 +161,16 @@ class Equalizer(BaseTransform):
 
 
 class Quantization(BaseTransform):
-    def __init__(self, min: int = 8, max: int = 32, prob: float = 1.0):
+    def __init__(
+        self, channels: tuple = ("choice", [8, 32, 128, 256, 1024]), prob: float = 1.0
+    ):
         keys = ["channels"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.channels = channels
 
     def _instantiate(self, state: RandomState):
-        return {"channels": state.randint(self.min, self.max)}
+        return {"channels": util.sample_from_dist(self.channels, state)}
 
     def _transform(self, batch: dict):
         batch["signal"] = batch["signal"].quantization(batch["channels"])
@@ -175,15 +178,16 @@ class Quantization(BaseTransform):
 
 
 class MuLawQuantization(BaseTransform):
-    def __init__(self, min: int = 8, max: int = 32, prob: float = 1.0):
+    def __init__(
+        self, channels: tuple = ("choice", [8, 32, 128, 256, 1024]), prob: float = 1.0
+    ):
         keys = ["channels"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.channels = channels
 
     def _instantiate(self, state: RandomState):
-        return {"channels": state.randint(self.min, self.max)}
+        return {"channels": util.sample_from_dist(self.channels, state)}
 
     def _transform(self, batch: dict):
         batch["signal"] = batch["signal"].mulaw_quantization(batch["channels"])
@@ -193,10 +197,9 @@ class MuLawQuantization(BaseTransform):
 class BackgroundNoise(BaseTransform):
     def __init__(
         self,
-        min: float = 10.0,
-        max: float = 30,
+        snr: tuple = ("uniform", 10.0, 30.0),
         csv_files: List[str] = None,
-        eq_amount: float = 1.0,
+        eq_amount: tuple = ("const", 1.0),
         n_bands: int = 3,
         prob: float = 1.0,
     ):
@@ -206,15 +209,15 @@ class BackgroundNoise(BaseTransform):
         keys = ["eq", "snr", "bg_signal"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.snr = snr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.audio_files = util.read_csv(csv_files)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        eq = -self.eq_amount * state.rand(self.n_bands)
-        snr = state.uniform(self.min, self.max)
+        eq_amount = util.sample_from_dist(self.eq_amount, state)
+        eq = -eq_amount * state.rand(self.n_bands)
+        snr = util.sample_from_dist(self.snr, state)
 
         bg_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
 
@@ -242,28 +245,24 @@ class BackgroundNoise(BaseTransform):
 class RoomImpulseResponse(BaseTransform):
     def __init__(
         self,
-        min: float = 0.0,
-        max: float = 30,
+        drr: tuple = ("uniform", 0.0, 30.0),
         csv_files: List[str] = None,
-        eq_amount: float = 1.0,
+        eq_amount: tuple = ("const", 1.0),
         n_bands: int = 6,
         prob: float = 1.0,
     ):
-        """
-        min and max refer to DRR.
-        """
         keys = ["eq", "drr", "ir_signal"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.drr = drr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.audio_files = util.read_csv(csv_files)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        eq = -self.eq_amount * state.rand(self.n_bands)
-        drr = state.uniform(self.min, self.max)
+        eq_amount = util.sample_from_dist(self.eq_amount, state)
+        eq = -eq_amount * state.rand(self.n_bands)
+        drr = util.sample_from_dist(self.drr, state)
 
         ir_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
 
@@ -292,20 +291,18 @@ class RoomImpulseResponse(BaseTransform):
 class VolumeChange(BaseTransform):
     def __init__(
         self,
-        min: float = -12,
-        max: float = 0.0,
+        db: tuple = ("uniform", -12.0, 0.0),
         prob: float = 1.0,
         apply_to_original: bool = True,
     ):
         keys = ["db"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.db = db
         self.apply_to_original = apply_to_original
 
     def _instantiate(self, state: RandomState):
-        return {"db": state.uniform(self.min, self.max)}
+        return {"db": util.sample_from_dist(self.db, state)}
 
     def _transform(self, batch):
         batch["signal"] = batch["signal"].volume_change(batch["db"])
@@ -350,15 +347,16 @@ class Silence(BaseTransform):
 
 
 class LowPass(BaseTransform):
-    def __init__(self, min: float = 0.0, max: float = 8000, prob: float = 1):
+    def __init__(
+        self, cutoff: tuple = ("choice", [4000, 8000, 16000]), prob: float = 1
+    ):
         keys = ["cutoff"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.cutoff = cutoff
 
     def _instantiate(self, state: RandomState):
-        return {"cutoff": state.uniform(self.min, self.max)}
+        return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, batch):
         batch["signal"] = batch["signal"].low_pass(batch["cutoff"])
@@ -366,15 +364,16 @@ class LowPass(BaseTransform):
 
 
 class HighPass(BaseTransform):
-    def __init__(self, min: float = 0.0, max: float = 8000, prob: float = 1):
+    def __init__(
+        self, cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]), prob: float = 1
+    ):
         keys = ["cutoff"]
         super().__init__(keys=keys, prob=prob)
 
-        self.min = min
-        self.max = max
+        self.cutoff = cutoff
 
     def _instantiate(self, state: RandomState):
-        return {"cutoff": state.uniform(self.min, self.max)}
+        return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, batch):
         batch["signal"] = batch["signal"].high_pass(batch["cutoff"])

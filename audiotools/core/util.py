@@ -202,3 +202,11 @@ def prepare_batch(batch, device="cpu"):
             except:
                 pass
     return batch
+
+
+def sample_from_dist(dist_tuple, state=None):
+    if dist_tuple[0] == "const":
+        return dist_tuple[1]
+    state = random_state(state)
+    dist_fn = getattr(state, dist_tuple[0])
+    return dist_fn(*dist_tuple[1:])

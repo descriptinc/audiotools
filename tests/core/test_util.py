@@ -61,3 +61,15 @@ def test_prepare_batch():
 
     batch = [torch.randn(1), np.random.randn(1)]
     util.prepare_batch(batch)
+
+
+def test_sample_dist():
+    state = util.random_state(0)
+    v1 = state.uniform(0.0, 1.0)
+    v2 = util.sample_from_dist(("uniform", 0.0, 1.0), 0)
+    assert v1 == v2
+
+    assert util.sample_from_dist(("const", 1.0)) == 1.0
+
+    dist_tuple = ("choice", [8, 16, 32])
+    assert util.sample_from_dist(dist_tuple) in [8, 16, 32]
