@@ -2,8 +2,6 @@ from inspect import signature
 from typing import List
 
 import torch
-from flatten_dict import flatten
-from flatten_dict import unflatten
 from numpy.random import RandomState
 
 from ..core import AudioSignal
@@ -20,19 +18,17 @@ class BaseTransform:
         self.prefix = self.__class__.__name__
 
     def prepare(self, batch: dict):
-        sub_batch = batch[self.prefix]
-        # Elevate the arguments to the main batch
-        # to be used by the transform function.
-        for k, v in sub_batch.items():
-            batch[k] = v
-
-        for k in self.keys:
-            assert k in batch.keys(), f"{k} not in batch"
 
         if "original" not in batch:
             batch["original"] = batch["signal"].clone()
 
-        return batch
+        sub_batch = batch[self.prefix]
+        sub_batch["signal"] = batch["signal"]
+        sub_batch["original"] = batch["original"]
+        for k in self.keys:
+            assert k in sub_batch.keys(), f"{k} not in batch"
+
+        return sub_batch
 
     def _transform(self, batch: dict):
         return batch
@@ -41,36 +37,22 @@ class BaseTransform:
         return {}
 
     def transform(self, batch: dict):
-        batch = self.prepare(batch)
-        mask = batch["mask"]
+        tfm_batch = self.prepare(batch)
+        mask = tfm_batch["mask"]
 
-        def _apply_mask(v):
-            if isinstance(v, AudioSignal):
-                _mask = mask
-                if len(_mask.shape) == 0:
-                    _mask = _mask.unsqueeze(0)
-                return v[_mask]
-            elif torch.is_tensor(v):
-                return v[mask]
+        def apply_mask(batch, mask):
+            masked_batch = dict()
+            for k, v in batch.items():
+                if isinstance(v, dict):
+                    masked_batch[k] = apply_mask(v, mask)
+                else:
+                    masked_batch[k] = v[mask]
+            return masked_batch
 
         if torch.any(mask):
-            masked_batch = batch.copy()
-            for k in self.keys + ["original"]:
-                if not isinstance(batch[k], dict):
-                    masked_batch[k] = _apply_mask(batch[k])
-                else:
-                    masked_batch[k] = {}
-                    for kk in batch[k]:
-                        masked_batch[k][kk] = _apply_mask(batch[k][kk])
-            masked_batch = self._transform(masked_batch)
-
-            batch["signal"][mask] = masked_batch["signal"]
-            batch["original"][mask] = masked_batch["original"]
-
-        # Reset the batch keys to how it was before
-        # this function altered its keys.
-        for k in batch[self.prefix].keys():
-            batch.pop(k)
+            tfm_batch = apply_mask(tfm_batch, mask)
+            tfm_batch = self._transform(tfm_batch)
+            batch["signal"][mask] = tfm_batch["signal"]
         return batch
 
     def __call__(self, batch: dict):
@@ -296,6 +278,8 @@ class VolumeChange(BaseTransform):
         apply_to_original: bool = True,
     ):
         keys = ["db"]
+        if apply_to_original:
+            keys += ["original"]
         super().__init__(keys=keys, prob=prob)
 
         self.db = db
@@ -316,6 +300,8 @@ class VolumeNorm(BaseTransform):
         self, db: float = -24, apply_to_original: bool = True, prob: float = 1.0
     ):
         keys = ["loudness"]
+        if apply_to_original:
+            keys += ["original"]
         super().__init__(keys=keys, prob=prob)
 
         self.db = db
@@ -335,14 +321,21 @@ class VolumeNorm(BaseTransform):
 
 class Silence(BaseTransform):
     def __init__(self, prob: float = 0.1, apply_to_original: bool = True):
-        super().__init__(prob=prob)
+        keys = ["original"] if apply_to_original else []
+        super().__init__(keys=keys, prob=prob)
 
         self.apply_to_original = apply_to_original
 
     def _transform(self, batch: dict):
-        batch["signal"] = torch.zeros_like(batch["signal"].audio_data)
+        batch["signal"] = AudioSignal(
+            torch.zeros_like(batch["signal"].audio_data),
+            sample_rate=batch["signal"].sample_rate,
+        )
         if self.apply_to_original:
-            batch["original"] = torch.zeros_like(batch["original"].audio_data)
+            batch["original"] = AudioSignal(
+                torch.zeros_like(batch["original"].audio_data),
+                sample_rate=batch["signal"].sample_rate,
+            )
         return super()._transform(batch)
 
 

@@ -39,6 +39,8 @@ class EffectMixin:
         other = other.normalize(tgt_loudness)
         self.audio_data = self.audio_data + other.audio_data
 
+        # loudness has changed
+        self._loudness = None
         return self
 
     def convolve(self, other, start_at_max=True):
@@ -118,22 +120,22 @@ class EffectMixin:
         return self
 
     def normalize(self, db=-24.0):
-        db = util.ensure_tensor(db).to(self.device)
+        db = util.ensure_tensor(db, ndim=self.audio_data.ndim).to(self.device)
         ref_db = self.loudness()
         gain = db - ref_db
         gain = torch.exp(gain * self.GAIN_FACTOR)
 
-        self.audio_data = self.audio_data * gain[:, None, None]
-        self._loudness = None
+        self.audio_data = self.audio_data * gain
+        self._loudness = db.view(-1)
         return self
 
     def volume_change(self, db):
-        db = util.ensure_tensor(db).to(self.device)
+        db = util.ensure_tensor(db, ndim=self.audio_data.ndim).to(self.device)
         gain = torch.exp(db * self.GAIN_FACTOR)
-        self.audio_data = self.audio_data * gain[:, None, None]
+        self.audio_data = self.audio_data * gain
 
         if self._loudness is not None:
-            self._loudness += db
+            self._loudness += db.view_as(self._loudness)
         return self
 
     def _to_2d(self):
@@ -245,7 +247,7 @@ class EffectMixin:
         else:
             db = db.unsqueeze(0)
 
-        weights = (10**db).to(self.device).float()
+        weights = (10 ** db).to(self.device).float()
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
@@ -347,8 +349,8 @@ class ImpulseResponseMixin:
 
     def measure_drr(self):
         early_response, late_field, _ = self.decompose_ir()
-        num = (early_response**2).sum(dim=-1)
-        den = (late_field**2).sum(dim=-1)
+        num = (early_response ** 2).sum(dim=-1)
+        den = (late_field ** 2).sum(dim=-1)
         drr = 10 * torch.log10(num / den)
         return drr
 
@@ -358,17 +360,17 @@ class ImpulseResponseMixin:
         # ----------
         # Apply the good ol' quadratic formula.
 
-        wd_sq = wd**2
+        wd_sq = wd ** 2
         wd_sq_1 = (1 - wd) ** 2
-        e_sq = early_response**2
-        l_sq = late_field**2
+        e_sq = early_response ** 2
+        l_sq = late_field ** 2
         a = (wd_sq * e_sq).sum(dim=-1)
         b = (2 * (1 - wd) * wd * e_sq).sum(dim=-1)
         c = (wd_sq_1 * e_sq).sum(dim=-1) - torch.pow(10, target_drr / 10) * l_sq.sum(
             dim=-1
         )
 
-        expr = ((b**2) - 4 * a * c).sqrt()
+        expr = ((b ** 2) - 4 * a * c).sqrt()
         alpha = torch.maximum(
             (-b - expr) / (2 * a),
             (-b + expr) / (2 * a),

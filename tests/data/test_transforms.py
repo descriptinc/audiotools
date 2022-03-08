@@ -22,6 +22,8 @@ def _compare_transform(transform_name, signal):
 
     if regression_data.exists():
         regression_signal = AudioSignal(regression_data)
+        regression_signal.loudness()
+        signal.loudness()
         assert signal == regression_signal
     else:
         signal.write(regression_data)
@@ -49,6 +51,7 @@ def test_transform(transform_name):
     batch = transform(batch)
 
     output = batch["signal"]
+    assert isinstance(batch["signal"], AudioSignal)
 
     _compare_transform(transform_name, output)
 
@@ -136,3 +139,11 @@ def test_nested_masking():
         batch = util.prepare_batch(batch, device="cpu")
         with torch.no_grad():
             batch = dataset.transform(batch)
+
+
+if __name__ == "__main__":
+    for t in transforms_to_test:
+        test_transform(t)
+    test_compose()
+    test_masking()
+    test_nested_masking()
