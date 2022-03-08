@@ -22,6 +22,8 @@ def _compare_transform(transform_name, signal):
 
     if regression_data.exists():
         regression_signal = AudioSignal(regression_data)
+        regression_signal.loudness()
+        signal.loudness()
         assert signal == regression_signal
     else:
         signal.write(regression_data)
@@ -49,6 +51,7 @@ def test_transform(transform_name):
     batch = transform(batch)
 
     output = batch["signal"]
+    assert isinstance(batch["signal"], AudioSignal)
 
     _compare_transform(transform_name, output)
 

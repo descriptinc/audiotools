@@ -590,36 +590,50 @@ class AudioSignal(
 
     # Indexing
     def __getitem__(self, key):
-        # This copy always happens.
-        copy = type(self)(
-            self.audio_data[key], self.sample_rate, stft_params=self.stft_params
-        )
+        if torch.is_tensor(key) and key.ndim == 0 and key.item() is True:
+            assert self.batch_size == 1
+            audio_data = self.audio_data
+            _loudness = self._loudness
+            stft_data = self.stft_data
 
-        valid_tensor = torch.is_tensor(key) and key.ndim == 1
-
-        if isinstance(key, (int, slice)) or valid_tensor:
+        elif isinstance(key, (bool, int, list, slice, tuple)) or (
+            torch.is_tensor(key) and key.ndim <= 1
+        ):
             # Indexing only on the batch dimension.
             # Then let's copy over relevant stuff.
             # Future work: make this work for time-indexing
             # as well, using the hop length.
-            if self._loudness is not None:
-                copy._loudness = self._loudness[key]
-            if self.stft_data is not None:
-                copy.stft_data = self.stft_data[key]
+            audio_data = self.audio_data[key]
+            _loudness = self._loudness[key] if self._loudness is not None else None
+            stft_data = self.stft_data[key] if self.stft_data is not None else None
+
+        copy = type(self)(audio_data, self.sample_rate, stft_params=self.stft_params)
+        copy._loudness = _loudness
+        copy.stft_data = stft_data
+
         return copy
 
     def __setitem__(self, key, value):
-        valid_tensor = torch.is_tensor(key) and key.ndim == 1
-
-        if isinstance(value, type(self)):
-            self.audio_data[key] = value.audio_data
-            if isinstance(key, (int, slice)) or valid_tensor:
-                if self._loudness is not None and value._loudness is not None:
-                    self._loudness[key] = value._loudness
-                if self.stft_data is not None and value.stft_data is not None:
-                    self.stft_data[key] = value.stft_data
-        else:
+        if not isinstance(value, type(self)):
             self.audio_data[key] = value
+            return
+
+        if torch.is_tensor(key) and key.ndim == 0 and key.item() is True:
+            assert self.batch_size == 1
+            self.audio_data = value.audio_data
+            self._loudness = value._loudness
+            self.stft_data = value.stft_data
+            return
+
+        elif isinstance(key, (bool, int, list, slice, tuple)) or (
+            torch.is_tensor(key) and key.ndim <= 1
+        ):
+            self.audio_data[key] = value.audio_data
+            if self._loudness is not None and value._loudness is not None:
+                self._loudness[key] = value._loudness
+            if self.stft_data is not None and value.stft_data is not None:
+                self.stft_data[key] = value.stft_data
+            return
 
     def __ne__(self, other):
         return not self == other

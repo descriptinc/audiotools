@@ -39,6 +39,8 @@ class EffectMixin:
         other = other.normalize(tgt_loudness)
         self.audio_data = self.audio_data + other.audio_data
 
+        # loudness has changed
+        self._loudness = None
         return self
 
     def convolve(self, other, start_at_max=True):
@@ -249,6 +251,7 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
+        self._loudness = None
         return self
 
     def clip_distortion(self, clip_percentile):

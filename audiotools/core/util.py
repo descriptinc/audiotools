@@ -42,9 +42,9 @@ def ensure_tensor(x, ndim=None, batch_size=None):
     if not torch.is_tensor(x):
         x = torch.from_numpy(x)
     if ndim is not None:
-        if x.ndim < ndim:
-            for _ in range(ndim - 1):
-                x = x.unsqueeze(-1)
+        assert x.ndim <= ndim
+        while x.ndim < ndim:
+            x = x.unsqueeze(-1)
     if batch_size is not None:
         if x.shape[0] != batch_size:
             shape = list(x.shape)
