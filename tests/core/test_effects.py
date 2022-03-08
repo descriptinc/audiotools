@@ -233,7 +233,7 @@ def test_equalizer(n_bands):
     assert output == spk_batch
 
 
-def test_clip_percentile():
+def test_clip_distortion():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     spk = AudioSignal(audio_path, offset=10, duration=2)
     clipped = spk.deepcopy().clip_distortion(0.05)
@@ -244,7 +244,8 @@ def test_clip_percentile():
             for _ in range(16)
         ]
     )
-    clipped_batch = spk_batch.deepcopy().clip_distortion(0.05)
+    percs = torch.from_numpy(np.random.uniform(size=(16,)))
+    clipped_batch = spk_batch.deepcopy().clip_distortion(percs)
 
     assert clipped.audio_data.abs().max() < 1.0
     assert clipped_batch.audio_data.abs().max() < 1.0

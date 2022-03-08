@@ -55,6 +55,22 @@ def test_transform(transform_name):
 
     _compare_transform(transform_name, output)
 
+    # Test that if you make a batch of signals and call it,
+    # the first item in the batch is still the same as above.
+    batch_size = 4
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+    signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
+    signal_batch.metadata["file_loudness"] = (
+        AudioSignal(audio_path).ffmpeg_loudness().item()
+    )
+    batch = transform.instantiate(seed, signal_batch, n_params=batch_size)
+
+    batch["signal"] = signal_batch
+    batch = transform(batch)
+    batch_output = batch["signal"]
+
+    assert batch_output[0] == output
+
 
 def test_compose():
     seed = 0

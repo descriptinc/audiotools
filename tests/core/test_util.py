@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from audiotools import util
+from audiotools.core.audio_signal import AudioSignal
 
 
 def test_check_random_state():
@@ -73,3 +74,25 @@ def test_sample_dist():
 
     dist_tuple = ("choice", [8, 16, 32])
     assert util.sample_from_dist(dist_tuple) in [8, 16, 32]
+
+
+def test_collate():
+    batch_size = 16
+
+    def _one_item():
+        return {
+            "signal": AudioSignal(torch.randn(1, 1, 44100), 44100),
+            "tensor": torch.randn(1),
+            "string": "Testing",
+            "dict": {
+                "nested_signal": AudioSignal(torch.randn(1, 1, 44100), 44100),
+            },
+        }
+
+    items = [_one_item() for _ in range(batch_size)]
+    collated = util.collate(items)
+
+    assert collated["signal"].batch_size == batch_size
+    assert collated["tensor"].shape[0] == batch_size
+    assert len(collated["string"]) == batch_size
+    assert collated["dict"]["nested_signal"].batch_size == batch_size

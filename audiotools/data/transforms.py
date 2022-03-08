@@ -56,33 +56,46 @@ class BaseTransform:
     def __call__(self, batch: dict):
         return self.transform(batch)
 
-    def instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def instantiate(
+        self, state: RandomState, signal: AudioSignal = None, n_params: int = 1
+    ):
         state = util.random_state(state)
 
-        # Not all instantiates need the signal. Check if signal
-        # is needed before passing it in, so that the end-user
-        # doesn't need to have variables they're not using flowing
-        # into their function.
-        needs_signal = "signal" in set(signature(self._instantiate).parameters.keys())
-        kwargs = {}
-        if needs_signal:
-            kwargs = {"signal": signal}
+        all_params = []
+        for _ in range(n_params):
+            # Not all instantiates need the signal. Check if signal
+            # is needed before passing it in, so that the end-user
+            # doesn't need to have variables they're not using flowing
+            # into their function.
+            needs_signal = "signal" in set(
+                signature(self._instantiate).parameters.keys()
+            )
+            kwargs = {}
+            if needs_signal:
+                kwargs = {"signal": signal}
 
-        # Instantiate the parameters for the transform.
-        params = self._instantiate(state, **kwargs)
-        for k in list(params.keys()):
-            v = params[k]
-            if isinstance(v, (AudioSignal, torch.Tensor, dict)):
-                params[k] = v
-            else:
-                params[k] = tt(v)
-        mask = state.rand() <= self.prob
-        params[f"mask"] = tt(mask)
+            # Instantiate the parameters for the transform.
+            params = self._instantiate(state, **kwargs)
+            for k in list(params.keys()):
+                v = params[k]
+                if isinstance(v, (AudioSignal, torch.Tensor, dict)):
+                    params[k] = v
+                else:
+                    params[k] = tt(v)
+            mask = state.rand() <= self.prob
+            params[f"mask"] = tt(mask)
+
+            all_params.append(params)
+
+        if n_params > 1:
+            all_params = util.collate(all_params)
+        else:
+            all_params = all_params[0]
 
         # Put the params into a nested dictionary that will be
         # used later when calling the transform. This is to avoid
         # collisions in the dictionary.
-        params = {self.prefix: params}
+        params = {self.prefix: all_params}
 
         return params
 
