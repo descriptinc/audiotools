@@ -124,19 +124,18 @@ class EffectMixin:
         ref_db = self.loudness()
         gain = db - ref_db
         gain = torch.exp(gain * self.GAIN_FACTOR)
-        gain = util.ensure_tensor(db, ndim=self.audio_data.ndim)
 
-        self.audio_data = self.audio_data * gain
-        self._loudness = db.view(-1)
+        self.audio_data = self.audio_data * gain[:, None, None]
+        self._loudness = None
         return self
 
     def volume_change(self, db):
-        db = util.ensure_tensor(db, ndim=self.audio_data.ndim).to(self.device)
+        db = util.ensure_tensor(db).to(self.device)
         gain = torch.exp(db * self.GAIN_FACTOR)
-        self.audio_data = self.audio_data * gain
+        self.audio_data = self.audio_data * gain[:, None, None]
 
         if self._loudness is not None:
-            self._loudness += db.view_as(self._loudness)
+            self._loudness += db
         return self
 
     def _to_2d(self):
@@ -252,6 +251,7 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
+        self._loudness = None
         return self
 
     def clip_distortion(self, clip_percentile):
