@@ -328,12 +328,18 @@ class Silence(BaseTransform):
         batch["signal"] = AudioSignal(
             torch.zeros_like(batch["signal"].audio_data),
             sample_rate=batch["signal"].sample_rate,
+            stft_params=batch["signal"].stft_params,
         )
         if self.apply_to_original:
+            _loudness = batch["original"]._loudness
             batch["original"] = AudioSignal(
                 torch.zeros_like(batch["original"].audio_data),
-                sample_rate=batch["signal"].sample_rate,
+                sample_rate=batch["original"].sample_rate,
+                stft_params=batch["original"].stft_params,
             )
+            # So that the amound of noise added is as if it wasn't silenced.
+            # TODO: improve this hack
+            batch["original"]._loudness = _loudness
         return super()._transform(batch)
 
 
