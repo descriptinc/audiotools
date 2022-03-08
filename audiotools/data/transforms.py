@@ -53,6 +53,7 @@ class BaseTransform:
             tfm_batch = apply_mask(tfm_batch, mask)
             tfm_batch = self._transform(tfm_batch)
             batch["signal"][mask] = tfm_batch["signal"]
+            batch["original"][mask] = tfm_batch["original"]
         return batch
 
     def __call__(self, batch: dict):
