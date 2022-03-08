@@ -139,11 +139,3 @@ def test_nested_masking():
         batch = util.prepare_batch(batch, device="cpu")
         with torch.no_grad():
             batch = dataset.transform(batch)
-
-
-if __name__ == "__main__":
-    for t in transforms_to_test:
-        test_transform(t)
-    test_compose()
-    test_masking()
-    test_nested_masking()
