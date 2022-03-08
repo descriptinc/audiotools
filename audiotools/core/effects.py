@@ -120,10 +120,11 @@ class EffectMixin:
         return self
 
     def normalize(self, db=-24.0):
-        db = util.ensure_tensor(db, ndim=self.audio_data.ndim).to(self.device)
+        db = util.ensure_tensor(db).to(self.device)
         ref_db = self.loudness()
         gain = db - ref_db
         gain = torch.exp(gain * self.GAIN_FACTOR)
+        gain = util.ensure_tensor(db, ndim=self.audio_data.ndim)
 
         self.audio_data = self.audio_data * gain
         self._loudness = db.view(-1)
