@@ -2,6 +2,8 @@ from inspect import signature
 from typing import List
 
 import torch
+from flatten_dict import flatten
+from flatten_dict import unflatten
 from numpy.random import RandomState
 
 from ..core import AudioSignal
@@ -41,13 +43,8 @@ class BaseTransform:
         mask = tfm_batch["mask"]
 
         def apply_mask(batch, mask):
-            masked_batch = dict()
-            for k, v in batch.items():
-                if isinstance(v, dict):
-                    masked_batch[k] = apply_mask(v, mask)
-                else:
-                    masked_batch[k] = v[mask]
-            return masked_batch
+            masked_batch = {k: v[mask] for k, v in flatten(batch).items()}
+            return unflatten(masked_batch)
 
         if torch.any(mask):
             tfm_batch = apply_mask(tfm_batch, mask)
