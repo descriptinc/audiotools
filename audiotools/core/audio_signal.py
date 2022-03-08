@@ -618,32 +618,22 @@ class AudioSignal(
             self.audio_data[key] = value
             return
 
-        if isinstance(key, (bool, int, list, slice)):
+        if torch.is_tensor(key) and key.ndim == 0 and key.item() is True:
+            assert self.batch_size == 1
+            self.audio_data = value.audio_data
+            self._loudness = value._loudness
+            self.stft_data = value.stft_data
+            return
+
+        elif isinstance(key, (bool, int, list, slice)) or (
+            torch.is_tensor(key) and key.ndim <= 1
+        ):
             self.audio_data[key] = value.audio_data
             if self._loudness is not None and value._loudness is not None:
                 self._loudness[key] = value._loudness
             if self.stft_data is not None and value.stft_data is not None:
                 self.stft_data[key] = value.stft_data
             return
-
-        elif torch.is_tensor(key):
-            if key.ndim == 0 and isinstance(key.item(), bool) and key.item():
-                assert self.batch_size == 1
-                self.audio_data = value.audio_data
-                self._loudness = value._loudness
-                self.stft_data = value.stft_data
-                return
-            elif key.ndim <= 1:
-                self.audio_data[key] = value.audio_data
-                if self._loudness is not None and value._loudness is not None:
-                    self._loudness[key] = value._loudness
-                if self.stft_data is not None and value.stft_data is not None:
-                    self.stft_data[key] = value.stft_data
-                return
-            else:
-                raise ValueError(f"key.ndim needs to be <= 1")
-        else:
-            raise TypeError
 
     def __ne__(self, other):
         return not self == other
