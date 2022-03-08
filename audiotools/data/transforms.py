@@ -340,7 +340,7 @@ class Silence(BaseTransform):
             # So that the amound of noise added is as if it wasn't silenced.
             # TODO: improve this hack
             batch["original"]._loudness = _loudness
-        return super()._transform(batch)
+        return batch
 
 
 class LowPass(BaseTransform):
