@@ -116,8 +116,9 @@ class Compose(BaseTransform):
         tfm_counts = defaultdict(lambda: 0)
         for tfm in transforms:
             prefix = tfm.prefix
+            if tfm_counts[prefix] > 0:
+                prefix = f"{prefix}.{tfm_counts[prefix]}"
             tfm_counts[prefix] += 1
-            prefix = f"{prefix}.{tfm_counts[prefix]}"
 
             tfm.prefix = prefix
             keys.append(prefix)
