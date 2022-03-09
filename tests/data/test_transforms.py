@@ -65,6 +65,14 @@ def test_transform(transform_name):
 
     assert batch_output[0] == output
 
+    ## Test that you can apply transform with the same args twice.
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+    kwargs = transform.instantiate(seed, signal)
+    output_a = transform(signal.clone(), **kwargs)
+    output_b = transform(signal.clone(), **kwargs)
+
+    assert output_a == output_b
+
 
 def test_compose_basic():
     seed = 0
