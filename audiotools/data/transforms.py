@@ -1,6 +1,7 @@
 from inspect import signature
 from typing import List
 
+import numpy as np
 import torch
 from flatten_dict import flatten
 from flatten_dict import unflatten
@@ -152,6 +153,26 @@ class Compose(BaseTransform):
         parameters = {}
         for transform in self.transforms:
             parameters.update(transform.instantiate(state, signal=signal))
+        return parameters
+
+
+class Choose(Compose):
+    # Class logic is the same as Compose, but instead of applying all
+    # the transforms sequence, it applies just a single transform.
+    def __init__(self, transforms: list, prob: float = 1.0):
+        super().__init__(transforms, prob=prob)
+        self.keys.append("random_state")
+
+    def _transform(self, batch):
+        state = batch["random_state"].sum().item()
+        state = util.random_state(state)
+
+        transform = state.choice(self.transforms)
+        return transform(batch)
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        parameters = super()._instantiate(state, signal)
+        parameters["random_state"] = state.randint(1000)
         return parameters
 
 
