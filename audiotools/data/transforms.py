@@ -1,3 +1,4 @@
+from collections import defaultdict
 from inspect import signature
 from typing import List
 
@@ -112,14 +113,11 @@ class Compose(BaseTransform):
     def __init__(self, transforms: list, prob: float = 1.0):
         keys = []
         signal_keys = []
-        tfm_counts = {}
+        tfm_counts = defaultdict(lambda: 0)
         for tfm in transforms:
             prefix = tfm.prefix
-            if prefix not in tfm_counts:
-                tfm_counts[prefix] = 0
-            else:
-                tfm_counts[prefix] += 1
-                prefix = f"{prefix}.{tfm_counts[prefix]}"
+            tfm_counts[prefix] += 1
+            prefix = f"{prefix}.{tfm_counts[prefix]}"
 
             tfm.prefix = prefix
             keys.append(prefix)
@@ -131,6 +129,23 @@ class Compose(BaseTransform):
         self.transforms = transforms
 
     def transform(self, batch: dict):
+        """This is a specific transform for Compose, which must pass
+        the batch through to each of its transforms as a dictionary,
+        to avoid double work. While other transforms pass the specific
+        arguments to the _transform function (like signal=signal, arg=arg),
+        Compose doesn't actually do anything by itself, so we pass the batch
+        as a dictionary to the underlying transforms.
+
+        Parameters
+        ----------
+        batch : dict
+            Batch containing signals and transform args.
+
+        Returns
+        -------
+        dict
+            Output dictionary with transformed signals.
+        """
         tfm_batch = self.prepare(batch)
         signals = tfm_batch.pop("signals")
         tfm_batch.update(signals)
