@@ -182,7 +182,6 @@ class Choose(Compose):
     def _transform(self, batch):
         state = batch["random_state"].sum().item()
         state = util.random_state(state)
-
         transform = state.choice(self.transforms, p=self.weights)
         return transform(batch)
 
