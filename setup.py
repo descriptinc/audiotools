@@ -53,6 +53,13 @@ setup(
         "flatten-dict",
     ],
     extras_require={
-        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "pesq"],
+        "tests": [
+            "pytest",
+            "pytest-cov",
+            "line_profiler",
+            "tqdm",
+            "pesq",
+            "tensorboard",
+        ],
     },
 )
