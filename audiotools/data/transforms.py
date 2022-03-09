@@ -158,7 +158,11 @@ class Compose(BaseTransform):
 
 class Choose(Compose):
     # Class logic is the same as Compose, but instead of applying all
-    # the transforms sequence, it applies just a single transform.
+    # the transforms in sequence, it applies just a single transform,
+    # which is picked deterministically by summing all of the `random_state`
+    # integers (which could be just one or a batch of integers), and then
+    # using the sum as a seed to build a RandomState object that you then
+    # call `choice`, with the weight of each chosen according to self.weights.
     def __init__(
         self,
         transforms: list,
