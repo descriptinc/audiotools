@@ -46,13 +46,9 @@ def test_transform(transform_name):
     signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
     transform = transform_cls(prob=1.0, **kwargs)
 
-    batch = transform.instantiate(seed, signal)
-
-    batch["signal"] = signal
-    batch = transform(batch)
-
-    output = batch["signal"]
-    assert isinstance(batch["signal"], AudioSignal)
+    kwargs = transform.instantiate(seed, signal)
+    output = transform(signal, **kwargs)
+    assert isinstance(output, AudioSignal)
 
     _compare_transform(transform_name, output)
 
@@ -64,40 +60,13 @@ def test_transform(transform_name):
     signal_batch.metadata["file_loudness"] = (
         AudioSignal(audio_path).ffmpeg_loudness().item()
     )
-    batch = transform.instantiate(seed, signal_batch, n_params=batch_size)
-
-    batch["signal"] = signal_batch
-    batch = transform(batch)
-    batch_output = batch["signal"]
+    kwargs = transform.instantiate(seed, signal_batch, n_params=batch_size)
+    batch_output = transform(signal_batch, **kwargs)
 
     assert batch_output[0] == output
 
 
-@pytest.mark.parametrize("transform_name", transforms_to_test)
-def test_signal_keys(transform_name):
-    # Test that signal_keys works as expected for every transform.
-    seed = 0
-    transform_cls = getattr(tfm, transform_name)
-
-    kwargs = {}
-    if transform_name == "BackgroundNoise":
-        kwargs["csv_files"] = ["tests/audio/noises.csv"]
-    if transform_name == "RoomImpulseResponse":
-        kwargs["csv_files"] = ["tests/audio/irs.csv"]
-
-    audio_path = "tests/audio/spk/f10_script4_produced.wav"
-    signal = AudioSignal(audio_path, offset=10, duration=2)
-    signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
-    transform = transform_cls(prob=1.0, signal_keys=["signal", "original"], **kwargs)
-
-    batch = transform.instantiate(seed, signal)
-    batch["signal"] = signal
-    batch = transform(batch)
-
-    assert batch["original"] == batch["signal"]
-
-
-def test_compose():
+def test_compose_basic():
     seed = 0
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
@@ -109,13 +78,18 @@ def test_compose():
         ],
     )
 
-    batch = transform.instantiate(seed, signal)
-
-    batch["signal"] = signal.clone()
-    batch = transform(batch)
-    output = batch["signal"]
+    kwargs = transform.instantiate(seed, signal)
+    output = transform(signal, **kwargs)
 
     _compare_transform("Compose", output)
+
+    assert isinstance(transform[0], tfm.RoomImpulseResponse)
+    assert isinstance(transform[1], tfm.BackgroundNoise)
+    assert len(transform) == 2
+
+    # Make sure __iter__ works
+    for tfm in transform:
+        pass
 
 
 class MulTransform(tfm.BaseTransform):
@@ -136,15 +110,14 @@ def test_compose_with_duplicate_transforms():
     transform = tfm.Compose([MulTransform(x) for x in muls])
     full_mul = np.prod(muls)
 
-    batch = transform.instantiate(0)
+    kwargs = transform.instantiate(0)
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
-    batch["signal"] = signal.clone()
 
-    batch = transform(batch)
+    output = transform(signal.clone(), **kwargs)
     expected_output = signal.audio_data * full_mul
 
-    assert torch.allclose(batch["signal"].audio_data, expected_output)
+    assert torch.allclose(output.audio_data, expected_output)
 
 
 def test_nested_compose():
@@ -157,15 +130,14 @@ def test_nested_compose():
     )
     full_mul = np.prod(muls)
 
-    batch = transform.instantiate(0)
+    kwargs = transform.instantiate(0)
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
-    batch["signal"] = signal.clone()
 
-    batch = transform(batch)
+    output = transform(signal.clone(), **kwargs)
     expected_output = signal.audio_data * full_mul
 
-    assert torch.allclose(batch["signal"].audio_data, expected_output)
+    assert torch.allclose(output.audio_data, expected_output)
 
 
 def test_sequential_compose():
@@ -178,18 +150,17 @@ def test_sequential_compose():
     )
     full_mul = np.prod(muls)
 
-    batch = transform.instantiate(0)
+    kwargs = transform.instantiate(0)
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
-    batch["signal"] = signal.clone()
 
-    batch = transform(batch)
+    output = transform(signal.clone(), **kwargs)
     expected_output = signal.audio_data * full_mul
 
-    assert torch.allclose(batch["signal"].audio_data, expected_output)
+    assert torch.allclose(output.audio_data, expected_output)
 
 
-def test_choose_alone():
+def test_choose_basic():
     seed = 0
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
@@ -200,11 +171,8 @@ def test_choose_alone():
         ]
     )
 
-    batch = transform.instantiate(seed, signal)
-
-    batch["signal"] = signal.clone()
-    batch = transform(batch)
-    output = batch["signal"]
+    kwargs = transform.instantiate(seed, signal)
+    output = transform(signal.clone(), **kwargs)
 
     _compare_transform("Choose", output)
 
@@ -217,9 +185,8 @@ def test_choose_alone():
     targets = [signal.clone() * 0.0, signal.clone() * 2.0]
 
     for seed in range(10):
-        batch = transform.instantiate(seed, signal)
-        batch["signal"] = signal.clone()
-        output = transform(batch)["signal"]
+        kwargs = transform.instantiate(seed, signal)
+        output = transform(signal.clone(), **kwargs)
 
         assert output in targets
 
@@ -229,9 +196,8 @@ def test_choose_alone():
     signal = AudioSignal(audio_path, offset=10, duration=2)
     signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
 
-    batch = transform.instantiate(seed, signal_batch, n_params=batch_size)
-    batch["signal"] = signal_batch
-    batch_output = transform(batch)["signal"]
+    kwargs = transform.instantiate(seed, signal_batch, n_params=batch_size)
+    batch_output = transform(signal_batch, **kwargs)
 
     for nb in range(batch_size):
         assert batch_output[nb] in targets
@@ -256,9 +222,8 @@ def test_choose_weighted():
 
     targets = [signal.clone() * 0.0, signal.clone() * 2.0]
 
-    batch = transform.instantiate(seed, signal_batch, n_params=batch_size)
-    batch["signal"] = signal_batch
-    batch_output = transform(batch)["signal"]
+    kwargs = transform.instantiate(seed, signal_batch, n_params=batch_size)
+    batch_output = transform(signal_batch, **kwargs)
 
     for nb in range(batch_size):
         assert batch_output[nb] == targets[1]
@@ -278,9 +243,8 @@ def test_choose_with_compose():
     targets = [signal.clone() * 0.0, signal.clone() * 2.0]
 
     for seed in range(10):
-        batch = transform.instantiate(seed, signal)
-        batch["signal"] = signal.clone()
-        output = transform(batch)["signal"]
+        kwargs = transform.instantiate(seed, signal)
+        output = transform(signal, **kwargs)
 
         assert output in targets
 
@@ -317,14 +281,18 @@ def test_masking():
         collate_fn=audiotools.data.datasets.BaseDataset.collate,
     )
     for batch in dataloader:
-        batch = dataset.transform(batch)
+        signal = batch.pop("signal")
+        original = signal.clone()
+
+        signal = dataset.transform(signal, **batch)
+        original = dataset.transform(original, **batch)
         mask = batch["Silence"]["mask"]
 
-        zeros = torch.zeros_like(batch["signal"][mask].audio_data)
-        original = batch["original"][~mask].audio_data
+        zeros_ = torch.zeros_like(signal[mask].audio_data)
+        original_ = original[~mask].audio_data
 
-        assert torch.allclose(batch["signal"][mask].audio_data, zeros)
-        assert torch.allclose(batch["signal"][~mask].audio_data, original)
+        assert torch.allclose(signal[mask].audio_data, zeros_)
+        assert torch.allclose(original[~mask].audio_data, original_)
 
 
 def test_nested_masking():
@@ -337,7 +305,7 @@ def test_nested_masking():
     )
 
     dataset = CSVDataset(
-        44100, 1000, 0.5, csv_files=["tests/audio/spk.csv"], transform=transform
+        44100, 100, 0.5, csv_files=["tests/audio/spk.csv"], transform=transform
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=0, batch_size=10, collate_fn=dataset.collate
@@ -345,5 +313,7 @@ def test_nested_masking():
 
     for batch in dataloader:
         batch = util.prepare_batch(batch, device="cpu")
+        signal = batch["signal"]
+        kwargs = batch["transform_args"]
         with torch.no_grad():
-            batch = dataset.transform(batch)
+            output = dataset.transform(signal, **kwargs)

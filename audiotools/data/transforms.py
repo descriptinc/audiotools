@@ -15,24 +15,14 @@ tt = torch.tensor
 
 
 class BaseTransform:
-    def __init__(self, keys: list = [], signal_keys: list = None, prob: float = 1.0):
+    def __init__(self, keys: list = [], prob: float = 1.0):
         self.keys = keys + ["mask"]
-        self.signal_keys = ["signal"] if signal_keys is None else signal_keys
         self.prob = prob
 
         self.prefix = self.__class__.__name__
 
     def prepare(self, batch: dict):
-        if "original" not in batch:
-            batch["original"] = batch["signal"].clone()
-
         sub_batch = batch[self.prefix]
-        # Signals to apply transformation to.
-        sub_batch["signals"] = {}
-
-        for k in self.signal_keys:
-            assert k in batch, f"{k} (AudioSignal) not in batch"
-            sub_batch["signals"][k] = batch[k]
 
         for k in self.keys:
             assert k in sub_batch.keys(), f"{k} not in batch"
@@ -50,22 +40,19 @@ class BaseTransform:
         masked_batch = {k: v[mask] for k, v in flatten(batch).items()}
         return unflatten(masked_batch)
 
-    def transform(self, batch: dict):
-        tfm_batch = self.prepare(batch)
-        mask = tfm_batch["mask"]
+    def transform(self, signal, **kwargs):
+        tfm_kwargs = self.prepare(kwargs)
+        mask = tfm_kwargs["mask"]
 
         if torch.any(mask):
-            signals = tfm_batch.pop("signals")
-            tfm_batch = self.apply_mask(tfm_batch, mask)
-            kwargs = {k: v for k, v in tfm_batch.items() if k != "mask"}
-            for k, signal in signals.items():
-                kwargs["signal"] = signal[mask]
-                batch[k][mask] = self._transform(**kwargs)
+            tfm_kwargs = self.apply_mask(tfm_kwargs, mask)
+            tfm_kwargs = {k: v for k, v in tfm_kwargs.items() if k != "mask"}
+            signal[mask] = self._transform(signal[mask], **tfm_kwargs)
 
-        return batch
+        return signal
 
-    def __call__(self, batch: dict):
-        return self.transform(batch)
+    def __call__(self, *args, **kwargs):
+        return self.transform(*args, **kwargs)
 
     def instantiate(
         self, state: RandomState, signal: AudioSignal = None, n_params: int = 1
@@ -112,7 +99,6 @@ class BaseTransform:
 class Compose(BaseTransform):
     def __init__(self, transforms: list, prob: float = 1.0):
         keys = []
-        signal_keys = []
         tfm_counts = defaultdict(lambda: 0)
         for tfm in transforms:
             prefix = tfm.prefix
@@ -121,54 +107,30 @@ class Compose(BaseTransform):
                 prefix = f"{prefix}.{tfm_counts[prefix]}"
             tfm.prefix = prefix
             keys.append(prefix)
-            signal_keys = signal_keys + tfm.signal_keys
 
-        signal_keys = list(set(signal_keys))
-
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
         self.transforms = transforms
 
-    def transform(self, batch: dict):
-        """This is a specific transform for Compose, which must pass
-        the batch through to each of its transforms as a dictionary,
-        to avoid double work. While other transforms pass the specific
-        arguments to the _transform function (like signal=signal, arg=arg),
-        Compose doesn't actually do anything by itself, so we pass the batch
-        as a dictionary to the underlying transforms.
-
-        Parameters
-        ----------
-        batch : dict
-            Batch containing signals and transform args.
-
-        Returns
-        -------
-        dict
-            Output dictionary with transformed signals.
-        """
-        tfm_batch = self.prepare(batch)
-        signals = tfm_batch.pop("signals")
-        tfm_batch.update(signals)
-        mask = tfm_batch["mask"]
-
-        if torch.any(mask):
-            tfm_batch = self.apply_mask(tfm_batch, mask)
-            output = self._transform(tfm_batch)
-            for k in self.signal_keys:
-                batch[k][mask] = output[k]
-
-        return batch
-
-    def _transform(self, batch):
+    def _transform(self, signal, **kwargs):
         for transform in self.transforms:
-            batch = transform(batch)
-        return batch
+            signal = transform(signal, **kwargs)
+        return signal
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         parameters = {}
         for transform in self.transforms:
             parameters.update(transform.instantiate(state, signal=signal))
         return parameters
+
+    def __getitem__(self, idx):
+        return self.transforms[idx]
+
+    def __len__(self):
+        return len(self.transforms)
+
+    def __iter__(self):
+        for transform in self.transforms:
+            yield transform
 
 
 class Choose(Compose):
@@ -194,11 +156,11 @@ class Choose(Compose):
         self.weights = np.array(weights)
         self.max_seed = max_seed
 
-    def _transform(self, batch):
-        state = batch["random_state"].sum().item()
+    def _transform(self, signal, **kwargs):
+        state = kwargs["random_state"].sum().item()
         state = util.random_state(state)
         transform = state.choice(self.transforms, p=self.weights)
-        return transform(batch)
+        return transform(signal, **kwargs)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         parameters = super()._instantiate(state, signal)
@@ -210,11 +172,10 @@ class ClippingDistortion(BaseTransform):
     def __init__(
         self,
         perc: tuple = ("uniform", 0.0, 0.1),
-        signal_keys: list = None,
         prob: float = 1.0,
     ):
         keys = ["perc"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.perc = perc
 
@@ -230,11 +191,10 @@ class Equalizer(BaseTransform):
         self,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 6,
-        signal_keys: list = None,
         prob: float = 1.0,
     ):
         keys = ["eq"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.eq_amount = eq_amount
         self.n_bands = n_bands
@@ -252,11 +212,10 @@ class Quantization(BaseTransform):
     def __init__(
         self,
         channels: tuple = ("choice", [8, 32, 128, 256, 1024]),
-        signal_keys: list = None,
         prob: float = 1.0,
     ):
         keys = ["channels"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.channels = channels
 
@@ -271,11 +230,10 @@ class MuLawQuantization(BaseTransform):
     def __init__(
         self,
         channels: tuple = ("choice", [8, 32, 128, 256, 1024]),
-        signal_keys: list = None,
         prob: float = 1.0,
     ):
         keys = ["channels"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.channels = channels
 
@@ -293,14 +251,13 @@ class BackgroundNoise(BaseTransform):
         csv_files: List[str] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 3,
-        signal_keys: list = None,
         prob: float = 1.0,
     ):
         """
         min and max refer to SNR.
         """
         keys = ["eq", "snr", "bg_signal"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.snr = snr
         self.eq_amount = eq_amount
@@ -341,11 +298,10 @@ class RoomImpulseResponse(BaseTransform):
         csv_files: List[str] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 6,
-        signal_keys: list = None,
         prob: float = 1.0,
     ):
         keys = ["eq", "drr", "ir_signal"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.drr = drr
         self.eq_amount = eq_amount
@@ -384,11 +340,10 @@ class VolumeChange(BaseTransform):
     def __init__(
         self,
         db: tuple = ("uniform", -12.0, 0.0),
-        signal_keys: list = ["signal", "original"],
         prob: float = 1.0,
     ):
         keys = ["db"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
         self.db = db
 
     def _instantiate(self, state: RandomState):
@@ -402,11 +357,10 @@ class VolumeNorm(BaseTransform):
     def __init__(
         self,
         db: float = -24,
-        signal_keys: list = ["signal", "original"],
         prob: float = 1.0,
     ):
         keys = ["loudness"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.db = db
 
@@ -419,8 +373,8 @@ class VolumeNorm(BaseTransform):
 
 
 class Silence(BaseTransform):
-    def __init__(self, signal_keys: list = ["signal", "original"], prob: float = 0.1):
-        super().__init__(signal_keys=signal_keys, prob=prob)
+    def __init__(self, prob: float = 0.1):
+        super().__init__(prob=prob)
 
     def _transform(self, signal):
         _loudness = signal._loudness
@@ -440,11 +394,10 @@ class LowPass(BaseTransform):
     def __init__(
         self,
         cutoff: tuple = ("choice", [4000, 8000, 16000]),
-        signal_keys: list = None,
         prob: float = 1,
     ):
         keys = ["cutoff"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.cutoff = cutoff
 
@@ -459,11 +412,10 @@ class HighPass(BaseTransform):
     def __init__(
         self,
         cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]),
-        signal_keys: list = None,
         prob: float = 1,
     ):
         keys = ["cutoff"]
-        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
+        super().__init__(keys=keys, prob=prob)
 
         self.cutoff = cutoff
 
@@ -475,8 +427,8 @@ class HighPass(BaseTransform):
 
 
 class RescaleAudio(BaseTransform):
-    def __init__(self, val: float = 1.0, prob: float = 1, signal_keys: list = None):
-        super().__init__(signal_keys=signal_keys, prob=prob)
+    def __init__(self, val: float = 1.0, prob: float = 1):
+        super().__init__(prob=prob)
 
         self.val = val
 

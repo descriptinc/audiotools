@@ -89,6 +89,7 @@ def test_shared_transform():
         observed = {"id": []}
 
         for batch in dataloader:
+            kwargs = batch["transform_args"]
             new_id = np.random.randint(100)
 
             # Create a new transform with a different ID.
@@ -97,7 +98,7 @@ def test_shared_transform():
             dataloader.dataset.transform = transform
 
             targets["id"].append(new_id)
-            observed["id"].append(batch["IDTransform"]["id"])
+            observed["id"].append(kwargs["IDTransform"]["id"])
 
         for k in targets:
             _targets = [int(x) for x in targets[k]]
@@ -130,14 +131,20 @@ def test_csv_dataset():
         collate_fn=dataset.collate,
     )
     for batch in dataloader:
-        batch = dataset.transform(batch)
-        mask = batch["Compose"]["Silence"]["mask"]
+        kwargs = batch["transform_args"]
+        signal = batch["signal"]
+        original = signal.clone()
 
-        zeros = torch.zeros_like(batch["signal"][mask].audio_data)
-        original = batch["original"][~mask].audio_data
+        signal = dataset.transform(signal, **kwargs)
+        original = dataset.transform(original, **kwargs)
 
-        assert torch.allclose(batch["signal"][mask].audio_data, zeros)
-        assert torch.allclose(batch["signal"][~mask].audio_data, original)
+        mask = kwargs["Compose"]["Silence"]["mask"]
+
+        zeros_ = torch.zeros_like(signal[mask].audio_data)
+        original_ = original[~mask].audio_data
+
+        assert torch.allclose(signal[mask].audio_data, zeros_)
+        assert torch.allclose(signal[~mask].audio_data, original_)
 
 
 def test_dataset_pipeline():
@@ -155,4 +162,6 @@ def test_dataset_pipeline():
     )
     for batch in dataloader:
         batch = audiotools.core.util.prepare_batch(batch, device="cpu")
-        batch = dataset.transform(batch)
+        kwargs = batch["transform_args"]
+        signal = batch["signal"]
+        batch = dataset.transform(signal, **kwargs)
