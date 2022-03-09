@@ -102,9 +102,9 @@ def test_compose_basic():
 
 
 class MulTransform(tfm.BaseTransform):
-    def __init__(self, num):
+    def __init__(self, num, name=None):
         self.num = num
-        super().__init__(keys=["num"])
+        super().__init__(name=name, keys=["num"])
 
     def _transform(self, signal, num):
         signal.audio_data = signal.audio_data * num[:, None, None]
@@ -147,6 +147,25 @@ def test_nested_compose():
     expected_output = signal.audio_data * full_mul
 
     assert torch.allclose(output.audio_data, expected_output)
+
+
+def test_compose_filtering():
+    muls = [0.5, 0.25, 0.125]
+    transform = tfm.Compose([MulTransform(x, name=str(x)) for x in muls])
+
+    kwargs = transform.instantiate(0)
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+
+    for s in range(len(muls)):
+        for _ in range(10):
+            _muls = np.random.choice(muls, size=s, replace=False).tolist()
+            full_mul = np.prod(_muls)
+            with transform.filter(*[str(x) for x in _muls]):
+                output = transform(signal.clone(), **kwargs)
+
+            expected_output = signal.audio_data * full_mul
+            assert torch.allclose(output.audio_data, expected_output)
 
 
 def test_sequential_compose():

@@ -45,31 +45,48 @@ preprocess.create_csv(
     "/tmp/irs.csv"
 )
 
-transform = tfm.Compose([
-    # These transforms get applied to both the input and target
-    # audio, so we'll group them here. These are "pre-processing"
-    # transforms.
-    tfm.Compose([
-        tfm.Silence(prob=0.1),
+preprocess = tfm.Compose(
+    [
+        tfm.Silence(prob=1.0),
         tfm.VolumeChange(),
-    ]),
-    tfm.LowPass(),
-    tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
-    tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
-    tfm.ClippingDistortion(),
-    tfm.MuLawQuantization(),
+    ],
+    name="preprocess",
+)
+process = tfm.Compose(
+    [
+        tfm.LowPass(),
+        tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
+        tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
+        tfm.ClippingDistortion(),
+        tfm.MuLawQuantization(),
+    ],
+    name="process",
+)
+
+postprocess = tfm.Compose(
+    [
+        tfm.RescaleAudio(),
+    ],
+    name="postprocess",
+)
+
+transform = tfm.Compose([
+    preprocess,
+    process,
+    postprocess,
 ])
 
 outputs = {}
 
-for seed in range(10):
+for seed in range(1):
     output = {}
 
     kwargs = transform.instantiate(seed, signal)
 
     noisy = transform(signal.clone(), **kwargs)
     # Only apply the pre-processing transforms to the target.
-    target = transform[0](signal.clone(), **kwargs["Compose"])
+    with transform.filter("preprocess", "postprocess"):
+        target = transform(signal.clone(), **kwargs)
 
     output["input"] = target
     params = flatten(kwargs)
