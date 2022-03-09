@@ -70,19 +70,17 @@ class BaseTransform:
     ):
         state = util.random_state(state)
 
+        # Not all instantiates need the signal. Check if signal
+        # is needed before passing it in, so that the end-user
+        # doesn't need to have variables they're not using flowing
+        # into their function.
+        needs_signal = "signal" in set(signature(self._instantiate).parameters.keys())
+        kwargs = {}
+        if needs_signal:
+            kwargs = {"signal": signal}
+
         all_params = []
         for _ in range(n_params):
-            # Not all instantiates need the signal. Check if signal
-            # is needed before passing it in, so that the end-user
-            # doesn't need to have variables they're not using flowing
-            # into their function.
-            needs_signal = "signal" in set(
-                signature(self._instantiate).parameters.keys()
-            )
-            kwargs = {}
-            if needs_signal:
-                kwargs = {"signal": signal}
-
             # Instantiate the parameters for the transform.
             params = self._instantiate(state, **kwargs)
             for k in list(params.keys()):
