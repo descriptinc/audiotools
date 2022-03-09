@@ -161,8 +161,8 @@ class Choose(Compose):
     # the transforms in sequence, it applies just a single transform,
     # which is picked deterministically by summing all of the `random_state`
     # integers (which could be just one or a batch of integers), and then
-    # using the sum as a seed to build a RandomState object that you then
-    # call `choice`, with the weight of each chosen according to self.weights.
+    # using the sum as a seed to build a RandomState object that it then
+    # calls `choice` on, with probabilities `self.weights``.
     def __init__(
         self,
         transforms: list,
