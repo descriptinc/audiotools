@@ -273,14 +273,11 @@ class EffectMixin:
         max_thresh = torch.quantile(self.audio_data, 1 - (clip_percentile / 2), dim=-1)
 
         nc = self.audio_data.shape[1]
-        min_thresh = min_thresh[:, :nc, :].expand_as(self.audio_data)
-        max_thresh = max_thresh[:, :nc, :].expand_as(self.audio_data)
+        min_thresh = min_thresh[:, :nc, :]
+        max_thresh = max_thresh[:, :nc, :]
 
-        mask = self.audio_data < min_thresh
-        self.audio_data[mask] = min_thresh[mask]
+        self.audio_data = self.audio_data.clamp(min_thresh, max_thresh)
 
-        mask = self.audio_data > max_thresh
-        self.audio_data[mask] = max_thresh[mask]
         return self
 
     def quantization(self, quantization_channels: int):
