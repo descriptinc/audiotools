@@ -159,20 +159,32 @@ class Compose(BaseTransform):
 class Choose(Compose):
     # Class logic is the same as Compose, but instead of applying all
     # the transforms sequence, it applies just a single transform.
-    def __init__(self, transforms: list, prob: float = 1.0):
+    def __init__(
+        self,
+        transforms: list,
+        weights: list = None,
+        max_seed: int = 1000,
+        prob: float = 1.0,
+    ):
         super().__init__(transforms, prob=prob)
         self.keys.append("random_state")
+
+        if weights is None:
+            _len = len(self.transforms)
+            weights = [1 / _len for _ in range(_len)]
+        self.weights = np.array(weights)
+        self.max_seed = max_seed
 
     def _transform(self, batch):
         state = batch["random_state"].sum().item()
         state = util.random_state(state)
 
-        transform = state.choice(self.transforms)
+        transform = state.choice(self.transforms, p=self.weights)
         return transform(batch)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         parameters = super()._instantiate(state, signal)
-        parameters["random_state"] = state.randint(1000)
+        parameters["random_state"] = state.randint(self.max_seed)
         return parameters
 
 

@@ -237,6 +237,33 @@ def test_choose_alone():
         assert batch_output[nb] in targets
 
 
+def test_choose_weighted():
+    seed = 0
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    transform = tfm.Choose(
+        [
+            MulTransform(0.0),
+            MulTransform(2.0),
+        ],
+        weights=[0.0, 1.0],
+    )
+
+    # Test that if you make a batch of signals and call it,
+    # the first item in the batch is still the same as above.
+    batch_size = 4
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+    signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
+
+    targets = [signal.clone() * 0.0, signal.clone() * 2.0]
+
+    batch = transform.instantiate(seed, signal_batch, n_params=batch_size)
+    batch["signal"] = signal_batch
+    batch_output = transform(batch)["signal"]
+
+    for nb in range(batch_size):
+        assert batch_output[nb] == targets[1]
+
+
 def test_choose_with_compose():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
