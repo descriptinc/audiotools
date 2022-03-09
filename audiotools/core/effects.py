@@ -269,15 +269,15 @@ class EffectMixin:
             Audio signal with clipped audio data.
         """
         clip_percentile = util.ensure_tensor(clip_percentile)
-        min_thresh = torch.quantile(self.audio_data, clip_percentile / 2)
-        max_thresh = torch.quantile(self.audio_data, 1 - (clip_percentile / 2))
+        min_thresh = torch.quantile(self.audio_data, clip_percentile / 2, dim=-1)
+        max_thresh = torch.quantile(self.audio_data, 1 - (clip_percentile / 2), dim=-1)
 
-        if clip_percentile.ndim == 1:
-            min_thresh = min_thresh[:, None, None]
-            max_thresh = max_thresh[:, None, None]
+        nc = self.audio_data.shape[1]
+        min_thresh = min_thresh[:, :nc, :]
+        max_thresh = max_thresh[:, :nc, :]
 
-        self.audio_data[self.audio_data < min_thresh] = min_thresh
-        self.audio_data[self.audio_data > max_thresh] = max_thresh
+        self.audio_data = self.audio_data.clamp(min_thresh, max_thresh)
+
         return self
 
     def quantization(self, quantization_channels: int):
@@ -290,7 +290,8 @@ class EffectMixin:
         x = x / quantization_channels
         x = 2 * x - 1
 
-        self.audio_data = x
+        residual = (self.audio_data - x).detach()
+        self.audio_data = self.audio_data - residual
         return self
 
     def mulaw_quantization(self, quantization_channels: int):
@@ -307,7 +308,8 @@ class EffectMixin:
         x = (x / mu) * 2 - 1.0
         x = torch.sign(x) * (torch.exp(torch.abs(x) * torch.log1p(mu)) - 1.0) / mu
 
-        self.audio_data = x
+        residual = (self.audio_data - x).detach()
+        self.audio_data = self.audio_data - residual
         return self
 
     def __matmul__(self, other):

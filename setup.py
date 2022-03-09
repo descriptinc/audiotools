@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setup(
     name="audiotools",
-    version="0.2.5",
+    version="0.2.6",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -53,6 +53,13 @@ setup(
         "flatten-dict",
     ],
     extras_require={
-        "tests": ["pytest", "pytest-cov", "line_profiler", "tqdm", "pesq"],
+        "tests": [
+            "pytest",
+            "pytest-cov",
+            "line_profiler",
+            "tqdm",
+            "pesq",
+            "tensorboard",
+        ],
     },
 )

@@ -1,5 +1,3 @@
-from subprocess import check_output
-
 import numpy as np
 import pytest
 import torch
@@ -233,7 +231,7 @@ def test_equalizer(n_bands):
     assert output == spk_batch
 
 
-def test_clip_percentile():
+def test_clip_distortion():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     spk = AudioSignal(audio_path, offset=10, duration=2)
     clipped = spk.deepcopy().clip_distortion(0.05)
@@ -244,7 +242,8 @@ def test_clip_percentile():
             for _ in range(16)
         ]
     )
-    clipped_batch = spk_batch.deepcopy().clip_distortion(0.05)
+    percs = torch.from_numpy(np.random.uniform(size=(16,)))
+    clipped_batch = spk_batch.deepcopy().clip_distortion(percs)
 
     assert clipped.audio_data.abs().max() < 1.0
     assert clipped_batch.audio_data.abs().max() < 1.0
@@ -257,7 +256,9 @@ def test_quantization(quant_ch):
 
     quantized = spk.deepcopy().quantization(quant_ch)
 
-    found_quant_ch = len(np.unique(quantized.audio_data))
+    # Need to round audio_data off because torch ops with straight
+    # through estimator are sometimes a bit off past 3 decimal places.
+    found_quant_ch = len(np.unique(np.around(quantized.audio_data, decimals=3)))
     assert found_quant_ch <= quant_ch
 
     spk_batch = AudioSignal.batch(
@@ -271,7 +272,7 @@ def test_quantization(quant_ch):
     quantized = spk_batch.deepcopy().quantization(quant_ch)
 
     for i, q_ch in enumerate(quant_ch):
-        found_quant_ch = len(np.unique(quantized.audio_data[i]))
+        found_quant_ch = len(np.unique(np.around(quantized.audio_data[i], decimals=3)))
         assert found_quant_ch <= q_ch
 
 
@@ -282,7 +283,9 @@ def test_mulaw_quantization(quant_ch):
 
     quantized = spk.deepcopy().mulaw_quantization(quant_ch)
 
-    found_quant_ch = len(np.unique(quantized.audio_data))
+    # Need to round audio_data off because torch ops with straight
+    # through estimator are sometimes a bit off past 3 decimal places.
+    found_quant_ch = len(np.unique(np.around(quantized.audio_data, decimals=3)))
     assert found_quant_ch <= quant_ch
 
     spk_batch = AudioSignal.batch(
@@ -296,7 +299,7 @@ def test_mulaw_quantization(quant_ch):
     quantized = spk_batch.deepcopy().mulaw_quantization(quant_ch)
 
     for i, q_ch in enumerate(quant_ch):
-        found_quant_ch = len(np.unique(quantized.audio_data[i]))
+        found_quant_ch = len(np.unique(np.around(quantized.audio_data[i], decimals=3)))
         assert found_quant_ch <= q_ch
 
 

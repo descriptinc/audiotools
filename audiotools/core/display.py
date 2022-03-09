@@ -1,5 +1,3 @@
-import tempfile
-
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
@@ -40,3 +38,14 @@ class DisplayMixin:
         self.waveplot(batch_idx=batch_idx, x_axis=x_axis)
         plt.subplot(gs[1:, :])
         self.specshow(batch_idx=batch_idx, x_axis=x_axis, **kwargs)
+
+    def write_audio_to_tb(
+        self,
+        tag,
+        writer,
+        step: int = None,
+        batch_idx: int = 0,
+    ):
+        audio_data = self.audio_data[batch_idx, 0].detach().cpu()
+        sample_rate = self.sample_rate
+        writer.add_audio(tag, audio_data, step, sample_rate)
