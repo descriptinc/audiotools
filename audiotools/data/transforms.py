@@ -106,8 +106,8 @@ class Compose(BaseTransform):
         for tfm in transforms:
             tfm_name = tfm.name
             tfm_counts[tfm_name] += 1
-            if tfm_counts[name] > 1:
-                tfm_name = f"{tfm_name}.{tfm_counts[name]}"
+            if tfm_counts[tfm_name] > 1:
+                tfm_name = f"{tfm_name}.{tfm_counts[tfm_name]}"
             tfm.name = tfm_name
             keys.append(tfm_name)
 
