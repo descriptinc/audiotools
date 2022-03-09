@@ -88,7 +88,7 @@ def test_compose_basic():
     assert len(transform) == 2
 
     # Make sure __iter__ works
-    for tfm in transform:
+    for _tfm in transform:
         pass
 
 

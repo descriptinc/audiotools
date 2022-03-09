@@ -159,8 +159,9 @@ class Choose(Compose):
     def _transform(self, signal, **kwargs):
         state = kwargs["random_state"].sum().item()
         state = util.random_state(state)
-        transform = state.choice(self.transforms, p=self.weights)
-        return transform(signal, **kwargs)
+        idx = list(range(len(self.transforms)))
+        idx = state.choice(idx, p=self.weights)
+        return self.transforms[idx](signal, **kwargs)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         parameters = super()._instantiate(state, signal)
