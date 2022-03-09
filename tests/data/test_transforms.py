@@ -67,6 +67,7 @@ def test_transform(transform_name):
 
     ## Test that you can apply transform with the same args twice.
     signal = AudioSignal(audio_path, offset=10, duration=2)
+    signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
     kwargs = transform.instantiate(seed, signal)
     output_a = transform(signal.clone(), **kwargs)
     output_b = transform(signal.clone(), **kwargs)
