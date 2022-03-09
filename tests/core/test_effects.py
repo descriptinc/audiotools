@@ -1,5 +1,3 @@
-from subprocess import check_output
-
 import numpy as np
 import pytest
 import torch
@@ -258,7 +256,9 @@ def test_quantization(quant_ch):
 
     quantized = spk.deepcopy().quantization(quant_ch)
 
-    found_quant_ch = len(np.unique(quantized.audio_data))
+    # Need to round audio_data off because torch ops with straight
+    # through estimator are sometimes a bit off past 3 decimal places.
+    found_quant_ch = len(np.unique(np.around(quantized.audio_data, decimals=3)))
     assert found_quant_ch <= quant_ch
 
     spk_batch = AudioSignal.batch(
@@ -272,7 +272,7 @@ def test_quantization(quant_ch):
     quantized = spk_batch.deepcopy().quantization(quant_ch)
 
     for i, q_ch in enumerate(quant_ch):
-        found_quant_ch = len(np.unique(quantized.audio_data[i]))
+        found_quant_ch = len(np.unique(np.around(quantized.audio_data[i], decimals=3)))
         assert found_quant_ch <= q_ch
 
 
@@ -283,7 +283,9 @@ def test_mulaw_quantization(quant_ch):
 
     quantized = spk.deepcopy().mulaw_quantization(quant_ch)
 
-    found_quant_ch = len(np.unique(quantized.audio_data))
+    # Need to round audio_data off because torch ops with straight
+    # through estimator are sometimes a bit off past 3 decimal places.
+    found_quant_ch = len(np.unique(np.around(quantized.audio_data, decimals=3)))
     assert found_quant_ch <= quant_ch
 
     spk_batch = AudioSignal.batch(
@@ -297,7 +299,7 @@ def test_mulaw_quantization(quant_ch):
     quantized = spk_batch.deepcopy().mulaw_quantization(quant_ch)
 
     for i, q_ch in enumerate(quant_ch):
-        found_quant_ch = len(np.unique(quantized.audio_data[i]))
+        found_quant_ch = len(np.unique(np.around(quantized.audio_data[i], decimals=3)))
         assert found_quant_ch <= q_ch
 
 

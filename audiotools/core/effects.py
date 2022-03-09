@@ -293,9 +293,8 @@ class EffectMixin:
         x = x / quantization_channels
         x = 2 * x - 1
 
-        # reparametrize with straight-through estimator
-        x = (self.audio_data - x).detach()
-        self.audio_data = self.audio_data - x
+        residual = (self.audio_data - x).detach()
+        self.audio_data = self.audio_data - residual
         return self
 
     def mulaw_quantization(self, quantization_channels: int):
@@ -312,9 +311,8 @@ class EffectMixin:
         x = (x / mu) * 2 - 1.0
         x = torch.sign(x) * (torch.exp(torch.abs(x) * torch.log1p(mu)) - 1.0) / mu
 
-        # reparametrize with straight-through estimator
-        x = (self.audio_data - x).detach()
-        self.audio_data = self.audio_data - x
+        residual = (self.audio_data - x).detach()
+        self.audio_data = self.audio_data - residual
         return self
 
     def __matmul__(self, other):

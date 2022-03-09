@@ -13,44 +13,53 @@ tt = torch.tensor
 
 
 class BaseTransform:
-    def __init__(self, keys: list = [], prob: float = 1.0):
-        self.keys = keys + ["signal", "mask"]
+    def __init__(self, keys: list = [], signal_keys: list = None, prob: float = 1.0):
+        self.keys = keys + ["mask"]
+        self.signal_keys = ["signal"] if signal_keys is None else signal_keys
         self.prob = prob
 
         self.prefix = self.__class__.__name__
 
     def prepare(self, batch: dict):
-
         if "original" not in batch:
             batch["original"] = batch["signal"].clone()
 
         sub_batch = batch[self.prefix]
-        sub_batch["signal"] = batch["signal"]
-        sub_batch["original"] = batch["original"]
+        # Signals to apply transformation to.
+        sub_batch["signals"] = {}
+
+        for k in self.signal_keys:
+            assert k in batch, f"{k} (AudioSignal) not in batch"
+            sub_batch["signals"][k] = batch[k]
+
         for k in self.keys:
             assert k in sub_batch.keys(), f"{k} not in batch"
 
         return sub_batch
 
-    def _transform(self, batch: dict):
-        return batch
+    def _transform(self, signal):
+        return signal
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         return {}
+
+    @staticmethod
+    def apply_mask(batch, mask):
+        masked_batch = {k: v[mask] for k, v in flatten(batch).items()}
+        return unflatten(masked_batch)
 
     def transform(self, batch: dict):
         tfm_batch = self.prepare(batch)
         mask = tfm_batch["mask"]
 
-        def apply_mask(batch, mask):
-            masked_batch = {k: v[mask] for k, v in flatten(batch).items()}
-            return unflatten(masked_batch)
-
         if torch.any(mask):
-            tfm_batch = apply_mask(tfm_batch, mask)
-            tfm_batch = self._transform(tfm_batch)
-            batch["signal"][mask] = tfm_batch["signal"]
-            batch["original"][mask] = tfm_batch["original"]
+            signals = tfm_batch.pop("signals")
+            tfm_batch = self.apply_mask(tfm_batch, mask)
+            kwargs = {k: v for k, v in tfm_batch.items() if k != "mask"}
+            for k, signal in signals.items():
+                kwargs["signal"] = signal[mask]
+                batch[k][mask] = self._transform(**kwargs)
+
         return batch
 
     def __call__(self, batch: dict):
@@ -102,11 +111,41 @@ class BaseTransform:
 
 class Compose(BaseTransform):
     def __init__(self, transforms: list, prob: float = 1.0):
-        keys = [tfm.prefix for tfm in transforms]
-        super().__init__(keys=keys, prob=prob)
+        keys = []
+        signal_keys = []
+        tfm_counts = {}
+        for tfm in transforms:
+            prefix = tfm.prefix
+            if prefix not in tfm_counts:
+                tfm_counts[prefix] = 0
+            else:
+                tfm_counts[prefix] += 1
+                prefix = f"{prefix}.{tfm_counts[prefix]}"
+
+            tfm.prefix = prefix
+            keys.append(prefix)
+            signal_keys = signal_keys + tfm.signal_keys
+
+        signal_keys = list(set(signal_keys))
+
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
         self.transforms = transforms
 
-    def _transform(self, batch: dict):
+    def transform(self, batch: dict):
+        tfm_batch = self.prepare(batch)
+        signals = tfm_batch.pop("signals")
+        tfm_batch.update(signals)
+        mask = tfm_batch["mask"]
+
+        if torch.any(mask):
+            tfm_batch = self.apply_mask(tfm_batch, mask)
+            output = self._transform(tfm_batch)
+            for k in self.signal_keys:
+                batch[k][mask] = output[k]
+
+        return batch
+
+    def _transform(self, batch):
         for transform in self.transforms:
             batch = transform(batch)
         return batch
@@ -119,26 +158,34 @@ class Compose(BaseTransform):
 
 
 class ClippingDistortion(BaseTransform):
-    def __init__(self, perc: tuple = ("uniform", 0.0, 0.1), prob: float = 1.0):
+    def __init__(
+        self,
+        perc: tuple = ("uniform", 0.0, 0.1),
+        signal_keys: list = None,
+        prob: float = 1.0,
+    ):
         keys = ["perc"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.perc = perc
 
     def _instantiate(self, state: RandomState):
         return {"perc": util.sample_from_dist(self.perc, state)}
 
-    def _transform(self, batch):
-        batch["signal"] = batch["signal"].clip_distortion(batch["perc"])
-        return batch
+    def _transform(self, signal, perc):
+        return signal.clip_distortion(perc)
 
 
 class Equalizer(BaseTransform):
     def __init__(
-        self, eq_amount: tuple = ("const", 1.0), n_bands: int = 6, prob: float = 1.0
+        self,
+        eq_amount: tuple = ("const", 1.0),
+        n_bands: int = 6,
+        signal_keys: list = None,
+        prob: float = 1.0,
     ):
         keys = ["eq"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.eq_amount = eq_amount
         self.n_bands = n_bands
@@ -148,43 +195,46 @@ class Equalizer(BaseTransform):
         eq = -eq_amount * state.rand(self.n_bands)
         return {"eq": eq}
 
-    def _transform(self, batch):
-        batch["signal"] = batch["signal"].equalizer(batch["eq"])
-        return batch
+    def _transform(self, signal, eq):
+        return signal.equalizer(eq)
 
 
 class Quantization(BaseTransform):
     def __init__(
-        self, channels: tuple = ("choice", [8, 32, 128, 256, 1024]), prob: float = 1.0
+        self,
+        channels: tuple = ("choice", [8, 32, 128, 256, 1024]),
+        signal_keys: list = None,
+        prob: float = 1.0,
     ):
         keys = ["channels"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.channels = channels
 
     def _instantiate(self, state: RandomState):
         return {"channels": util.sample_from_dist(self.channels, state)}
 
-    def _transform(self, batch: dict):
-        batch["signal"] = batch["signal"].quantization(batch["channels"])
-        return batch
+    def _transform(self, signal, channels):
+        return signal.quantization(channels)
 
 
 class MuLawQuantization(BaseTransform):
     def __init__(
-        self, channels: tuple = ("choice", [8, 32, 128, 256, 1024]), prob: float = 1.0
+        self,
+        channels: tuple = ("choice", [8, 32, 128, 256, 1024]),
+        signal_keys: list = None,
+        prob: float = 1.0,
     ):
         keys = ["channels"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.channels = channels
 
     def _instantiate(self, state: RandomState):
         return {"channels": util.sample_from_dist(self.channels, state)}
 
-    def _transform(self, batch: dict):
-        batch["signal"] = batch["signal"].mulaw_quantization(batch["channels"])
-        return batch
+    def _transform(self, signal, channels):
+        return signal.mulaw_quantization(channels)
 
 
 class BackgroundNoise(BaseTransform):
@@ -194,13 +244,14 @@ class BackgroundNoise(BaseTransform):
         csv_files: List[str] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 3,
+        signal_keys: list = None,
         prob: float = 1.0,
     ):
         """
         min and max refer to SNR.
         """
         keys = ["eq", "snr", "bg_signal"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.snr = snr
         self.eq_amount = eq_amount
@@ -228,11 +279,10 @@ class BackgroundNoise(BaseTransform):
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
 
-    def _transform(self, batch: dict):
-        batch["signal"] = batch["signal"].mix(
-            batch["bg_signal"], batch["snr"], batch["eq"]
-        )
-        return batch
+    def _transform(self, signal, bg_signal, snr, eq):
+        # Clone bg_signal so that transform can be repeatedly applied
+        # to different signals with the same effect.
+        return signal.mix(bg_signal.clone(), snr, eq)
 
 
 class RoomImpulseResponse(BaseTransform):
@@ -242,10 +292,11 @@ class RoomImpulseResponse(BaseTransform):
         csv_files: List[str] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 6,
+        signal_keys: list = None,
         prob: float = 1.0,
     ):
         keys = ["eq", "drr", "ir_signal"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.drr = drr
         self.eq_amount = eq_amount
@@ -274,133 +325,111 @@ class RoomImpulseResponse(BaseTransform):
 
         return {"eq": eq, "ir_signal": ir_signal, "drr": drr}
 
-    def _transform(self, batch: dict):
-        batch["signal"] = batch["signal"].apply_ir(
-            batch["ir_signal"], batch["drr"], batch["eq"]
-        )
-        return batch
+    def _transform(self, signal, ir_signal, drr, eq):
+        # Clone ir_signal so that transform can be repeatedly applied
+        # to different signals with the same effect.
+        return signal.apply_ir(ir_signal.clone(), drr, eq)
 
 
 class VolumeChange(BaseTransform):
     def __init__(
         self,
         db: tuple = ("uniform", -12.0, 0.0),
+        signal_keys: list = ["signal", "original"],
         prob: float = 1.0,
-        apply_to_original: bool = True,
     ):
         keys = ["db"]
-        if apply_to_original:
-            keys += ["original"]
-        super().__init__(keys=keys, prob=prob)
-
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
         self.db = db
-        self.apply_to_original = apply_to_original
 
     def _instantiate(self, state: RandomState):
         return {"db": util.sample_from_dist(self.db, state)}
 
-    def _transform(self, batch):
-        batch["signal"] = batch["signal"].volume_change(batch["db"])
-        if self.apply_to_original:
-            batch["original"] = batch["original"].volume_change(batch["db"])
-        return batch
+    def _transform(self, signal, db):
+        return signal.volume_change(db)
 
 
 class VolumeNorm(BaseTransform):
     def __init__(
-        self, db: float = -24, apply_to_original: bool = True, prob: float = 1.0
+        self,
+        db: float = -24,
+        signal_keys: list = ["signal", "original"],
+        prob: float = 1.0,
     ):
         keys = ["loudness"]
-        if apply_to_original:
-            keys += ["original"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.db = db
-        self.apply_to_original = apply_to_original
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         return {"loudness": signal.metadata["file_loudness"]}
 
-    def _transform(self, batch):
-        db_change = self.db - batch["loudness"]
-
-        batch["signal"] = batch["signal"].volume_change(db_change)
-        if self.apply_to_original:
-            batch["original"] = batch["original"].volume_change(db_change)
-        return batch
+    def _transform(self, signal, loudness):
+        db_change = self.db - loudness
+        return signal.volume_change(db_change)
 
 
 class Silence(BaseTransform):
-    def __init__(self, prob: float = 0.1, apply_to_original: bool = True):
-        keys = ["original"] if apply_to_original else []
-        super().__init__(keys=keys, prob=prob)
+    def __init__(self, signal_keys: list = ["signal", "original"], prob: float = 0.1):
+        super().__init__(signal_keys=signal_keys, prob=prob)
 
-        self.apply_to_original = apply_to_original
-
-    def _transform(self, batch: dict):
-        _loudness = batch["signal"]._loudness
-        batch["signal"] = AudioSignal(
-            torch.zeros_like(batch["signal"].audio_data),
-            sample_rate=batch["signal"].sample_rate,
-            stft_params=batch["signal"].stft_params,
+    def _transform(self, signal):
+        _loudness = signal._loudness
+        signal = AudioSignal(
+            torch.zeros_like(signal.audio_data),
+            sample_rate=signal.sample_rate,
+            stft_params=signal.stft_params,
         )
         # So that the amound of noise added is as if it wasn't silenced.
         # TODO: improve this hack
-        batch["signal"]._loudness = _loudness
+        signal._loudness = _loudness
 
-        if self.apply_to_original:
-            _loudness = batch["original"]._loudness
-            batch["original"] = AudioSignal(
-                torch.zeros_like(batch["original"].audio_data),
-                sample_rate=batch["original"].sample_rate,
-                stft_params=batch["original"].stft_params,
-            )
-            # So that the amound of noise added is as if it wasn't silenced.
-            # TODO: improve this hack
-            batch["original"]._loudness = _loudness
-        return batch
+        return signal
 
 
 class LowPass(BaseTransform):
     def __init__(
-        self, cutoff: tuple = ("choice", [4000, 8000, 16000]), prob: float = 1
+        self,
+        cutoff: tuple = ("choice", [4000, 8000, 16000]),
+        signal_keys: list = None,
+        prob: float = 1,
     ):
         keys = ["cutoff"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.cutoff = cutoff
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
-    def _transform(self, batch):
-        batch["signal"] = batch["signal"].low_pass(batch["cutoff"])
-        return batch
+    def _transform(self, signal, cutoff):
+        return signal.low_pass(cutoff)
 
 
 class HighPass(BaseTransform):
     def __init__(
-        self, cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]), prob: float = 1
+        self,
+        cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]),
+        signal_keys: list = None,
+        prob: float = 1,
     ):
         keys = ["cutoff"]
-        super().__init__(keys=keys, prob=prob)
+        super().__init__(keys=keys, signal_keys=signal_keys, prob=prob)
 
         self.cutoff = cutoff
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
-    def _transform(self, batch):
-        batch["signal"] = batch["signal"].high_pass(batch["cutoff"])
-        return batch
+    def _transform(self, signal, cutoff):
+        return signal.high_pass(cutoff)
 
 
 class RescaleAudio(BaseTransform):
-    def __init__(self, val: float = 1.0, prob: float = 1):
-        super().__init__(prob=prob)
+    def __init__(self, val: float = 1.0, prob: float = 1, signal_keys: list = None):
+        super().__init__(signal_keys=signal_keys, prob=prob)
 
         self.val = val
 
-    def _transform(self, batch: dict):
-        batch["signal"] = batch["signal"].ensure_max_of_audio(self.val)
-        return batch
+    def _transform(self, signal):
+        return signal.ensure_max_of_audio(self.val)

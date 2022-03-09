@@ -115,7 +115,7 @@ def test_csv_dataset():
         [
             tfm.VolumeNorm(),
             tfm.Silence(prob=0.5),
-        ]
+        ],
     )
     dataset = audiotools.data.datasets.CSVDataset(
         44100,
