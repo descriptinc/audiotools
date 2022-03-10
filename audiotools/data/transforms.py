@@ -17,7 +17,17 @@ tt = torch.tensor
 
 class BaseTransform:
     def __init__(self, keys: list = [], name: str = None, prob: float = 1.0):
-        self.keys = keys + ["mask"]
+        # Get keys from the _transform signature.
+        transform_keys = list(signature(self._transform).parameters.keys())
+
+        # Filter out signal and kwargs keys.
+        ignore_keys = ["signal", "kwargs"]
+        transform_keys = [k for k in keys if k not in ignore_keys]
+
+        # Combine keys specified by the child class, the keys found in
+        # _transform signature, and the mask key.
+        self.keys = keys + transform_keys + ["mask"]
+
         self.prob = prob
 
         if name is None:
@@ -152,7 +162,7 @@ class Compose(BaseTransform):
 class Choose(Compose):
     # Class logic is the same as Compose, but instead of applying all
     # the transforms in sequence, it applies just a single transform,
-    # which is picked deterministically by summing all of the `random_state`
+    # which is picked deterministically by summing all of the `seed`
     # integers (which could be just one or a batch of integers), and then
     # using the sum as a seed to build a RandomState object that it then
     # calls `choice` on, with probabilities `self.weights``.
@@ -165,7 +175,6 @@ class Choose(Compose):
         prob: float = 1.0,
     ):
         super().__init__(transforms, name=name, prob=prob)
-        self.keys.append("random_state")
 
         if weights is None:
             _len = len(self.transforms)
@@ -173,8 +182,8 @@ class Choose(Compose):
         self.weights = np.array(weights)
         self.max_seed = max_seed
 
-    def _transform(self, signal, **kwargs):
-        state = kwargs["random_state"].sum().item()
+    def _transform(self, signal, seed, **kwargs):
+        state = seed.sum().item()
         state = util.random_state(state)
         idx = list(range(len(self.transforms)))
         idx = state.choice(idx, p=self.weights)
@@ -182,7 +191,7 @@ class Choose(Compose):
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         parameters = super()._instantiate(state, signal)
-        parameters["random_state"] = state.randint(self.max_seed)
+        parameters["seed"] = state.randint(self.max_seed)
         return parameters
 
 
@@ -193,8 +202,7 @@ class ClippingDistortion(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["perc"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.perc = perc
 
@@ -213,8 +221,7 @@ class Equalizer(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["eq"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.eq_amount = eq_amount
         self.n_bands = n_bands
@@ -235,8 +242,7 @@ class Quantization(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["channels"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.channels = channels
 
@@ -254,8 +260,7 @@ class MuLawQuantization(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["channels"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.channels = channels
 
@@ -279,8 +284,7 @@ class BackgroundNoise(BaseTransform):
         """
         min and max refer to SNR.
         """
-        keys = ["eq", "snr", "bg_signal"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.snr = snr
         self.eq_amount = eq_amount
@@ -324,8 +328,7 @@ class RoomImpulseResponse(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["eq", "drr", "ir_signal"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.drr = drr
         self.eq_amount = eq_amount
@@ -367,8 +370,7 @@ class VolumeChange(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["db"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
         self.db = db
 
     def _instantiate(self, state: RandomState):
@@ -385,8 +387,7 @@ class VolumeNorm(BaseTransform):
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["loudness"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.db = db
 
@@ -423,8 +424,7 @@ class LowPass(BaseTransform):
         name: str = None,
         prob: float = 1,
     ):
-        keys = ["cutoff"]
-        super().__init__(name=name, keys=keys, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
 
@@ -442,8 +442,7 @@ class HighPass(BaseTransform):
         name: str = None,
         prob: float = 1,
     ):
-        keys = ["cutoff"]
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
 
