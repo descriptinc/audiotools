@@ -58,7 +58,9 @@ class BaseTransform:
         return self.transform(*args, **kwargs)
 
     def instantiate(
-        self, state: RandomState, signal: AudioSignal = None, n_params: int = 1
+        self,
+        state: RandomState,
+        signal: AudioSignal = None,
     ):
         state = util.random_state(state)
 
@@ -71,32 +73,34 @@ class BaseTransform:
         if needs_signal:
             kwargs = {"signal": signal}
 
-        all_params = []
-        for _ in range(n_params):
-            # Instantiate the parameters for the transform.
-            params = self._instantiate(state, **kwargs)
-            for k in list(params.keys()):
-                v = params[k]
-                if isinstance(v, (AudioSignal, torch.Tensor, dict)):
-                    params[k] = v
-                else:
-                    params[k] = tt(v)
-            mask = state.rand() <= self.prob
-            params[f"mask"] = tt(mask)
-
-            all_params.append(params)
-
-        if n_params > 1:
-            all_params = util.collate(all_params)
-        else:
-            all_params = all_params[0]
+        # Instantiate the parameters for the transform.
+        params = self._instantiate(state, **kwargs)
+        for k in list(params.keys()):
+            v = params[k]
+            if isinstance(v, (AudioSignal, torch.Tensor, dict)):
+                params[k] = v
+            else:
+                params[k] = tt(v)
+        mask = state.rand() <= self.prob
+        params[f"mask"] = tt(mask)
 
         # Put the params into a nested dictionary that will be
         # used later when calling the transform. This is to avoid
         # collisions in the dictionary.
-        params = {self.name: all_params}
+        params = {self.name: params}
 
         return params
+
+    def batch_instantiate(
+        self,
+        states: list,
+        signal: AudioSignal = None,
+    ):
+        kwargs = []
+        for state in states:
+            kwargs.append(self.instantiate(state, signal))
+        kwargs = util.collate(kwargs)
+        return kwargs
 
 
 class Compose(BaseTransform):

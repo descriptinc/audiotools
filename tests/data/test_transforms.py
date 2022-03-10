@@ -60,7 +60,9 @@ def test_transform(transform_name):
     signal_batch.metadata["file_loudness"] = (
         AudioSignal(audio_path).ffmpeg_loudness().item()
     )
-    kwargs = transform.instantiate(seed, signal_batch, n_params=batch_size)
+
+    states = [seed + idx for idx in list(range(batch_size))]
+    kwargs = transform.batch_instantiate(states, signal_batch)
     batch_output = transform(signal_batch, **kwargs)
 
     assert batch_output[0] == output
@@ -224,7 +226,8 @@ def test_choose_basic():
     signal = AudioSignal(audio_path, offset=10, duration=2)
     signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
 
-    kwargs = transform.instantiate(seed, signal_batch, n_params=batch_size)
+    states = [seed + idx for idx in list(range(batch_size))]
+    kwargs = transform.batch_instantiate(states, signal_batch)
     batch_output = transform(signal_batch, **kwargs)
 
     for nb in range(batch_size):
@@ -250,7 +253,8 @@ def test_choose_weighted():
 
     targets = [signal.clone() * 0.0, signal.clone() * 2.0]
 
-    kwargs = transform.instantiate(seed, signal_batch, n_params=batch_size)
+    states = [seed + idx for idx in list(range(batch_size))]
+    kwargs = transform.batch_instantiate(states, signal_batch)
     batch_output = transform(signal_batch, **kwargs)
 
     for nb in range(batch_size):
