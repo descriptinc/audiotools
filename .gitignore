@@ -135,3 +135,4 @@ _codebraid/
 test.md
 test_out.md
 *.html
+*.exec.md
