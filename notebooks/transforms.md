@@ -245,7 +245,7 @@ the transform unaltered, all in one call.
 
 ## Combining transforms
 
-Next, let's see how we can combine transforms
+Next, let's see how we can combine transforms.
 
 ### The Compose transform
 
