@@ -47,7 +47,7 @@ preprocess.create_csv(
 
 preprocess = tfm.Compose(
     [
-        tfm.Silence(prob=1.0),
+        tfm.Silence(prob=0.1),
         tfm.VolumeChange(),
     ],
     name="preprocess",
@@ -78,7 +78,7 @@ transform = tfm.Compose([
 
 outputs = {}
 
-for seed in range(1):
+for seed in range(10):
     output = {}
 
     kwargs = transform.instantiate(seed, signal)
