@@ -101,16 +101,15 @@ class BaseTransform:
 
 class Compose(BaseTransform):
     def __init__(self, transforms: list, name: str = None, prob: float = 1.0):
-        keys = []
         tfm_counts = defaultdict(lambda: 0)
         for tfm in transforms:
             tfm_name = tfm.name
             tfm_counts[tfm_name] += 1
             if tfm_counts[tfm_name] > 1:
-                tfm_name = f"{tfm_name}.{tfm_counts[tfm_name]}"
+                tfm_name = f"{tfm_counts[tfm_name]}.{tfm_name}"
             tfm.name = tfm_name
-            keys.append(tfm_name)
 
+        keys = [tfm.name for tfm in transforms]
         super().__init__(keys=keys, name=name, prob=prob)
 
         self.transforms = transforms
