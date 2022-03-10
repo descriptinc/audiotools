@@ -495,7 +495,7 @@ transform.instantiate(seed, signal)
 ```
 
 The signal is used to load audio from the `csv_files` that is at the same
-sample rate, the same number of channels, and (in the case of `BackgroundNoise` the same duration as that of `signal`.
+sample rate, the same number of channels, and (in the case of `BackgroundNoise`) the same duration as that of `signal`.
 
 ## Complete example
 
