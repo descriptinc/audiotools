@@ -138,7 +138,7 @@ def test_csv_dataset():
         signal = dataset.transform(signal, **kwargs)
         original = dataset.transform(original, **kwargs)
 
-        mask = kwargs["Compose"]["0.Silence"]["mask"]
+        mask = kwargs["Compose"]["1.Silence"]["mask"]
 
         zeros_ = torch.zeros_like(signal[mask].audio_data)
         original_ = original[~mask].audio_data
