@@ -30,6 +30,8 @@ from audiotools import AudioSignal
 from audiotools import post, util
 import audiotools.data.transforms as tfm
 from audiotools.data import preprocess
+from flatten_dict import flatten
+import torch
 
 audio_path = "tests/audio/spk/f10_script4_produced.wav"
 signal = AudioSignal(audio_path, offset=10, duration=2)
@@ -43,14 +45,35 @@ preprocess.create_csv(
     "/tmp/irs.csv"
 )
 
+preprocess = tfm.Compose(
+    [
+        tfm.Silence(prob=0.1),
+        tfm.VolumeChange(),
+    ],
+    name="preprocess",
+)
+process = tfm.Compose(
+    [
+        tfm.LowPass(),
+        tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
+        tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
+        tfm.ClippingDistortion(),
+        tfm.MuLawQuantization(),
+    ],
+    name="process",
+)
+
+postprocess = tfm.Compose(
+    [
+        tfm.RescaleAudio(),
+    ],
+    name="postprocess",
+)
+
 transform = tfm.Compose([
-    tfm.Silence(prob=0.1),
-    tfm.LowPass(),
-    tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
-    tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
-    tfm.ClippingDistortion(),
-    tfm.MuLawQuantization(),
-    tfm.VolumeChange(),
+    preprocess,
+    process,
+    postprocess,
 ])
 
 outputs = {}
@@ -58,17 +81,21 @@ outputs = {}
 for seed in range(10):
     output = {}
 
-    batch = transform.instantiate(seed, signal)
-    batch["signal"] = signal.clone()
-    batch = transform(batch)
+    kwargs = transform.instantiate(seed, signal)
 
-    output["input"] = batch["original"]
-    params = batch["Compose"]
-    for k1, v1 in params.items():
-        if isinstance(v1, dict):
-            for k2, v2 in v1.items():
-                output[f"{k1}.{k2}"] = v2
-    output["output"] = batch["signal"]
+    noisy = transform(signal.clone(), **kwargs)
+    # Only apply the pre-processing transforms to the target.
+    with transform.filter("preprocess", "postprocess"):
+        target = transform(signal.clone(), **kwargs)
+
+    output["input"] = target
+    params = flatten(kwargs)
+    for k, v in params.items():
+        if isinstance(v, torch.Tensor):
+            key = ".".join(list(k[-2:]))
+            output[key] = v
+
+    output["output"] = noisy
     outputs[seed] = output
 
 post.disp(outputs, first_column="seed")

@@ -133,7 +133,7 @@ class CSVDataset(BaseDataset):
         # Instantiate the transform.
         item = {"signal": signal}
         if self.transform is not None:
-            item.update(self.transform.instantiate(state, signal=signal))
+            item["transform_args"] = self.transform.instantiate(state, signal=signal)
 
         return item
 
