@@ -178,7 +178,7 @@ audio_dict = defaultdict(lambda: {})
 audio_dict["original"] = {
     "signal": signal,
     "LowPass.cutoff": None,
-    "LowPass.mask": None
+    "LowPass.mask": None,
 }
 
 for seed in range(3):
@@ -236,7 +236,7 @@ audio_dict = {}
 for i in range(batch_size):
     audio_dict[i] = {
         "input": signal_batch[i],
-        "output": output_batch[i]
+        "output": output_batch[i],
         "LowPass.cutoff": kwargs["LowPass"]["cutoff"][i].item(),
         "LowPass.mask": kwargs["LowPass"]["mask"][i].item(),
     }
