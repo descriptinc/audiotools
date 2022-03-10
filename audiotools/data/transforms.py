@@ -18,15 +18,15 @@ tt = torch.tensor
 class BaseTransform:
     def __init__(self, keys: list = [], name: str = None, prob: float = 1.0):
         # Get keys from the _transform signature.
-        transform_keys = list(signature(self._transform).parameters.keys())
+        tfm_keys = list(signature(self._transform).parameters.keys())
 
         # Filter out signal and kwargs keys.
         ignore_keys = ["signal", "kwargs"]
-        transform_keys = [k for k in keys if k not in ignore_keys]
+        tfm_keys = [k for k in tfm_keys if k not in ignore_keys]
 
         # Combine keys specified by the child class, the keys found in
         # _transform signature, and the mask key.
-        self.keys = keys + transform_keys + ["mask"]
+        self.keys = keys + tfm_keys + ["mask"]
 
         self.prob = prob
 

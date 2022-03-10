@@ -47,6 +47,8 @@ def test_transform(transform_name):
     transform = transform_cls(prob=1.0, **kwargs)
 
     kwargs = transform.instantiate(seed, signal)
+    for k in kwargs[transform_name]:
+        assert k in transform.keys
     output = transform(signal, **kwargs)
     assert isinstance(output, AudioSignal)
 
