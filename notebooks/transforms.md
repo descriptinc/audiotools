@@ -58,8 +58,7 @@ class LowPass(BaseTransform):
         name: str = None,
         prob: float = 1,
     ):
-        keys = ["cutoff"]
-        super().__init__(name=name, keys=keys, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
 
@@ -98,10 +97,7 @@ This instead draws uniformly between 4000 and 8000 Hz. There's also
 a special distribution called `const`, which always returns the same value
 (e.g. `(const, 4)` always returns `4`).
 
-Under the
-hood, `util.sample_from_dist` just calls `state.uniform(4000, 8000)`.
-Speaking of states, note that it's also passed into `instantiate`. By passing the same seed, you can reliably get the same transform
-parameters. For example:
+Under the hood, `util.sample_from_dist` just calls `state.uniform(4000, 8000)`. Speaking of states, note that it's also passed into `instantiate`. By passing the same seed, you can reliably get the same transform parameters. For example:
 
 ```{.python .cb.nb}
 transform = tfm.LowPass()
