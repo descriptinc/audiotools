@@ -118,9 +118,8 @@ class Compose(BaseTransform):
         tfm_counts = defaultdict(lambda: 0)
         for tfm in transforms:
             tfm_name = tfm.name
-            tfm_counts[tfm_name] += 1
-            if tfm_counts[tfm_name] > 1:
-                tfm_name = f"{tfm_counts[tfm_name]}.{tfm_name}"
+            tfm_name = f"{tfm_counts[tfm_name]}.{tfm_name}"
+            tfm_counts[tfm.name] += 1
             tfm.name = tfm_name
 
         keys = [tfm.name for tfm in transforms]
@@ -138,7 +137,7 @@ class Compose(BaseTransform):
 
     def _transform(self, signal, **kwargs):
         for transform in self.transforms:
-            if transform.name in self.transforms_to_apply:
+            if any([x in transform.name for x in self.transforms_to_apply]):
                 signal = transform(signal, **kwargs)
         return signal
 
