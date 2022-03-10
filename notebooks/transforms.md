@@ -448,7 +448,7 @@ post.disp(audio_dict, first_column="batch_idx")
 
 You can implement your own transform by doing three things:
 
-1. Define the `keys` that the transform expects at runtime.
+1. Implement the init function which takes `prob`, and `name`, and any args with any default distributions you want.
 2. Implement the `_instantiate` function to instantiate values for the expected keys.
 3. Implement the `_transform` function which takes a `signal` in the first argument, and then other keyword arguments, and does something to the signal and returns a new signal.
 
@@ -456,24 +456,26 @@ Here's a template:
 
 ```python
 class YourTransform(BaseTransform):
+    # Step 1. Define the arguments and their default distribution.
     def __init__(
         self,
         your_arg: tuple = ("uniform", 0.0, 0.1),
         name: str = None,
         prob: float = 1.0,
     ):
-        keys = ["your_arg"] # Step 1.
-        super().__init__(keys=keys, name=name, prob=prob)
+        super().__init__(name=name, prob=prob)
 
         self.your_arg = your_arg
 
     def _instantiate(self, state: RandomState):
-        # Step 2.
+        # Step 2. Initialize the argument using the distribution
+        # or whatever other logic you want to implement here.
         return {"your_arg": util.sample_from_dist(self.your_arg, state)}
 
     def _transform(self, signal, your_arg):
-        # Step 3.
-        return signal.do_something(your_arg)
+        # Step 2. Manipulate the signal based on the values
+        # passed to this function.
+        return do_something(signal, your_arg)
 ```
 
 ## Transforms that require data
