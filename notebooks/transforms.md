@@ -36,8 +36,78 @@ from flatten_dict import flatten
 import torch
 import pprint
 from collections import defaultdict
+from audiotools import transforms as tfm
 
 pp = pprint.PrettyPrinter()
+
+def make_dict(signal_batch, output_batch, kwargs=None):
+    audio_dict = {}
+
+    kwargs_ = {}
+
+    if kwargs is not None:
+        kwargs = flatten(kwargs)
+        for k, v in kwargs.items():
+            if isinstance(v, torch.Tensor):
+                key = ".".join(list(k[-2:]))
+                kwargs_[key] = v
+
+    for i in range(signal_batch.batch_size):
+        audio_dict[i] = {
+            "input": signal_batch[i],
+            "output": output_batch[i]
+        }
+        for k, v in kwargs_.items():
+            try:
+                audio_dict[i][k] = v[i].item()
+            except:
+                audio_dict[i][k] = v[i]
+
+    return audio_dict
+```
+
+## Audio examples
+
+Below is a table demonstrating every transform we currently have implemented, with
+randomly chosen parameters.
+
+```{.python .cb.nb show=code:none+rich_output+stdout:raw+stderr}
+seed = 0
+
+transforms_to_demo = []
+for x in dir(tfm):
+    if hasattr(getattr(tfm, x), "transform"):
+        if x not in ["Compose", "Choose"]:
+            transforms_to_demo.append(x)
+
+
+audio_path = "tests/audio/spk/f10_script4_produced.wav"
+signal = AudioSignal(audio_path, offset=6, duration=5)
+signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
+
+audio_dict = {
+    "Original": {"audio": signal},
+}
+
+for transform_name in transforms_to_demo:
+    kwargs = {}
+    if transform_name == "BackgroundNoise":
+        kwargs["csv_files"] = ["tests/audio/noises.csv"]
+    if transform_name == "RoomImpulseResponse":
+        kwargs["csv_files"] = ["tests/audio/irs.csv"]
+    if "Quantization" in transform_name:
+        kwargs["channels"] = ("choice", [8, 16, 32])
+    transform_cls = getattr(tfm, transform_name)
+    t = transform_cls(prob=1.0, **kwargs)
+
+    t_kwargs = t.instantiate(seed, signal)
+    output = t(signal.clone(), **t_kwargs)
+
+    audio_dict[t.name] = {
+        "audio": output
+    }
+
+post.disp(audio_dict, first_column="Transform")
 ```
 
 ## Introduction
@@ -306,31 +376,6 @@ output_batch = transform(signal_batch.clone(), **kwargs)
 ```
 
 ```{.python .cb.nb show=none+rich_output+stdout:raw+stderr}
-def make_dict(signal_batch, output_batch, kwargs=None):
-    audio_dict = {}
-
-    kwargs_ = {}
-
-    if kwargs is not None:
-        kwargs = flatten(kwargs)
-        for k, v in kwargs.items():
-            if isinstance(v, torch.Tensor):
-                key = ".".join(list(k[-2:]))
-                kwargs_[key] = v
-
-    for i in range(batch_size):
-        audio_dict[i] = {
-            "input": signal_batch[i],
-            "output": output_batch[i]
-        }
-        for k, v in kwargs_.items():
-            try:
-                audio_dict[i][k] = v[i].item()
-            except:
-                audio_dict[i][k] = v[i]
-
-    return audio_dict
-
 audio_dict = make_dict(signal_batch, output_batch, kwargs)
 post.disp(audio_dict, first_column="batch_idx")
 ```
