@@ -86,7 +86,7 @@ signal = AudioSignal(audio_path, offset=6, duration=5)
 signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
 
 audio_dict = {
-    "Original": {"audio": signal},
+    "Original": {"audio": signal, "params": None},
 }
 
 for transform_name in transforms_to_demo:
@@ -101,10 +101,23 @@ for transform_name in transforms_to_demo:
     t = transform_cls(prob=1.0, **kwargs)
 
     t_kwargs = t.instantiate(seed, signal)
+
+    t_str = ""
+    for k, v in t_kwargs[transform_name].items():
+        if k == "mask":
+            continue
+        if not isinstance(v, AudioSignal):
+            try:
+                v = f"{v.item():0.2f}"
+            except:
+                v = " ".join([f"{x:0.2f}" for x in v.tolist()])
+            t_str += f"{k}:{v}, "
+
     output = t(signal.clone(), **t_kwargs)
 
     audio_dict[t.name] = {
-        "audio": output
+        "audio": output,
+        "params": f"{t_str}"
     }
 
 post.disp(audio_dict, first_column="Transform")
