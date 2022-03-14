@@ -251,7 +251,6 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
-        self._loudness = None
         return self
 
     def clip_distortion(self, clip_percentile):

@@ -114,7 +114,10 @@ class BaseTransform:
 
 
 class Compose(BaseTransform):
-    def __init__(self, transforms: list, name: str = None, prob: float = 1.0):
+    def __init__(self, *transforms: list, name: str = None, prob: float = 1.0):
+        if isinstance(transforms[0], list):
+            transforms = transforms[0]
+
         for i, tfm in enumerate(transforms):
             tfm.name = f"{i}.{tfm.name}"
 
