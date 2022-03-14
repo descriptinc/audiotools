@@ -32,11 +32,14 @@ class EffectMixin:
         other.zero_pad(0, pad_len)
         other.truncate_samples(self.signal_length)
         tgt_loudness = self.loudness() - snr
+        # Note that normalization happens before EQ for speed reasons.
+        # If EQ is extreme, the actual SNR may not match the specified
+        # SNR.
+        other = other.normalize(tgt_loudness)
 
         if other_eq is not None:
             other = other.equalizer(other_eq)
 
-        other = other.normalize(tgt_loudness)
         self.audio_data = self.audio_data + other.audio_data
 
         # loudness has changed
@@ -251,6 +254,7 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
+        self._loudness = None
         return self
 
     def clip_distortion(self, clip_percentile):
