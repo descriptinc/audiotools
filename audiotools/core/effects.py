@@ -32,11 +32,14 @@ class EffectMixin:
         other.zero_pad(0, pad_len)
         other.truncate_samples(self.signal_length)
         tgt_loudness = self.loudness() - snr
+        # Note that normalization happens before EQ for speed reasons.
+        # If EQ is extreme, the actual SNR may not match the specified
+        # SNR.
+        other = other.normalize(tgt_loudness)
 
         if other_eq is not None:
             other = other.equalizer(other_eq)
 
-        other = other.normalize(tgt_loudness)
         self.audio_data = self.audio_data + other.audio_data
 
         # loudness has changed
