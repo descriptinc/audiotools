@@ -104,7 +104,7 @@ class EffectMixin:
 
         return self
 
-    def apply_ir(self, ir, drr=None, ir_eq=None, rescale=True):
+    def apply_ir(self, ir, drr=None, ir_eq=None, use_original_phase=False):
         if ir_eq is not None:
             ir = ir.equalizer(ir_eq)
         if drr is not None:
@@ -119,9 +119,10 @@ class EffectMixin:
         self.convolve(ir)
 
         # Use the input phase
-        self.stft()
-        self.stft_data = self.magnitude * torch.exp(1j * phase)
-        self.istft()
+        if use_original_phase:
+            self.stft()
+            self.stft_data = self.magnitude * torch.exp(1j * phase)
+            self.istft()
 
         # Rescale to the input's amplitude
         max_transformed = self.audio_data.abs().max(dim=-1, keepdims=True).values
