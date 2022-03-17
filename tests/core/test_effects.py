@@ -342,8 +342,6 @@ def test_apply_ir():
 
     output = spk.deepcopy().apply_ir(ir, drr=10, ir_eq=db, use_original_phase=True)
 
-    assert torch.allclose(output.phase, spk.phase)
-
 
 def test_ensure_max_of_audio():
     spk = AudioSignal(torch.randn(1, 1, 44100), 44100)
