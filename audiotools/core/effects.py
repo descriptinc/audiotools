@@ -95,9 +95,9 @@ class EffectMixin:
         delta_audio = torch.fft.irfft(delta_convolved_fft)
 
         # Use the delta to rescale the audio exactly as needed.
-        scale = delta_audio.abs().max(dim=-1, keepdims=True)[
-            0
-        ] / convolved_audio.abs().max(dim=-1, keepdims=True)[0].clamp(1e-5)
+        delta_max = delta_audio.abs().max(dim=-1, keepdims=True)[0]
+        convolved_max = convolved_audio.abs().max(dim=-1, keepdims=True)[0]
+        scale = delta_max / convolved_max.clamp(1e-5)
         convolved_audio = convolved_audio * scale
 
         self.audio_data = convolved_audio
