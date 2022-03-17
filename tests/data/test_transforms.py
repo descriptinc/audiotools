@@ -23,9 +23,9 @@ def _compare_transform(transform_name, signal):
 
     if regression_data.exists():
         regression_signal = AudioSignal(regression_data)
-        regression_signal.loudness()
-        signal.loudness()
-        assert signal == regression_signal
+        assert torch.allclose(
+            signal.audio_data, regression_signal.audio_data, atol=1e-6
+        )
     else:
         signal.write(regression_data)
 
