@@ -142,3 +142,60 @@ class DSPMixin:
         self.audio_data = self.audio_data - filtered
         self.stft_data = None
         return self
+
+    def mask_frequencies(self, fmin_hz: int, fmax_hz: int, val: float = 0.0):
+        # SpecAug
+        mag, phase = self.magnitude, self.phase
+        fmin_hz = util.ensure_tensor(fmin_hz, ndim=mag.ndim)
+        fmax_hz = util.ensure_tensor(fmax_hz, ndim=mag.ndim)
+        assert torch.all(fmin_hz < fmax_hz)
+
+        # build mask
+        nbins = mag.shape[-2]
+        bins_hz = torch.linspace(0, self.sample_rate, nbins)
+        bins_hz = bins_hz[None, None, :, None].repeat(
+            self.batch_size, 1, 1, mag.shape[-1]
+        )
+        mask = (fmin_hz <= bins_hz) & (bins_hz < fmax_hz)
+        mask = mask.to(self.device)
+
+        mag = mag.masked_fill(mask, val)
+        phase = phase.masked_fill(mask, val)
+        self.stft_data = mag * torch.exp(1j * phase)
+        self.audio_data = None
+        return self
+
+    def mask_timesteps(self, tmin_s: int, tmax_s: int, val: float = 0.0):
+        # SpecAug
+        mag, phase = self.magnitude, self.phase
+        tmin_s = util.ensure_tensor(tmin_s, ndim=mag.ndim)
+        tmax_s = util.ensure_tensor(tmax_s, ndim=mag.ndim)
+
+        assert torch.all(tmin_s < tmax_s)
+
+        # build mask
+        nt = mag.shape[-1]
+        bins_t = torch.linspace(0, self.signal_duration, nt)
+        bins_t = bins_t[None, None, None, :].repeat(
+            self.batch_size, 1, mag.shape[-2], 1
+        )
+        mask = (tmin_s <= bins_t) & (bins_t < tmax_s)
+        mask = mask.to(self.device)
+
+        mag = mag.masked_fill(mask, val)
+        phase = phase.masked_fill(mask, val)
+        self.stft_data = mag * torch.exp(1j * phase)
+        self.audio_data = None
+        return self
+
+    def shift_phase(self, shift: float):
+        shift = util.ensure_tensor(shift, ndim=self.phase.ndim)
+        self.phase = self.phase + shift
+        self.audio_data = None
+        return self
+
+    def corrupt_phase(self, scale: float):
+        scale = util.ensure_tensor(scale, ndim=self.phase.ndim)
+        self.phase = self.phase + scale * torch.randn_like(self.phase)
+        self.audio_data = None
+        return self

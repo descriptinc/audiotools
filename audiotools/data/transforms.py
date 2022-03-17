@@ -289,7 +289,7 @@ class BackgroundNoise(BaseTransform):
         self.n_bands = n_bands
         self.audio_files = util.read_csv(csv_files)
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
@@ -459,3 +459,147 @@ class RescaleAudio(BaseTransform):
 
     def _transform(self, signal):
         return signal.ensure_max_of_audio(self.val)
+
+
+class ShiftPhase(BaseTransform):
+    def __init__(
+        self,
+        shift: tuple = ("uniform", -np.pi, np.pi),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.shift = shift
+
+    def _instantiate(self, state: RandomState):
+        return {"shift": util.sample_from_dist(self.shift, state)}
+
+    def _transform(self, signal, shift):
+        return signal.shift_phase(shift)
+
+
+class PolarityInversion(ShiftPhase):
+    def __init__(self, name: str = None, prob: float = 1):
+        super().__init__(shift=("const", np.pi), name=name, prob=prob)
+
+
+class CorruptPhase(BaseTransform):
+    def __init__(
+        self, scale: tuple = ("uniform", 0, np.pi), name: str = None, prob: float = 1
+    ):
+        super().__init__(name=name, prob=prob)
+        self.scale = scale
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        scale = util.sample_from_dist(self.scale, state)
+        corruption = state.normal(scale=scale, size=signal.phase.shape[1:])
+        return {"corruption": corruption.astype("float32")}
+
+    def _transform(self, signal, corruption):
+        import ipdb
+
+        ipdb.set_trace()
+        return signal.shift_phase(shift=corruption)
+
+
+class SpecAugFreqMask(BaseTransform):
+    def __init__(
+        self,
+        fmin_hz: tuple = ("uniform", 0, None),
+        fmax_hz: tuple = ("uniform", 0, None),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.fmin_hz = fmin_hz
+        self.fmax_hz = fmax_hz
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        fmin_hz = list(self.fmin_hz)
+        if fmin_hz[-1] is None:
+            assert signal is not None
+            fmin_hz[-1] = signal.sample_rate
+        fmin_hz = util.sample_from_dist(fmin_hz, state)
+
+        fmax_hz = list(self.fmax_hz)
+        if fmax_hz[-1] is None:
+            fmax_hz[-1] = signal.sample_rate
+        fmax_hz[-1] = fmax_hz[-1] - fmin_hz
+        fmax_hz = fmin_hz + util.sample_from_dist(fmax_hz, state)
+
+        return {"fmin_hz": fmin_hz, "fmax_hz": fmax_hz}
+
+    def _transform(self, signal, fmin_hz: float, fmax_hz: float):
+        return signal.mask_frequencies(fmin_hz=fmin_hz, fmax_hz=fmax_hz)
+
+
+class SpecAugTimeMask(BaseTransform):
+    def __init__(
+        self,
+        tmin_s: tuple = ("uniform", 0, None),
+        tmax_s: tuple = ("uniform", 0, None),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.tmin_s = tmin_s
+        self.tmax_s = tmax_s
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        tmin_s = list(self.tmin_s)
+        if tmin_s[-1] is None:
+            assert signal is not None
+            tmin_s[-1] = signal.signal_duration
+        tmin_s = util.sample_from_dist(tmin_s, state)
+
+        tmax_s = list(self.tmax_s)
+        if tmax_s[-1] is None:
+            tmax_s[-1] = signal.signal_duration
+        tmax_s[-1] = tmax_s[-1] - tmin_s
+        tmax_s = tmin_s + util.sample_from_dist(tmax_s, state)
+
+        return {"tmin_s": tmin_s, "tmax_s": tmax_s}
+
+    def _transform(self, signal, tmin_s: float, tmax_s: float):
+        return signal.mask_timesteps(tmin_s=tmin_s, tmax_s=tmax_s)
+
+
+class Smoothing(BaseTransform):
+    def __init__(
+        self,
+        window_type: tuple = ("const", "average"),
+        window_length: tuple = ("choice", [8, 16, 32, 64, 128, 256, 512]),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.window_type = window_type
+        self.window_length = window_length
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        window_type = util.sample_from_dist(self.window_type, state)
+        window_length = util.sample_from_dist(self.window_length, state)
+        window = signal.get_window(
+            window_type=window_type, window_length=window_length, device="cpu"
+        )
+        return {"window": AudioSignal(window, signal.sample_rate)}
+
+    def _transform(self, signal, window):
+        scale = signal.audio_data.abs().max(dim=-1, keepdim=True).values
+        out = signal.convolve(window)
+        out = out * scale / out.audio_data.abs().max(dim=-1, keepdim=True).values
+        return out
+
+
+# class ApplyCodec(BaseTransform):
+#     def __init__(
+#         self,
+#         codec: tuple = ("choice", ["vorbis", "mp3", "ogg", "amr-nb"]),
+#         name: str = None,
+#         prob: float = 1,
+#     ):
+#         super().__init__(name=name, prob=prob)
+#         self.codec = codec
+
+#     def _instantiate(self, state: RandomState):
+#         return {"codec": util.sample_from_dist(self.codec, state)}

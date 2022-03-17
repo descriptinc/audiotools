@@ -1,3 +1,4 @@
+from aifc import Error
 from pathlib import Path
 
 import numpy as np
@@ -23,10 +24,13 @@ def _compare_transform(transform_name, signal):
 
     if regression_data.exists():
         regression_signal = AudioSignal(regression_data)
+        # print("load", regression_signal._audio_data.mean().item(), regression_data)
         regression_signal.loudness()
+        # print(regression_signal._audio_data.mean().item())
         signal.loudness()
         assert signal == regression_signal
     else:
+        # print("writtte", signal._audio_data, signal.audio_data.mean().item())
         signal.write(regression_data)
 
 
@@ -49,7 +53,7 @@ def test_transform(transform_name):
     kwargs = transform.instantiate(seed, signal)
     for k in kwargs[transform_name]:
         assert k in transform.keys
-    output = transform(signal, **kwargs)
+    output = transform(signal.clone(), **kwargs)
     assert isinstance(output, AudioSignal)
 
     _compare_transform(transform_name, output)
@@ -220,7 +224,7 @@ def test_choose_basic():
         kwargs = transform.instantiate(seed, signal)
         output = transform(signal.clone(), **kwargs)
 
-        assert output in targets
+        assert any([output == target for target in targets])
 
     # Test that if you make a batch of signals and call it,
     # the first item in the batch is still the same as above.
@@ -351,3 +355,7 @@ def test_nested_masking():
         kwargs = batch["transform_args"]
         with torch.no_grad():
             output = dataset.transform(signal, **kwargs)
+
+
+if __name__ == "__main__":
+    test_transform("CorruptPhase")
