@@ -115,7 +115,13 @@ class EffectMixin:
 
         # Augment the impulse response to simulate microphone effects
         # and with varying direct-to-reverberant ratio.
+        phase = self.phase
         self.convolve(ir)
+
+        # Use the input phase
+        self.stft()
+        self.stft_data = self.magnitude * torch.exp(1j * phase)
+        self.istft()
 
         # Rescale to the input's amplitude
         max_transformed = self.audio_data.abs().max(dim=-1, keepdims=True).values
