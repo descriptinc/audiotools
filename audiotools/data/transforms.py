@@ -1,14 +1,11 @@
-from collections import defaultdict
 from contextlib import contextmanager
 from inspect import signature
-from turtle import forward
 from typing import List
 
 import numpy as np
 import torch
 from flatten_dict import flatten
 from flatten_dict import unflatten
-from matplotlib import use
 from numpy.random import RandomState
 
 from ..core import AudioSignal
@@ -492,7 +489,7 @@ class ShiftPhase(SpectralTransform):
         return signal.shift_phase(shift)
 
 
-class PolarityInversion(ShiftPhase):
+class InvertPhase(ShiftPhase):
     def __init__(self, name: str = None, prob: float = 1):
         super().__init__(shift=("const", np.pi), name=name, prob=prob)
 
@@ -617,21 +614,5 @@ class Smoothing(BaseTransform):
         return {"window": AudioSignal(window, signal.sample_rate)}
 
     def _transform(self, signal, window):
-        scale = signal.audio_data.abs().max(dim=-1, keepdim=True).values
         out = signal.convolve(window)
-        out = out * scale / out.audio_data.abs().max(dim=-1, keepdim=True).values
         return out
-
-
-# class ApplyCodec(BaseTransform):
-#     def __init__(
-#         self,
-#         codec: tuple = ("choice", ["vorbis", "mp3", "ogg", "amr-nb"]),
-#         name: str = None,
-#         prob: float = 1,
-#     ):
-#         super().__init__(name=name, prob=prob)
-#         self.codec = codec
-
-#     def _instantiate(self, state: RandomState):
-#         return {"codec": util.sample_from_dist(self.codec, state)}
