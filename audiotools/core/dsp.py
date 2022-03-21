@@ -162,7 +162,6 @@ class DSPMixin:
         mag = mag.masked_fill(mask, val)
         phase = phase.masked_fill(mask, val)
         self.stft_data = mag * torch.exp(1j * phase)
-        self.audio_data = None
         return self
 
     def mask_timesteps(self, tmin_s: int, tmax_s: int, val: float = 0.0):
@@ -185,17 +184,26 @@ class DSPMixin:
         mag = mag.masked_fill(mask, val)
         phase = phase.masked_fill(mask, val)
         self.stft_data = mag * torch.exp(1j * phase)
-        self.audio_data = None
+        return self
+
+    def mask_low_magnitudes(self, f_thresh_hz: int, val: float = 0.0):
+        assert torch.all(f_thresh_hz < self.sample_rate)
+
+        mag = self.magnitude
+        f_thresh_hz = util.ensure_tensor(f_thresh_hz, ndim=mag.ndim)
+
+        mask = mag < f_thresh_hz
+        mag = mag.masked_fill(mask, val)
+
+        self.magnitude = mag
         return self
 
     def shift_phase(self, shift: float):
         shift = util.ensure_tensor(shift, ndim=self.phase.ndim)
         self.phase = self.phase + shift
-        self.audio_data = None
         return self
 
     def corrupt_phase(self, scale: float):
         scale = util.ensure_tensor(scale, ndim=self.phase.ndim)
         self.phase = self.phase + scale * torch.randn_like(self.phase)
-        self.audio_data = None
         return self

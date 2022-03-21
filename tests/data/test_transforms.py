@@ -24,13 +24,12 @@ def _compare_transform(transform_name, signal):
 
     if regression_data.exists():
         regression_signal = AudioSignal(regression_data)
-        # print("load", regression_signal._audio_data.mean().item(), regression_data)
         regression_signal.loudness()
-        # print(regression_signal._audio_data.mean().item())
         signal.loudness()
-        assert signal == regression_signal
+        assert torch.allclose(
+            signal.audio_data, regression_signal.audio_data, atol=1e-6
+        )
     else:
-        # print("writtte", signal._audio_data, signal.audio_data.mean().item())
         signal.write(regression_data)
 
 
@@ -53,7 +52,7 @@ def test_transform(transform_name):
     kwargs = transform.instantiate(seed, signal)
     for k in kwargs[transform_name]:
         assert k in transform.keys
-    output = transform(signal.clone(), **kwargs)
+    output = transform(signal, **kwargs)
     assert isinstance(output, AudioSignal)
 
     _compare_transform(transform_name, output)
@@ -358,4 +357,4 @@ def test_nested_masking():
 
 
 if __name__ == "__main__":
-    test_transform("CorruptPhase")
+    test_transform("MaskLowMagnitudes")

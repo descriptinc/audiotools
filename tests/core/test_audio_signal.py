@@ -34,9 +34,9 @@ def test_io():
 
     array = np.random.randn(2, 16000)
     signal = AudioSignal(array, sample_rate=16000)
-    assert np.allclose(signal.numpy().audio_data, array)
+    assert np.allclose(signal.numpy(), array)
 
-    signal = AudioSignal(array)
+    signal = AudioSignal(array, 44100)
     assert signal.sample_rate == 44100
     signal.shape
 
@@ -182,7 +182,7 @@ def test_equality():
 
     assert sig1 != sig3
 
-    assert sig1.numpy() != sig3.numpy()
+    assert not np.allclose(sig1.numpy(), sig3.numpy())
 
 
 def test_indexing():
@@ -318,18 +318,25 @@ def test_to_from_ops():
     signal = AudioSignal(audio_path)
     signal.stft()
     signal = signal.to("cpu")
+
     assert signal.audio_data.device == torch.device("cpu")
-
-    signal = signal.numpy()
-    assert isinstance(signal.audio_data, np.ndarray)
-    assert signal.device == "numpy"
-
-    signal = signal.to()
-    assert torch.is_tensor(signal.audio_data)
+    assert isinstance(signal.numpy(), np.ndarray)
 
     signal.cpu()
     signal.cuda()
     signal.float()
+
+
+def test_device():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path)
+    signal.to("cpu")
+
+    assert signal.device == torch.device("cpu")
+
+    signal.stft()
+    signal.audio_data = None
+    assert signal.device == torch.device("cpu")
 
 
 @pytest.mark.parametrize("window_length", [2048, 512])

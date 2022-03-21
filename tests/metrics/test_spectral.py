@@ -65,3 +65,8 @@ def test_phase_loss():
 
     loss_val_diff = loss(x, y)
     assert loss_val_diff > loss_val_identity
+
+
+if __name__ == "__main__":
+    test_multiscale_stft()
+    test_mel_spectrogram_loss()

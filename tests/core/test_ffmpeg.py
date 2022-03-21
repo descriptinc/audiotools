@@ -72,3 +72,10 @@ def test_ffmpeg_load():
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(out_path)
 
         assert og_signal.signal_length == signal_from_ffmpeg.signal_length
+
+
+if __name__ == "__main__":
+    test_ffmpeg_resample(8000)
+    test_ffmpeg_resample(22050)
+    test_ffmpeg_resample(44100)
+    test_ffmpeg_resample(48000)

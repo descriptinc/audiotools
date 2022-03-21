@@ -55,3 +55,7 @@ def test_pesq():
         new_pesq = metrics.quality.pesq(estimate, x)
         assert new_pesq < old_pesq
         old_pesq = new_pesq
+
+
+if __name__ == "__main__":
+    test_pesq()

@@ -4,6 +4,7 @@ import pathlib
 import tempfile
 import warnings
 from collections import namedtuple
+from email.mime import audio
 
 import julius
 import librosa
@@ -53,13 +54,16 @@ class AudioSignal(
         device=None,
     ):
 
-        audio_array = None
         audio_path = None
-        if isinstance(audio_path_or_array, (str, pathlib.Path)):
+        audio_array = None
+
+        if isinstance(audio_path_or_array, str):
             audio_path = audio_path_or_array
-        elif isinstance(audio_path_or_array, np.ndarray) or torch.is_tensor(
-            audio_path_or_array
-        ):
+        elif isinstance(audio_path_or_array, pathlib.Path):
+            audio_path = audio_path_or_array
+        elif isinstance(audio_path_or_array, np.ndarray):
+            audio_array = audio_path_or_array
+        elif torch.is_tensor(audio_path_or_array):
             audio_array = audio_path_or_array
         else:
             raise ValueError(
@@ -69,7 +73,7 @@ class AudioSignal(
 
         self.path_to_input_file = None
 
-        self._audio_data, self._stft_data = None, None
+        self.audio_data, self.stft_data = None, None
         if audio_path is not None:
             self.load_from_file(audio_path, offset=offset, duration=duration)
         elif audio_array is not None:
@@ -157,7 +161,7 @@ class AudioSignal(
         return batched_signal
 
     # I/O
-    def load_from_file(self, audio_path, offset, duration):
+    def load_from_file(self, audio_path, offset, duration, device="cpu"):
         data, sample_rate = librosa.load(
             audio_path,
             offset=offset,
@@ -165,28 +169,39 @@ class AudioSignal(
             sr=None,
             mono=False,
         )
+        data = util.ensure_tensor(data)
 
-        self.audio_data = util.ensure_tensor(data)
+        if data.ndim < 2:
+            data = data.unsqueeze(0)
+        if data.ndim < 3:
+            data = data.unsqueeze(0)
+        self.audio_data = data
+
         self.original_signal_length = self.signal_length
 
         self.sample_rate = sample_rate
         self.path_to_input_file = audio_path
-        return self
+        return self.to(device)
 
-    def load_from_array(self, audio_array, sample_rate):
-        self.audio_data = util.ensure_tensor(audio_array)
+    def load_from_array(self, audio_array, sample_rate, device="cpu"):
+        audio_data = util.ensure_tensor(audio_array)
+
+        if audio_data.dtype == torch.double:
+            audio_data = audio_data.float()
+
+        if audio_data.ndim < 2:
+            audio_data = audio_data.unsqueeze(0)
+        if audio_data.ndim < 3:
+            audio_data = audio_data.unsqueeze(0)
+        self.audio_data = audio_data
+
         self.original_signal_length = self.signal_length
 
-        if sample_rate is None:
-            sample_rate = 44100
         self.sample_rate = sample_rate
-        return self
+        return self.to(device)
 
     def write(self, audio_path, batch_idx=0):
-        if (
-            self.audio_data[batch_idx].min() < -1
-            or self.audio_data[batch_idx].max() > 1
-        ):
+        if self.audio_data[batch_idx].abs().max() > 1:
             warnings.warn("Audio amplitude > 1 clipped when saving")
         torchaudio.save(audio_path, self.audio_data[batch_idx], self.sample_rate)
         return self
@@ -203,8 +218,8 @@ class AudioSignal(
             self.sample_rate,
             stft_params=self.stft_params,
         )
-        if self._stft_data is not None:
-            clone._stft_data = self._stft_data.clone()
+        if self.stft_data is not None:
+            clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
         return clone
@@ -245,12 +260,12 @@ class AudioSignal(
 
     # Tensor operations
     def to(self, device):
-        if self._audio_data is not None:
-            self._audio_data = self._audio_data.to(device)
+        if self.audio_data is not None:
+            self.audio_data = self.audio_data.to(device)
         if self._loudness is not None:
             self._loudness = self._loudness.to(device)
-        if self._stft_data is not None:
-            self._stft_data = self._stft_data.to(device)
+        if self.stft_data is not None:
+            self.stft_data = self.stft_data.to(device)
         return self
 
     def float(self):
@@ -264,8 +279,7 @@ class AudioSignal(
         return self.to("cuda")
 
     def numpy(self):
-        self.audio_data = self.audio_data.detach().cpu().numpy()
-        return self
+        return self.audio_data.detach().cpu().numpy()
 
     def zero_pad(self, before, after):
         self.audio_data = torch.nn.functional.pad(self.audio_data, (before, after))
@@ -291,18 +305,15 @@ class AudioSignal(
 
     @property
     def device(self):
-        if self._audio_data is not None:
-            device = self._audio_data.device
-        elif self._stft_data is not None:
-            device = self._stft_data.device
+        if self.audio_data is not None:
+            device = self.audio_data.device
+        elif self.stft_data is not None:
+            device = self.stft_data.device
         return device
 
     # Properties
     @property
     def audio_data(self):
-        if self._audio_data is None:
-            assert self._stft_data is not None
-            self.istft()
         return self._audio_data
 
     @audio_data.setter
@@ -313,38 +324,21 @@ class AudioSignal(
         be reshaped to (1, num_channels, num_samples) - a batch size of 1.
         """
         if data is not None:
-            assert torch.is_tensor(data)
-            if data.ndim < 2:
-                data = data.unsqueeze(0)
-            if data.ndim < 3:
-                data = data.unsqueeze(0)
-
-            if data is not self._audio_data:
-                self._stft_data = None
+            assert torch.is_tensor(data), "audio_data should be torch.Tensor"
+            assert data.ndim == 3, "audio_data should be 3-dim (B, C, T)"
         self._audio_data = data
+        return
 
     @property
     def stft_data(self):
-        if self._stft_data is None:
-            assert self._audio_data is not None
-            self.stft()
         return self._stft_data
 
     @stft_data.setter
     def stft_data(self, data):
         if data is not None:
             assert torch.is_tensor(data) and torch.is_complex(data)
-            if data is not self._stft_data:
-                import ipdb
-
-                ipdb.set_trace()
-                print(3.1, data[:1].mean().item())
-                self._audio_data = None
-
-            if self._stft_data is not None:
-                # for original length to be valid in istft
-                assert self._stft_data.shape == data.shape
-
+            if self.stft_data is not None and self.stft_data.shape != data.shape:
+                warnings.warn("stft_data changed shape")
         self._stft_data = data
         return
 
@@ -445,7 +439,7 @@ class AudioSignal(
         )
         _, nf, nt = stft_data.shape
         stft_data = stft_data.reshape(self.batch_size, self.num_channels, nf, nt)
-        self._stft_data = stft_data
+        self.stft_data = stft_data
         return stft_data
 
     def istft(
@@ -453,6 +447,7 @@ class AudioSignal(
         window_length=None,
         hop_length=None,
         window_type=None,
+        truncate_to_length=None,
     ):
         if self.stft_data is None:
             raise RuntimeError("Cannot do inverse STFT without self.stft_data!")
@@ -469,10 +464,10 @@ class AudioSignal(
             self.stft_params.window_type if window_type is None else window_type
         )
 
-        window = self.get_window(window_type, window_length, self._stft_data.device)
+        window = self.get_window(window_type, window_length, self.stft_data.device)
 
         nb, nch, nf, nt = self.stft_data.shape
-        stft_data = self._stft_data.reshape(nb * nch, nf, nt)
+        stft_data = self.stft_data.reshape(nb * nch, nf, nt)
         audio_data = torch.istft(
             stft_data,
             n_fft=window_length,
@@ -481,7 +476,7 @@ class AudioSignal(
             length=self.original_signal_length,
         )
         audio_data = audio_data.reshape(nb, nch, -1)
-        self._audio_data = audio_data
+        self.audio_data = audio_data
         return self
 
     def mel_spectrogram(self, n_mels=80, mel_fmin=0.0, mel_fmax=None, **kwargs):
@@ -511,6 +506,7 @@ class AudioSignal(
     @magnitude.setter
     def magnitude(self, value):
         self.stft_data = value * torch.exp(1j * self.phase)
+        return
 
     @property
     def phase(self):
@@ -521,17 +517,16 @@ class AudioSignal(
     @phase.setter
     def phase(self, value):
         self.stft_data = self.magnitude * torch.exp(1j * value)
+        return
 
     # Operator overloading
     def __add__(self, other):
         new_signal = self.deepcopy()
         new_signal.audio_data += util._get_value(other)
-        new_signal.stft_data = None
         return new_signal
 
     def __iadd__(self, other):
         self.audio_data += util._get_value(other)
-        self.stft_data = None
         return self
 
     def __radd__(self, other):
@@ -540,23 +535,19 @@ class AudioSignal(
     def __sub__(self, other):
         new_signal = self.deepcopy()
         new_signal.audio_data -= util._get_value(other)
-        new_signal.stft_data = None
         return new_signal
 
     def __isub__(self, other):
         self.audio_data -= util._get_value(other)
-        self.stft_data = None
         return self
 
     def __mul__(self, other):
         new_signal = self.deepcopy()
         new_signal.audio_data *= util._get_value(other)
-        new_signal.stft_data = None
         return new_signal
 
     def __imul__(self, other):
         self.audio_data *= util._get_value(other)
-        self.stft_data = None
         return self
 
     def __rmul__(self, other):
@@ -613,24 +604,8 @@ class AudioSignal(
     def __eq__(self, other):
         for k, v in list(self.__dict__.items()):
             if torch.is_tensor(v):
-                if other.__dict__[k] is None:
-                    warnings.warn(
-                        f"{other}, doesn't have {k}, ignoring comparison for {k}"
-                    )
-                    is_eq = True
-                elif k in ["_stft_data"]:
-                    is_eq = torch.allclose(v, other.__dict__[k], atol=1e-3)
-                else:
-                    is_eq = torch.allclose(v, other.__dict__[k], atol=1e-6)
-
-                if not is_eq:
+                if not torch.allclose(v, other.__dict__[k], atol=1e-6):
                     max_error = (v - other.__dict__[k]).abs().max()
-                    print(f"Max abs error for {k}: {max_error}")
-                    return False
-
-            elif isinstance(v, np.ndarray):
-                if not np.allclose(v, other.__dict__[k]):
-                    max_error = np.abs(v - other.__dict__[k]).max()
                     print(f"Max abs error for {k}: {max_error}")
                     return False
         return True
@@ -639,9 +614,9 @@ class AudioSignal(
     def __getitem__(self, key):
         if torch.is_tensor(key) and key.ndim == 0 and key.item() is True:
             assert self.batch_size == 1
-            audio_data = self._audio_data
+            audio_data = self.audio_data
             _loudness = self._loudness
-            stft_data = self._stft_data
+            stft_data = self.stft_data
 
         elif isinstance(key, (bool, int, list, slice, tuple)) or (
             torch.is_tensor(key) and key.ndim <= 1
@@ -650,9 +625,9 @@ class AudioSignal(
             # Then let's copy over relevant stuff.
             # Future work: make this work for time-indexing
             # as well, using the hop length.
-            audio_data = self._audio_data[key]
+            audio_data = self.audio_data[key]
             _loudness = self._loudness[key] if self._loudness is not None else None
-            stft_data = self._stft_data[key] if self._stft_data is not None else None
+            stft_data = self.stft_data[key] if self.stft_data is not None else None
 
         copy = type(self)(audio_data, self.sample_rate, stft_params=self.stft_params)
         copy._loudness = _loudness
@@ -667,26 +642,21 @@ class AudioSignal(
 
         if torch.is_tensor(key) and key.ndim == 0 and key.item() is True:
             assert self.batch_size == 1
-            self._audio_data = value._audio_data
+            self.audio_data = value.audio_data
             self._loudness = value._loudness
-            self._stft_data = value._stft_data
+            self.stft_data = value.stft_data
             return
 
         elif isinstance(key, (bool, int, list, slice, tuple)) or (
             torch.is_tensor(key) and key.ndim <= 1
         ):
-            if self._audio_data is not None and value._audio_data is not None:
-                self._audio_data[key] = value._audio_data
+            if self.audio_data is not None and value.audio_data is not None:
+                self.audio_data[key] = value.audio_data
             if self._loudness is not None and value._loudness is not None:
                 self._loudness[key] = value._loudness
-            if self._stft_data is not None and value._stft_data is not None:
-                self._stft_data[key] = value._stft_data
+            if self.stft_data is not None and value.stft_data is not None:
+                self.stft_data[key] = value.stft_data
             return
 
     def __ne__(self, other):
         return not self == other
-
-
-if __name__ == "__main__":
-    x = torch.randn(1, 1, 22050)
-    asig = AudioSignal(x, 22050)

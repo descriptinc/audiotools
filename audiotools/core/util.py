@@ -35,12 +35,8 @@ def info(audio_path):
 
 
 def ensure_tensor(x, ndim=None, batch_size=None):
-    if isinstance(x, (float, int, numbers.Integral)):
-        x = np.array([x])
-    if isinstance(x, (list, tuple)):
-        x = np.array(x)
     if not torch.is_tensor(x):
-        x = torch.from_numpy(x)
+        x = torch.as_tensor(x)
     if ndim is not None:
         assert x.ndim <= ndim
         while x.ndim < ndim:

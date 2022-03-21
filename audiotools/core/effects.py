@@ -133,7 +133,7 @@ class EffectMixin:
         return self
 
     def volume_change(self, db):
-        db = util.ensure_tensor(db).to(self.device)
+        db = util.ensure_tensor(db, ndim=1).to(self.device)
         gain = torch.exp(db * self.GAIN_FACTOR)
         self.audio_data = self.audio_data * gain[:, None, None]
 
@@ -271,7 +271,7 @@ class EffectMixin:
         AudioSignal
             Audio signal with clipped audio data.
         """
-        clip_percentile = util.ensure_tensor(clip_percentile)
+        clip_percentile = util.ensure_tensor(clip_percentile, ndim=1)
         min_thresh = torch.quantile(self.audio_data, clip_percentile / 2, dim=-1)
         max_thresh = torch.quantile(self.audio_data, 1 - (clip_percentile / 2), dim=-1)
 

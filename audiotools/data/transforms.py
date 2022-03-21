@@ -1,6 +1,7 @@
 from collections import defaultdict
 from contextlib import contextmanager
 from inspect import signature
+from turtle import forward
 from typing import List
 
 import numpy as np
@@ -111,6 +112,14 @@ class BaseTransform:
             kwargs.append(self.instantiate(state, signal))
         kwargs = util.collate(kwargs)
         return kwargs
+
+
+class SpectralTransform(BaseTransform):
+    def transform(self, signal, **kwargs):
+        signal.stft()
+        super().transform(signal, **kwargs)
+        signal.istft()
+        return signal
 
 
 class Compose(BaseTransform):
@@ -461,7 +470,7 @@ class RescaleAudio(BaseTransform):
         return signal.ensure_max_of_audio(self.val)
 
 
-class ShiftPhase(BaseTransform):
+class ShiftPhase(SpectralTransform):
     def __init__(
         self,
         shift: tuple = ("uniform", -np.pi, np.pi),
@@ -483,7 +492,7 @@ class PolarityInversion(ShiftPhase):
         super().__init__(shift=("const", np.pi), name=name, prob=prob)
 
 
-class CorruptPhase(BaseTransform):
+class CorruptPhase(SpectralTransform):
     def __init__(
         self, scale: tuple = ("uniform", 0, np.pi), name: str = None, prob: float = 1
     ):
@@ -496,13 +505,10 @@ class CorruptPhase(BaseTransform):
         return {"corruption": corruption.astype("float32")}
 
     def _transform(self, signal, corruption):
-        import ipdb
-
-        ipdb.set_trace()
         return signal.shift_phase(shift=corruption)
 
 
-class SpecAugFreqMask(BaseTransform):
+class SpecAugFreqMask(SpectralTransform):
     def __init__(
         self,
         fmin_hz: tuple = ("uniform", 0, None),
@@ -533,7 +539,7 @@ class SpecAugFreqMask(BaseTransform):
         return signal.mask_frequencies(fmin_hz=fmin_hz, fmax_hz=fmax_hz)
 
 
-class SpecAugTimeMask(BaseTransform):
+class SpecAugTimeMask(SpectralTransform):
     def __init__(
         self,
         tmin_s: tuple = ("uniform", 0, None),
@@ -562,6 +568,27 @@ class SpecAugTimeMask(BaseTransform):
 
     def _transform(self, signal, tmin_s: float, tmax_s: float):
         return signal.mask_timesteps(tmin_s=tmin_s, tmax_s=tmax_s)
+
+
+class MaskLowMagnitudes(SpectralTransform):
+    def __init__(
+        self,
+        f_thresh_hz: tuple = ("uniform", 0, None),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.f_thresh_hz = f_thresh_hz
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        f_thresh_hz = list(self.f_thresh_hz)
+        if f_thresh_hz[-1] is None:
+            assert signal is not None
+            f_thresh_hz[-1] = signal.sample_rate
+        return {"f_thresh_hz": util.sample_from_dist(f_thresh_hz)}
+
+    def _transform(self, signal, f_thresh_hz: float):
+        return signal.mask_low_magnitudes(f_thresh_hz=f_thresh_hz)
 
 
 class Smoothing(BaseTransform):
