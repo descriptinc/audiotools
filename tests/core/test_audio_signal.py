@@ -494,7 +494,3 @@ def test_batching():
 
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
-
-
-if __name__ == "__main__":
-    test_float()
