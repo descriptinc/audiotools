@@ -4,7 +4,6 @@ import pathlib
 import tempfile
 import warnings
 from collections import namedtuple
-from email.mime import audio
 
 import julius
 import librosa
@@ -75,16 +74,17 @@ class AudioSignal(
 
         self.audio_data, self.stft_data = None, None
         if audio_path is not None:
-            self.load_from_file(audio_path, offset=offset, duration=duration)
+            self.load_from_file(
+                audio_path, offset=offset, duration=duration, device=device
+            )
         elif audio_array is not None:
             assert sample_rate is not None
-            self.load_from_array(audio_array, sample_rate)
+            self.load_from_array(audio_array, sample_rate, device=device)
 
         self.window = None
         self.stft_params = stft_params
 
         self.metadata = {}
-        self.to(device=device)
 
     @classmethod
     def excerpt(cls, audio_path, offset=None, duration=None, state=None, **kwargs):
