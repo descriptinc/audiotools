@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from flatten_dict import flatten
 from flatten_dict import unflatten
+from matplotlib import use
 from numpy.random import RandomState
 
 from ..core import AudioSignal
@@ -334,12 +335,14 @@ class RoomImpulseResponse(BaseTransform):
         n_bands: int = 6,
         name: str = None,
         prob: float = 1.0,
+        use_original_phase: bool = False,
     ):
         super().__init__(name=name, prob=prob)
 
         self.drr = drr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
+        self.use_original_phase = use_original_phase
         self.audio_files = util.read_csv(csv_files)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
@@ -367,7 +370,9 @@ class RoomImpulseResponse(BaseTransform):
     def _transform(self, signal, ir_signal, drr, eq):
         # Clone ir_signal so that transform can be repeatedly applied
         # to different signals with the same effect.
-        return signal.apply_ir(ir_signal.clone(), drr, eq)
+        return signal.apply_ir(
+            ir_signal.clone(), drr, eq, use_original_phase=self.use_original_phase
+        )
 
 
 class VolumeChange(BaseTransform):

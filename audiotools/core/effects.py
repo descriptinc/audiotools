@@ -62,17 +62,7 @@ class EffectMixin:
 
         This function uses FFTs to do the convolution.
         """
-        from .audio_signal import AudioSignal
-
-        if start_at_max:
-            idx = other.audio_data.abs().argmax(axis=-1)
-            weights = [
-                AudioSignal(
-                    other.audio_data[i, ..., idx[i] :], sample_rate=other.sample_rate
-                )
-                for i in range(other.batch_size)
-            ]
-            other = AudioSignal.batch(weights, pad_signals=True)
+        from . import AudioSignal
 
         pad_len = self.signal_length - other.signal_length
 
@@ -81,21 +71,39 @@ class EffectMixin:
         else:
             other.truncate_samples(self.signal_length)
 
-        other.audio_data /= torch.norm(
-            other.audio_data.clamp(min=1e-8), p=2, dim=-1, keepdim=True
-        )
+        if start_at_max:
+            # Use roll to rotate over the max for every item
+            # so that the impulse responses don't induce any
+            # delay.
+            idx = other.audio_data.abs().argmax(axis=-1)
+            irs = torch.zeros_like(other.audio_data)
+            for i in range(other.batch_size):
+                irs[i] = torch.roll(other.audio_data[i], -idx[i].item(), -1)
+            other = AudioSignal(irs, other.sample_rate)
 
+        delta = torch.zeros_like(other.audio_data)
+        delta[..., 0] = 1
+
+        delta_fft = torch.fft.rfft(delta)
         other_fft = torch.fft.rfft(other.audio_data)
         self_fft = torch.fft.rfft(self.audio_data)
 
         convolved_fft = other_fft * self_fft
         convolved_audio = torch.fft.irfft(convolved_fft)
 
+        delta_convolved_fft = other_fft * delta_fft
+        delta_audio = torch.fft.irfft(delta_convolved_fft)
+
+        # Use the delta to rescale the audio exactly as needed.
+        delta_max = delta_audio.abs().max(dim=-1, keepdims=True)[0]
+        scale = 1 / delta_max.clamp(1e-5)
+        convolved_audio = convolved_audio * scale
+
         self.audio_data = convolved_audio
 
         return self
 
-    def apply_ir(self, ir, drr=None, ir_eq=None, rescale=True):
+    def apply_ir(self, ir, drr=None, ir_eq=None, use_original_phase=False):
         if ir_eq is not None:
             ir = ir.equalizer(ir_eq)
         if drr is not None:
@@ -106,7 +114,14 @@ class EffectMixin:
 
         # Augment the impulse response to simulate microphone effects
         # and with varying direct-to-reverberant ratio.
+        phase = self.phase
         self.convolve(ir)
+
+        # Use the input phase
+        if use_original_phase:
+            self.stft()
+            self.stft_data = self.magnitude * torch.exp(1j * phase)
+            self.istft()
 
         # Rescale to the input's amplitude
         max_transformed = self.audio_data.abs().max(dim=-1, keepdims=True).values
