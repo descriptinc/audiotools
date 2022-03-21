@@ -275,7 +275,7 @@ class AudioSignal(
     def cpu(self):
         return self.to("cpu")
 
-    def cuda(self):
+    def cuda(self):  # pragma: no cover
         return self.to("cuda")
 
     def numpy(self):

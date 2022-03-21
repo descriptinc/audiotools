@@ -323,7 +323,7 @@ def test_to_from_ops():
     assert isinstance(signal.numpy(), np.ndarray)
 
     signal.cpu()
-    signal.cuda()
+    # signal.cuda()
     signal.float()
 
 
