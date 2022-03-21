@@ -406,6 +406,15 @@ def test_to_mono():
     assert signal.num_channels == 1
 
 
+def test_float():
+    array = np.random.randn(4, 1, 16000).astype("float64")
+    sr = 1600
+    signal = AudioSignal(array, sample_rate=sr)
+
+    signal = signal.float()
+    assert signal.audio_data.dtype == torch.float
+
+
 @pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])
 def test_resample(sample_rate):
     array = np.random.randn(4, 2, 16000)
@@ -485,3 +494,7 @@ def test_batching():
 
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
+
+
+if __name__ == "__main__":
+    test_float()

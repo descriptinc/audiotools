@@ -352,7 +352,3 @@ def test_nested_masking():
         kwargs = batch["transform_args"]
         with torch.no_grad():
             output = dataset.transform(signal, **kwargs)
-
-
-if __name__ == "__main__":
-    test_transform("MaskLowMagnitudes")

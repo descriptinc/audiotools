@@ -226,7 +226,3 @@ def test_conf_monovoice_music_23LKFS():
 
     targetLoudness = -23.0
     assert np.allclose(loudness, targetLoudness, atol=0.1)
-
-
-if __name__ == "__main__":
-    test_loudness_against_pyln()

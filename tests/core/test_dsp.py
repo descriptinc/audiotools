@@ -173,7 +173,3 @@ def test_corrupt_phase():
 
     assert (sine_wave2.phase - shifted_sine_wave.phase).abs().mean() > 0.0
     assert ((sine_wave2.phase - shifted_sine_wave.phase).std() / np.pi) < 1.0
-
-
-if __name__ == "__main__":
-    test_corrupt_phase()

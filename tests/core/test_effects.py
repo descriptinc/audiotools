@@ -357,7 +357,3 @@ def test_ensure_max_of_audio():
     after = spk.deepcopy().ensure_max_of_audio()
 
     assert torch.allclose(after.audio_data, spk.audio_data)
-
-
-if __name__ == "__main__":
-    test_volume_change()
