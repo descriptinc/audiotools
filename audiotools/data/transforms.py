@@ -614,5 +614,7 @@ class Smoothing(BaseTransform):
         return {"window": AudioSignal(window, signal.sample_rate)}
 
     def _transform(self, signal, window):
+        scale = signal.audio_data.abs().max(dim=-1, keepdim=True).values
         out = signal.convolve(window)
+        out = out * scale / out.audio_data.abs().max(dim=-1, keepdim=True).values
         return out
