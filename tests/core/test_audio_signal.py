@@ -86,6 +86,10 @@ def test_copy_and_clone():
         assert np.allclose(a1, a3)
         assert np.allclose(a1, a4)
 
+    assert signal.original_signal_length == copied.original_signal_length
+    assert signal.original_signal_length == deep_copied.original_signal_length
+    assert signal.original_signal_length == cloned.original_signal_length
+
     signal = signal.detach()
 
 

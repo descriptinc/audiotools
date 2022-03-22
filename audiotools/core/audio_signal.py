@@ -447,7 +447,7 @@ class AudioSignal(
         window_length=None,
         hop_length=None,
         window_type=None,
-        truncate_to_length=None,
+        length=None,
     ):
         if self.stft_data is None:
             raise RuntimeError("Cannot do inverse STFT without self.stft_data!")
@@ -468,12 +468,16 @@ class AudioSignal(
 
         nb, nch, nf, nt = self.stft_data.shape
         stft_data = self.stft_data.reshape(nb * nch, nf, nt)
+
+        if length is None:
+            length = self.original_signal_length
+
         audio_data = torch.istft(
             stft_data,
             n_fft=window_length,
             hop_length=hop_length,
             window=window,
-            length=self.original_signal_length,
+            length=length,
         )
         audio_data = audio_data.reshape(nb, nch, -1)
         self.audio_data = audio_data
