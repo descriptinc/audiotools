@@ -510,7 +510,7 @@ class CorruptPhase(SpectralTransform):
         return signal.shift_phase(shift=corruption)
 
 
-class SpecAugFreqMask(SpectralTransform):
+class FrequencyMask(SpectralTransform):
     def __init__(
         self,
         fmin_hz: tuple = ("uniform", 0, None),
@@ -541,7 +541,7 @@ class SpecAugFreqMask(SpectralTransform):
         return signal.mask_frequencies(fmin_hz=fmin_hz, fmax_hz=fmax_hz)
 
 
-class SpecAugTimeMask(SpectralTransform):
+class TimeMask(SpectralTransform):
     def __init__(
         self,
         tmin_s: tuple = ("uniform", 0, None),

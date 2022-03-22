@@ -72,13 +72,14 @@ class AudioSignal(
 
         self.path_to_input_file = None
 
-        self.audio_data, self.stft_data = None, None
+        self.audio_data = None
+        self.stft_data = None
         if audio_path is not None:
             self.load_from_file(
                 audio_path, offset=offset, duration=duration, device=device
             )
         elif audio_array is not None:
-            assert sample_rate is not None
+            assert sample_rate is not None, "Must set sample rate!"
             self.load_from_array(audio_array, sample_rate, device=device)
 
         self.window = None
