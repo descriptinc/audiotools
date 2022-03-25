@@ -2,30 +2,96 @@ import copy
 
 import numpy as np
 import pyloudnorm
+import scipy
 import torch
+import torch.nn.functional as F
 import torchaudio
 
-from . import util
 
-
-class Meter(pyloudnorm.Meter):
+class Meter(torch.nn.Module, pyloudnorm.Meter):
     """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors."""
 
-    G = torch.from_numpy(np.array([1.0, 1.0, 1.0, 1.41, 1.41]))
+    def __init__(
+        self,
+        rate,
+        filter_class="K-weighting",
+        block_size=0.400,
+        zeros=512,
+        use_fir=False,
+    ):
+        super().__init__()
 
-    @staticmethod
-    def apply_filter(filter_stage, data):
-        passband_gain = filter_stage.passband_gain
+        self.rate = rate
+        self.filter_class = filter_class
+        self.block_size = block_size
+        self.use_fir = use_fir
 
-        a_coeffs = torch.from_numpy(filter_stage.a).float()
-        b_coeffs = torch.from_numpy(filter_stage.b).float()
+        G = torch.from_numpy(np.array([1.0, 1.0, 1.0, 1.41, 1.41]))
+        self.register_buffer("G", G)
 
-        _data = data.permute(0, 2, 1)
-        filtered = torchaudio.functional.lfilter(_data, a_coeffs, b_coeffs)
-        output = passband_gain * filtered.permute(0, 2, 1)
-        return output
+        # Compute impulse responses so that filtering is fast via
+        # a convolution at runtime, on GPU, unlike lfilter.
+        impulse = np.zeros((zeros,))
+        impulse[..., 0] = 1.0
 
-    def integrated_loudness(self, data, min_loudness=-70):
+        firs = np.zeros((len(self._filters), 1, zeros))
+        passband_gain = torch.zeros(len(self._filters))
+
+        for i, (_, filter_stage) in enumerate(self._filters.items()):
+            firs[i] = scipy.signal.lfilter(filter_stage.b, filter_stage.a, impulse)
+            passband_gain[i] = filter_stage.passband_gain
+
+        firs = torch.from_numpy(firs[..., ::-1].copy()).float()
+        self.register_buffer("firs", firs)
+        self.register_buffer("passband_gain", passband_gain)
+
+    def apply_filter_gpu(self, data):
+        # Data is of shape (nb, nch, nt)
+        # Reshape to (nb*nch, 1, nt)
+        nb, nt, nch = data.shape
+        data = data.permute(0, 2, 1)
+        data = data.reshape(nb * nch, 1, nt)
+
+        # Apply padding
+        pad_length = self.firs.shape[-1]
+
+        # Apply filtering in sequence
+        for i in range(self.firs.shape[0]):
+            data = F.pad(data, (pad_length, pad_length))
+            data = F.conv1d(data, self.firs[i, None, ...])
+            data = self.passband_gain[i] * data
+            data = data[..., 1 : nt + 1]
+
+        data = data.permute(0, 2, 1)
+        data = data[:, :nt, :]
+        data = data.reshape(nb, nt, nch)
+        return data
+
+    def apply_filter_cpu(self, data):
+        for _, filter_stage in self._filters.items():
+            passband_gain = filter_stage.passband_gain
+
+            a_coeffs = torch.from_numpy(filter_stage.a).float().to(data.device)
+            b_coeffs = torch.from_numpy(filter_stage.b).float().to(data.device)
+
+            _data = data.permute(0, 2, 1)
+            filtered = torchaudio.functional.lfilter(
+                _data, a_coeffs, b_coeffs, clamp=False
+            )
+            data = passband_gain * filtered.permute(0, 2, 1)
+        return data
+
+    def apply_filter(self, data):
+        if data.is_cuda or self.use_fir:
+            data = self.apply_filter_gpu(data)
+        else:
+            data = self.apply_filter_cpu(data)
+        return data
+
+    def forward(self, data):
+        return self.integrated_loudness(data)
+
+    def integrated_loudness(self, data):
         if not torch.is_tensor(data):
             data = torch.from_numpy(data).float()
         else:
@@ -43,12 +109,9 @@ class Meter(pyloudnorm.Meter):
 
         # Apply frequency weighting filters - account
         # for the acoustic respose of the head and auditory system
-        input_data = input_data.cpu()
-        for _, filter_stage in self._filters.items():
-            input_data = self.apply_filter(filter_stage, input_data)
-        input_data = input_data.to(data.device)
+        input_data = self.apply_filter(input_data)
 
-        G = self.G.to(data.device)  # channel gains
+        G = self.G  # channel gains
         T_g = self.block_size  # 400 ms gating block standard
         Gamma_a = -70.0  # -70 LKFS = absolute loudness threshold
         overlap = 0.75  # overlap of 75% of the block duration
@@ -102,7 +165,7 @@ class LoudnessMixin:
     _loudness = None
     MIN_LOUDNESS = -70
 
-    def loudness(self, filter_class="K-weighting", block_size=0.400):
+    def loudness(self, filter_class="K-weighting", block_size=0.400, **kwargs):
         """
         Uses pyloudnorm to calculate loudness.
         Implementation of ITU-R BS.1770-4.
@@ -137,8 +200,8 @@ class LoudnessMixin:
 
         # create BS.1770 meter
         meter = Meter(
-            self.sample_rate, filter_class=filter_class, block_size=block_size
-        )
+            self.sample_rate, filter_class=filter_class, block_size=block_size, **kwargs
+        ).to(self.device)
         # measure loudness
         loudness = meter.integrated_loudness(self.audio_data.permute(0, 2, 1))
         self.truncate_samples(original_length)
@@ -146,4 +209,5 @@ class LoudnessMixin:
             torch.ones_like(loudness, device=loudness.device) * self.MIN_LOUDNESS
         )
         self._loudness = torch.maximum(loudness, min_loudness)
+
         return self._loudness.to(self.device)

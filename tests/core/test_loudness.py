@@ -3,7 +3,9 @@ import pyloudnorm
 import soundfile as sf
 
 from audiotools import AudioSignal
+from audiotools import datasets
 from audiotools import Meter
+from audiotools import transforms
 
 
 def test_loudness_against_pyln():
@@ -226,3 +228,28 @@ def test_conf_monovoice_music_23LKFS():
 
     targetLoudness = -23.0
     assert np.allclose(loudness, targetLoudness, atol=0.1)
+
+
+def test_fir_accuracy():
+    transform = transforms.Compose(
+        transforms.ClippingDistortion(prob=0.5),
+        transforms.LowPass(prob=0.5),
+        transforms.HighPass(prob=0.5),
+        transforms.Equalizer(prob=0.5),
+        prob=0.5,
+    )
+    dataset = datasets.CSVDataset(
+        44100, 10, 5.0, csv_files=["tests/audio/spk.csv"], transform=transform
+    )
+
+    for i in range(10):
+        item = dataset[i]
+        kwargs = item["transform_args"]
+        signal = item["signal"]
+        signal = transform(signal, **kwargs)
+
+        signal._loudness = None
+        iir_db = signal.clone().loudness()
+        fir_db = signal.clone().loudness(use_fir=True)
+
+        assert np.allclose(iir_db, fir_db, atol=1e-2)
