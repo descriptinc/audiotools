@@ -321,9 +321,6 @@ class AudioSignal(
                 value = np.expand_dims(value, axis=0)
         self._audio_data = value
 
-        # Reset the loudness whenever the audio data changes
-        self._loudness = None
-
     @property
     def batch_size(self):
         return self.audio_data.shape[0]
