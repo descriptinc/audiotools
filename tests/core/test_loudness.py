@@ -55,7 +55,7 @@ def test_batch_loudness():
 def test_integrated_loudness():
     data, rate = sf.read("tests/audio/loudness/sine_1000.wav")
     meter = Meter(rate)
-    loudness = meter.integrated_loudness(data)
+    loudness = meter(data)
 
     targetLoudness = -3.0523438444331137
     assert np.allclose(loudness, targetLoudness)
