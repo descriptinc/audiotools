@@ -165,7 +165,9 @@ class LoudnessMixin:
     _loudness = None
     MIN_LOUDNESS = -70
 
-    def loudness(self, filter_class="K-weighting", block_size=0.400, **kwargs):
+    def loudness(
+        self, filter_class="K-weighting", block_size=0.400, meter=None, **kwargs
+    ):
         """
         Uses pyloudnorm to calculate loudness.
         Implementation of ITU-R BS.1770-4.
@@ -199,9 +201,14 @@ class LoudnessMixin:
             self.zero_pad(0, pad_len)
 
         # create BS.1770 meter
-        meter = Meter(
-            self.sample_rate, filter_class=filter_class, block_size=block_size, **kwargs
-        ).to(self.device)
+        if meter is None:
+            meter = Meter(
+                self.sample_rate,
+                filter_class=filter_class,
+                block_size=block_size,
+                **kwargs
+            )
+        meter = meter.to(self.device)
         # measure loudness
         loudness = meter.integrated_loudness(self.audio_data.permute(0, 2, 1))
         self.truncate_samples(original_length)
