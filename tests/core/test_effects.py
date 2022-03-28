@@ -90,7 +90,7 @@ def test_convolve():
 
     impulse = np.zeros((1, 16000))
     impulse[..., 0] = 1
-    ir = AudioSignal(impulse)
+    ir = AudioSignal(impulse, 16000)
     batch_size = 4
 
     spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
@@ -108,7 +108,7 @@ def test_convolve():
 
     impulse = np.zeros((1, 16000))
     impulse[..., 0] = 1
-    ir = AudioSignal(impulse)
+    ir = AudioSignal(impulse, 16000)
     batch_size = 4
 
     spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
@@ -242,7 +242,7 @@ def test_clip_distortion():
             for _ in range(16)
         ]
     )
-    percs = torch.from_numpy(np.random.uniform(size=(16,)))
+    percs = torch.from_numpy(np.random.uniform(size=(16,))).float()
     clipped_batch = spk_batch.deepcopy().clip_distortion(percs)
 
     assert clipped.audio_data.abs().max() < 1.0
@@ -323,7 +323,7 @@ def test_impulse_response_augmentation():
     drr = out.measure_drr()
     assert np.allclose(drr, np.ones_like(drr) * target_drr)
 
-    target_drr = np.random.rand(batch_size) * 50
+    target_drr = np.random.rand(batch_size).astype("float32") * 50
     altered_ir = ir_batch.deepcopy().alter_drr(target_drr)
     drr = altered_ir.measure_drr()
     assert np.allclose(drr.flatten(), target_drr.flatten())
@@ -352,7 +352,7 @@ def test_ensure_max_of_audio():
         assert after.audio_data.abs().max() <= val + 1e-3
 
     # Make sure it does nothing to a tiny signal
-    spk = AudioSignal(torch.rand(1, 1, 44100))
+    spk = AudioSignal(torch.rand(1, 1, 44100), 44100)
     spk.audio_data = spk.audio_data * 0.5
     after = spk.deepcopy().ensure_max_of_audio()
 

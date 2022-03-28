@@ -3,6 +3,7 @@ import pytest
 import torch
 
 from audiotools import AudioSignal
+from audiotools.core.util import sample_from_dist
 
 
 @pytest.mark.parametrize("window_duration", [0.1, 0.25, 0.5, 1.0])
@@ -106,3 +107,67 @@ def test_high_pass():
     signal = AudioSignal(sine_wave.unsqueeze(0), sample_rate=sample_rate)
     out = signal.deepcopy().high_pass(220)
     assert (signal - out).audio_data.abs().max() < 1e-4
+
+
+def test_mask_frequencies():
+    sample_rate = 44100
+    fs = torch.as_tensor([500.0, 2000.0, 8000.0, 32000.0])[None]
+    t = torch.arange(0, 1, 1 / sample_rate)[:, None]
+    sine_wave = torch.sin(2 * np.pi * t @ fs).sum(dim=-1)
+    sine_wave = AudioSignal(sine_wave, sample_rate)
+    masked_sine_wave = sine_wave.mask_frequencies(fmin_hz=1500, fmax_hz=10000)
+
+    fs2 = torch.as_tensor([500.0, 32000.0])[None]
+    sine_wave2 = torch.sin(2 * np.pi * t @ fs).sum(dim=-1)
+    sine_wave2 = AudioSignal(sine_wave2, sample_rate)
+
+    assert torch.allclose(masked_sine_wave.audio_data, sine_wave2.audio_data)
+
+
+def test_mask_timesteps():
+    sample_rate = 44100
+    f = 440
+    t = torch.linspace(0, 1, sample_rate)
+    sine_wave = torch.sin(2 * np.pi * f * t)
+    sine_wave = AudioSignal(sine_wave, sample_rate)
+
+    masked_sine_wave = sine_wave.mask_timesteps(tmin_s=0.25, tmax_s=0.75)
+    masked_sine_wave.istft()
+
+    mask = ((0.3 < t) & (t < 0.7))[None, None]
+    assert torch.allclose(
+        masked_sine_wave.audio_data[mask],
+        torch.zeros_like(masked_sine_wave.audio_data[mask]),
+    )
+
+
+def test_shift_phase():
+    sample_rate = 44100
+    f = 440
+    t = torch.linspace(0, 1, sample_rate)
+    sine_wave = torch.sin(2 * np.pi * f * t)
+    sine_wave = AudioSignal(sine_wave, sample_rate)
+    sine_wave2 = sine_wave.clone()
+
+    shifted_sine_wave = sine_wave.shift_phase(np.pi)
+    shifted_sine_wave.istft()
+
+    sine_wave2.phase = sine_wave2.phase + np.pi
+    sine_wave2.istft()
+
+    assert torch.allclose(shifted_sine_wave.audio_data, sine_wave2.audio_data)
+
+
+def test_corrupt_phase():
+    sample_rate = 44100
+    f = 440
+    t = torch.linspace(0, 1, sample_rate)
+    sine_wave = torch.sin(2 * np.pi * f * t)
+    sine_wave = AudioSignal(sine_wave, sample_rate)
+    sine_wave2 = sine_wave.clone()
+
+    shifted_sine_wave = sine_wave.corrupt_phase(scale=np.pi)
+    shifted_sine_wave.istft()
+
+    assert (sine_wave2.phase - shifted_sine_wave.phase).abs().mean() > 0.0
+    assert ((sine_wave2.phase - shifted_sine_wave.phase).std() / np.pi) < 1.0
