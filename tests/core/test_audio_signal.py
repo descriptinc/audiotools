@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 
+import librosa
 import numpy as np
 import pytest
 import rich
@@ -34,9 +35,9 @@ def test_io():
 
     array = np.random.randn(2, 16000)
     signal = AudioSignal(array, sample_rate=16000)
-    assert np.allclose(signal.numpy().audio_data, array)
+    assert np.allclose(signal.numpy(), array)
 
-    signal = AudioSignal(array)
+    signal = AudioSignal(array, 44100)
     assert signal.sample_rate == 44100
     signal.shape
 
@@ -85,6 +86,10 @@ def test_copy_and_clone():
         assert np.allclose(a1, a2)
         assert np.allclose(a1, a3)
         assert np.allclose(a1, a4)
+
+    assert signal.original_signal_length == copied.original_signal_length
+    assert signal.original_signal_length == deep_copied.original_signal_length
+    assert signal.original_signal_length == cloned.original_signal_length
 
     signal = signal.detach()
 
@@ -182,7 +187,7 @@ def test_equality():
 
     assert sig1 != sig3
 
-    assert sig1.numpy() != sig3.numpy()
+    assert not np.allclose(sig1.numpy(), sig3.numpy())
 
 
 def test_indexing():
@@ -318,18 +323,25 @@ def test_to_from_ops():
     signal = AudioSignal(audio_path)
     signal.stft()
     signal = signal.to("cpu")
+
     assert signal.audio_data.device == torch.device("cpu")
-
-    signal = signal.numpy()
-    assert isinstance(signal.audio_data, np.ndarray)
-    assert signal.device == "numpy"
-
-    signal = signal.to()
-    assert torch.is_tensor(signal.audio_data)
+    assert isinstance(signal.numpy(), np.ndarray)
 
     signal.cpu()
-    signal.cuda()
+    # signal.cuda()
     signal.float()
+
+
+def test_device():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path)
+    signal.to("cpu")
+
+    assert signal.device == torch.device("cpu")
+
+    signal.stft()
+    signal.audio_data = None
+    assert signal.device == torch.device("cpu")
 
 
 @pytest.mark.parametrize("window_length", [2048, 512])
@@ -371,6 +383,17 @@ def test_stft(window_length, hop_length, window_type):
         assert torch.allclose(recon_stft, signal.stft_data)
 
 
+def test_log_magnitude():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    for _ in range(10):
+        signal = AudioSignal.excerpt(audio_path, duration=5.0)
+        magnitude = signal.magnitude.numpy()[0, 0]
+        librosa_log_mag = librosa.amplitude_to_db(magnitude)
+        log_mag = signal.log_magnitude().numpy()[0, 0]
+
+        assert np.allclose(log_mag, librosa_log_mag)
+
+
 @pytest.mark.parametrize("n_mels", [40, 80, 128])
 @pytest.mark.parametrize("window_length", [2048, 512])
 @pytest.mark.parametrize("hop_length", [512, 128])
@@ -397,6 +420,15 @@ def test_to_mono():
 
     signal = signal.to_mono()
     assert signal.num_channels == 1
+
+
+def test_float():
+    array = np.random.randn(4, 1, 16000).astype("float64")
+    sr = 1600
+    signal = AudioSignal(array, sample_rate=sr)
+
+    signal = signal.float()
+    assert signal.audio_data.dtype == torch.float
 
 
 @pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])

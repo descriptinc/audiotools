@@ -1,4 +1,3 @@
-from collections import defaultdict
 from contextlib import contextmanager
 from inspect import signature
 from typing import List
@@ -7,7 +6,6 @@ import numpy as np
 import torch
 from flatten_dict import flatten
 from flatten_dict import unflatten
-from matplotlib import use
 from numpy.random import RandomState
 
 from ..core import AudioSignal
@@ -112,6 +110,14 @@ class BaseTransform:
             kwargs.append(self.instantiate(state, signal))
         kwargs = util.collate(kwargs)
         return kwargs
+
+
+class SpectralTransform(BaseTransform):
+    def transform(self, signal, **kwargs):
+        signal.stft()
+        super().transform(signal, **kwargs)
+        signal.istft()
+        return signal
 
 
 class Compose(BaseTransform):
@@ -290,7 +296,7 @@ class BackgroundNoise(BaseTransform):
         self.n_bands = n_bands
         self.audio_files = util.read_csv(csv_files)
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
@@ -464,3 +470,140 @@ class RescaleAudio(BaseTransform):
 
     def _transform(self, signal):
         return signal.ensure_max_of_audio(self.val)
+
+
+class ShiftPhase(SpectralTransform):
+    def __init__(
+        self,
+        shift: tuple = ("uniform", -np.pi, np.pi),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.shift = shift
+
+    def _instantiate(self, state: RandomState):
+        return {"shift": util.sample_from_dist(self.shift, state)}
+
+    def _transform(self, signal, shift):
+        return signal.shift_phase(shift)
+
+
+class InvertPhase(ShiftPhase):
+    def __init__(self, name: str = None, prob: float = 1):
+        super().__init__(shift=("const", np.pi), name=name, prob=prob)
+
+
+class CorruptPhase(SpectralTransform):
+    def __init__(
+        self, scale: tuple = ("uniform", 0, np.pi), name: str = None, prob: float = 1
+    ):
+        super().__init__(name=name, prob=prob)
+        self.scale = scale
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        scale = util.sample_from_dist(self.scale, state)
+        corruption = state.normal(scale=scale, size=signal.phase.shape[1:])
+        return {"corruption": corruption.astype("float32")}
+
+    def _transform(self, signal, corruption):
+        return signal.shift_phase(shift=corruption)
+
+
+class FrequencyMask(SpectralTransform):
+    def __init__(
+        self,
+        f_center: tuple = ("uniform", 0.0, 1.0),
+        f_width: tuple = ("const", 0.1),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.f_center = f_center
+        self.f_width = f_width
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        f_center = util.sample_from_dist(self.f_center, state)
+        f_width = util.sample_from_dist(self.f_width, state)
+
+        fmin = max(f_center - (f_width / 2), 0.0)
+        fmax = min(f_center + (f_width / 2), 1.0)
+
+        fmin_hz = (signal.sample_rate / 2) * fmin
+        fmax_hz = (signal.sample_rate / 2) * fmax
+
+        return {"fmin_hz": fmin_hz, "fmax_hz": fmax_hz}
+
+    def _transform(self, signal, fmin_hz: float, fmax_hz: float):
+        return signal.mask_frequencies(fmin_hz=fmin_hz, fmax_hz=fmax_hz)
+
+
+class TimeMask(SpectralTransform):
+    def __init__(
+        self,
+        t_center: tuple = ("uniform", 0.0, 1.0),
+        t_width: tuple = ("const", 0.1),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.t_center = t_center
+        self.t_width = t_width
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        t_center = util.sample_from_dist(self.t_center, state)
+        t_width = util.sample_from_dist(self.t_width, state)
+
+        tmin = max(t_center - (t_width / 2), 0.0)
+        tmax = min(t_center + (t_width / 2), 1.0)
+
+        tmin_s = signal.signal_duration * tmin
+        tmax_s = signal.signal_duration * tmax
+        return {"tmin_s": tmin_s, "tmax_s": tmax_s}
+
+    def _transform(self, signal, tmin_s: float, tmax_s: float):
+        return signal.mask_timesteps(tmin_s=tmin_s, tmax_s=tmax_s)
+
+
+class MaskLowMagnitudes(SpectralTransform):
+    def __init__(
+        self,
+        db_cutoff: tuple = ("uniform", -10, 10),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.db_cutoff = db_cutoff
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        return {"db_cutoff": util.sample_from_dist(self.db_cutoff, state)}
+
+    def _transform(self, signal, db_cutoff: float):
+        return signal.mask_low_magnitudes(db_cutoff)
+
+
+class Smoothing(BaseTransform):
+    def __init__(
+        self,
+        window_type: tuple = ("const", "average"),
+        window_length: tuple = ("choice", [8, 16, 32, 64, 128, 256, 512]),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.window_type = window_type
+        self.window_length = window_length
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        window_type = util.sample_from_dist(self.window_type, state)
+        window_length = util.sample_from_dist(self.window_length, state)
+        window = signal.get_window(
+            window_type=window_type, window_length=window_length, device="cpu"
+        )
+        return {"window": AudioSignal(window, signal.sample_rate)}
+
+    def _transform(self, signal, window):
+        scale = signal.audio_data.abs().max(dim=-1, keepdim=True).values
+        out = signal.convolve(window)
+        out = out * scale / out.audio_data.abs().max(dim=-1, keepdim=True).values
+        return out

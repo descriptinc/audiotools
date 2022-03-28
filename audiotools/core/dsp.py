@@ -142,3 +142,66 @@ class DSPMixin:
         self.audio_data = self.audio_data - filtered
         self.stft_data = None
         return self
+
+    def mask_frequencies(self, fmin_hz: int, fmax_hz: int, val: float = 0.0):
+        # SpecAug
+        mag, phase = self.magnitude, self.phase
+        fmin_hz = util.ensure_tensor(fmin_hz, ndim=mag.ndim)
+        fmax_hz = util.ensure_tensor(fmax_hz, ndim=mag.ndim)
+        assert torch.all(fmin_hz < fmax_hz)
+
+        # build mask
+        nbins = mag.shape[-2]
+        bins_hz = torch.linspace(0, self.sample_rate / 2, nbins, device=self.device)
+        bins_hz = bins_hz[None, None, :, None].repeat(
+            self.batch_size, 1, 1, mag.shape[-1]
+        )
+        mask = (fmin_hz <= bins_hz) & (bins_hz < fmax_hz)
+        mask = mask.to(self.device)
+
+        mag = mag.masked_fill(mask, val)
+        phase = phase.masked_fill(mask, val)
+        self.stft_data = mag * torch.exp(1j * phase)
+        return self
+
+    def mask_timesteps(self, tmin_s: int, tmax_s: int, val: float = 0.0):
+        # SpecAug
+        mag, phase = self.magnitude, self.phase
+        tmin_s = util.ensure_tensor(tmin_s, ndim=mag.ndim)
+        tmax_s = util.ensure_tensor(tmax_s, ndim=mag.ndim)
+
+        assert torch.all(tmin_s < tmax_s)
+
+        # build mask
+        nt = mag.shape[-1]
+        bins_t = torch.linspace(0, self.signal_duration, nt, device=self.device)
+        bins_t = bins_t[None, None, None, :].repeat(
+            self.batch_size, 1, mag.shape[-2], 1
+        )
+        mask = (tmin_s <= bins_t) & (bins_t < tmax_s)
+
+        mag = mag.masked_fill(mask, val)
+        phase = phase.masked_fill(mask, val)
+        self.stft_data = mag * torch.exp(1j * phase)
+        return self
+
+    def mask_low_magnitudes(self, db_cutoff: float, val: float = 0.0):
+        mag = self.magnitude
+        log_mag = self.log_magnitude()
+
+        db_cutoff = util.ensure_tensor(db_cutoff, ndim=mag.ndim)
+        mask = log_mag < db_cutoff
+        mag = mag.masked_fill(mask, val)
+
+        self.magnitude = mag
+        return self
+
+    def shift_phase(self, shift: float):
+        shift = util.ensure_tensor(shift, ndim=self.phase.ndim)
+        self.phase = self.phase + shift
+        return self
+
+    def corrupt_phase(self, scale: float):
+        scale = util.ensure_tensor(scale, ndim=self.phase.ndim)
+        self.phase = self.phase + scale * torch.randn_like(self.phase)
+        return self

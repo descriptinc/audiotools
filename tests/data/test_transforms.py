@@ -1,3 +1,4 @@
+from aifc import Error
 from pathlib import Path
 
 import numpy as np
@@ -220,7 +221,7 @@ def test_choose_basic():
         kwargs = transform.instantiate(seed, signal)
         output = transform(signal.clone(), **kwargs)
 
-        assert output in targets
+        assert any([output == target for target in targets])
 
     # Test that if you make a batch of signals and call it,
     # the first item in the batch is still the same as above.
