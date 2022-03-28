@@ -575,22 +575,18 @@ class TimeMask(SpectralTransform):
 class MaskLowMagnitudes(SpectralTransform):
     def __init__(
         self,
-        f_thresh_hz: tuple = ("uniform", 0, None),
+        db_cutoff: tuple = ("uniform", -10, 10),
         name: str = None,
         prob: float = 1,
     ):
         super().__init__(name=name, prob=prob)
-        self.f_thresh_hz = f_thresh_hz
+        self.db_cutoff = db_cutoff
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        f_thresh_hz = list(self.f_thresh_hz)
-        if f_thresh_hz[-1] is None:
-            assert signal is not None
-            f_thresh_hz[-1] = signal.sample_rate
-        return {"f_thresh_hz": util.sample_from_dist(f_thresh_hz)}
+        return {"db_cutoff": util.sample_from_dist(self.db_cutoff, state)}
 
-    def _transform(self, signal, f_thresh_hz: float):
-        return signal.mask_low_magnitudes(f_thresh_hz=f_thresh_hz)
+    def _transform(self, signal, db_cutoff: float):
+        return signal.mask_low_magnitudes(db_cutoff)
 
 
 class Smoothing(BaseTransform):

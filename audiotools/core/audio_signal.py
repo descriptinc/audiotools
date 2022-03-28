@@ -513,6 +513,17 @@ class AudioSignal(
         self.stft_data = value * torch.exp(1j * self.phase)
         return
 
+    def log_magnitude(self, ref_value=1.0, amin=1e-5, top_db=80.0):
+        magnitude = self.magnitude
+
+        amin = amin**2
+        log_spec = 10.0 * torch.log10(magnitude.pow(2).clamp(min=amin))
+        log_spec -= 10.0 * np.log10(np.maximum(amin, ref_value))
+
+        if top_db is not None:
+            log_spec = torch.maximum(log_spec, log_spec.max() - top_db)
+        return log_spec
+
     @property
     def phase(self):
         if self.stft_data is None:

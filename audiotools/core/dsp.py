@@ -185,13 +185,12 @@ class DSPMixin:
         self.stft_data = mag * torch.exp(1j * phase)
         return self
 
-    def mask_low_magnitudes(self, f_thresh_hz: int, val: float = 0.0):
-        assert torch.all(f_thresh_hz < self.sample_rate)
-
+    def mask_low_magnitudes(self, db_cutoff: float, val: float = 0.0):
         mag = self.magnitude
-        f_thresh_hz = util.ensure_tensor(f_thresh_hz, ndim=mag.ndim)
+        log_mag = self.log_magnitude()
 
-        mask = mag < f_thresh_hz
+        db_cutoff = util.ensure_tensor(db_cutoff, ndim=mag.ndim)
+        mask = log_mag < db_cutoff
         mag = mag.masked_fill(mask, val)
 
         self.magnitude = mag

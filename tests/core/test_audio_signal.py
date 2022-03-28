@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 
+import librosa
 import numpy as np
 import pytest
 import rich
@@ -380,6 +381,17 @@ def test_stft(window_length, hop_length, window_type):
 
         recon_stft = mag * torch.exp(1j * phase)
         assert torch.allclose(recon_stft, signal.stft_data)
+
+
+def test_log_magnitude():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    for _ in range(10):
+        signal = AudioSignal.excerpt(audio_path, duration=5.0)
+        magnitude = signal.magnitude.numpy()[0, 0]
+        librosa_log_mag = librosa.amplitude_to_db(magnitude)
+        log_mag = signal.log_magnitude().numpy()[0, 0]
+
+        assert np.allclose(log_mag, librosa_log_mag)
 
 
 @pytest.mark.parametrize("n_mels", [40, 80, 128])
