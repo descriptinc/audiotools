@@ -513,27 +513,24 @@ class CorruptPhase(SpectralTransform):
 class FrequencyMask(SpectralTransform):
     def __init__(
         self,
-        fmin_hz: tuple = ("uniform", 0, None),
-        fmax_hz: tuple = ("uniform", 0, None),
+        f_center: tuple = ("uniform", 0.0, 1.0),
+        f_width: tuple = ("const", 0.1),
         name: str = None,
         prob: float = 1,
     ):
         super().__init__(name=name, prob=prob)
-        self.fmin_hz = fmin_hz
-        self.fmax_hz = fmax_hz
+        self.f_center = f_center
+        self.f_width = f_width
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        fmin_hz = list(self.fmin_hz)
-        if fmin_hz[-1] is None:
-            assert signal is not None
-            fmin_hz[-1] = signal.sample_rate
-        fmin_hz = util.sample_from_dist(fmin_hz, state)
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        f_center = util.sample_from_dist(self.f_center, state)
+        f_width = util.sample_from_dist(self.f_width, state)
 
-        fmax_hz = list(self.fmax_hz)
-        if fmax_hz[-1] is None:
-            fmax_hz[-1] = signal.sample_rate
-        fmax_hz[-1] = fmax_hz[-1] - fmin_hz
-        fmax_hz = fmin_hz + util.sample_from_dist(fmax_hz, state)
+        fmin = max(f_center - (f_width / 2), 0.0)
+        fmax = min(f_center + (f_width / 2), 1.0)
+
+        fmin_hz = (signal.sample_rate / 2) * fmin
+        fmax_hz = (signal.sample_rate / 2) * fmax
 
         return {"fmin_hz": fmin_hz, "fmax_hz": fmax_hz}
 
@@ -544,28 +541,24 @@ class FrequencyMask(SpectralTransform):
 class TimeMask(SpectralTransform):
     def __init__(
         self,
-        tmin_s: tuple = ("uniform", 0, None),
-        tmax_s: tuple = ("uniform", 0, None),
+        t_center: tuple = ("uniform", 0.0, 1.0),
+        t_width: tuple = ("const", 0.1),
         name: str = None,
         prob: float = 1,
     ):
         super().__init__(name=name, prob=prob)
-        self.tmin_s = tmin_s
-        self.tmax_s = tmax_s
+        self.t_center = t_center
+        self.t_width = t_width
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        tmin_s = list(self.tmin_s)
-        if tmin_s[-1] is None:
-            assert signal is not None
-            tmin_s[-1] = signal.signal_duration
-        tmin_s = util.sample_from_dist(tmin_s, state)
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        t_center = util.sample_from_dist(self.t_center, state)
+        t_width = util.sample_from_dist(self.t_width, state)
 
-        tmax_s = list(self.tmax_s)
-        if tmax_s[-1] is None:
-            tmax_s[-1] = signal.signal_duration
-        tmax_s[-1] = tmax_s[-1] - tmin_s
-        tmax_s = tmin_s + util.sample_from_dist(tmax_s, state)
+        tmin = max(t_center - (t_width / 2), 0.0)
+        tmax = min(t_center + (t_width / 2), 1.0)
 
+        tmin_s = signal.signal_duration * tmin
+        tmax_s = signal.signal_duration * tmax
         return {"tmin_s": tmin_s, "tmax_s": tmax_s}
 
     def _transform(self, signal, tmin_s: float, tmax_s: float):

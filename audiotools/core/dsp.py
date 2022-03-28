@@ -152,7 +152,7 @@ class DSPMixin:
 
         # build mask
         nbins = mag.shape[-2]
-        bins_hz = torch.linspace(0, self.sample_rate, nbins, device=self.device)
+        bins_hz = torch.linspace(0, self.sample_rate / 2, nbins, device=self.device)
         bins_hz = bins_hz[None, None, :, None].repeat(
             self.batch_size, 1, 1, mag.shape[-1]
         )
