@@ -1,11 +1,28 @@
 import copy
 
+import julius
 import numpy as np
 import pyloudnorm
 import scipy
 import torch
 import torch.nn.functional as F
 import torchaudio
+
+from . import util
+
+
+def unfold1d(input, kernel_size: int, stride: int):
+    """Fast version of unfold 1d. Taken from:
+    https://github.com/pytorch/pytorch/issues/60466
+    """
+    *shape, length = input.shape
+    n_frames = (max(length, kernel_size) - kernel_size) // stride + 1
+    tgt_length = (n_frames - 1) * stride + kernel_size
+    input = input[..., :tgt_length].contiguous()
+    strides = list(input.stride())
+    strides = strides[:-1] + [stride, 1]
+    out = input.as_strided(shape + [n_frames, kernel_size], strides)
+    return out.transpose(-1, -2)
 
 
 class Meter(torch.nn.Module, pyloudnorm.Meter):
@@ -42,6 +59,7 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
             passband_gain[i] = filter_stage.passband_gain
 
         firs = torch.from_numpy(firs[..., ::-1].copy()).float()
+
         self.register_buffer("firs", firs)
         self.register_buffer("passband_gain", passband_gain)
 
@@ -58,7 +76,7 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
         # Apply filtering in sequence
         for i in range(self.firs.shape[0]):
             data = F.pad(data, (pad_length, pad_length))
-            data = F.conv1d(data, self.firs[i, None, ...])
+            data = julius.fftconv.fft_conv1d(data, self.firs[i, None, ...])
             data = self.passband_gain[i] * data
             data = data[..., 1 : nt + 1]
 
@@ -90,6 +108,17 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
     def forward(self, data):
         return self.integrated_loudness(data)
 
+    def unfold(self, input_data):
+        T_g = self.block_size
+        overlap = 0.75  # overlap of 75% of the block duration
+        step = 1.0 - overlap  # step size by percentage
+
+        kernel_size = int(T_g * self.rate)
+        stride = int(T_g * self.rate * step)
+        unfolded = unfold1d(input_data.permute(0, 2, 1), kernel_size, stride)
+
+        return unfolded
+
     def integrated_loudness(self, data):
         if not torch.is_tensor(data):
             data = torch.from_numpy(data).float()
@@ -113,17 +142,9 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
         G = self.G  # channel gains
         T_g = self.block_size  # 400 ms gating block standard
         Gamma_a = -70.0  # -70 LKFS = absolute loudness threshold
-        overlap = 0.75  # overlap of 75% of the block duration
-        step = 1.0 - overlap  # step size by percentage
 
-        unfolded = torch.nn.functional.unfold(
-            input_data.permute(0, 2, 1).reshape(nb * nch, 1, 1, nt),
-            (1, int(T_g * self.rate)),
-            stride=int(T_g * self.rate * step),
-        )
-        unfolded = unfolded.squeeze(2).reshape(
-            nb, nch, unfolded.shape[1], unfolded.shape[2]
-        )
+        unfolded = self.unfold(input_data)
+
         z = (1.0 / (T_g * self.rate)) * unfolded.square().sum(2)
         l = -0.691 + 10.0 * torch.log10((G[None, :nch, None] * z).sum(1, keepdim=True))
         l = l.expand_as(z)
@@ -164,9 +185,7 @@ class LoudnessMixin:
     _loudness = None
     MIN_LOUDNESS = -70
 
-    def loudness(
-        self, filter_class="K-weighting", block_size=0.400, meter=None, **kwargs
-    ):
+    def loudness(self, filter_class="K-weighting", block_size=0.400, **kwargs):
         """
         Uses pyloudnorm to calculate loudness.
         Implementation of ITU-R BS.1770-4.
@@ -200,13 +219,9 @@ class LoudnessMixin:
             self.zero_pad(0, pad_len)
 
         # create BS.1770 meter
-        if meter is None:
-            meter = Meter(
-                self.sample_rate,
-                filter_class=filter_class,
-                block_size=block_size,
-                **kwargs
-            )
+        meter = Meter(
+            self.sample_rate, filter_class=filter_class, block_size=block_size, **kwargs
+        )
         meter = meter.to(self.device)
         # measure loudness
         loudness = meter.integrated_loudness(self.audio_data.permute(0, 2, 1))

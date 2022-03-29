@@ -328,6 +328,8 @@ class AudioSignal(
             assert torch.is_tensor(data), "audio_data should be torch.Tensor"
             assert data.ndim == 3, "audio_data should be 3-dim (B, C, T)"
         self._audio_data = data
+        # Old loudness value not guaranteed to be right, reset it.
+        self._loudness = None
         return
 
     @property
@@ -582,6 +584,7 @@ class AudioSignal(
             "num_channels": self.num_channels if self.num_channels else "[unknown]",
             "audio_data.shape": self.audio_data.shape,
             "stft_params": self.stft_params,
+            "device": self.device,
         }
 
         return info

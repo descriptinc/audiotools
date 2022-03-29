@@ -51,6 +51,7 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         with torch.no_grad():
             start_time = time.time()
             batch["signal"].loudness()
+            torch.cuda.synchronize()
             elapsed = time.time() - start_time
             timings.append(elapsed)
 
