@@ -8,8 +8,6 @@ import torch
 import torch.nn.functional as F
 import torchaudio
 
-from . import util
-
 
 def unfold1d(input, kernel_size: int, stride: int):
     """Fast version of unfold 1d. Taken from:
