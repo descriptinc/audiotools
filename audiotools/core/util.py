@@ -219,7 +219,6 @@ def collate(list_of_dicts):
         if isinstance(v, list):
             if all(isinstance(s, AudioSignal) for s in v):
                 batch[k] = AudioSignal.batch(v, pad_signals=True)
-                batch[k].loudness()
             else:
                 # Borrow the default collate fn from torch.
                 batch[k] = torch.utils.data._utils.collate.default_collate(v)

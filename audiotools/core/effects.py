@@ -31,19 +31,13 @@ class EffectMixin:
         pad_len = max(0, self.signal_length - other.signal_length)
         other.zero_pad(0, pad_len)
         other.truncate_samples(self.signal_length)
-        tgt_loudness = self.loudness() - snr
-        # Note that normalization happens before EQ for speed reasons.
-        # If EQ is extreme, the actual SNR may not match the specified
-        # SNR.
-        other = other.normalize(tgt_loudness)
-
         if other_eq is not None:
             other = other.equalizer(other_eq)
 
-        self.audio_data = self.audio_data + other.audio_data
+        tgt_loudness = self.loudness() - snr
+        other = other.normalize(tgt_loudness)
 
-        # loudness has changed
-        self._loudness = None
+        self.audio_data = self.audio_data + other.audio_data
         return self
 
     def convolve(self, other, start_at_max=True):
@@ -144,16 +138,12 @@ class EffectMixin:
         gain = torch.exp(gain * self.GAIN_FACTOR)
 
         self.audio_data = self.audio_data * gain[:, None, None]
-        self._loudness = None
         return self
 
     def volume_change(self, db):
         db = util.ensure_tensor(db, ndim=1).to(self.device)
         gain = torch.exp(db * self.GAIN_FACTOR)
         self.audio_data = self.audio_data * gain[:, None, None]
-
-        if self._loudness is not None:
-            self._loudness += db
         return self
 
     def _to_2d(self):
@@ -269,7 +259,6 @@ class EffectMixin:
         fbank = fbank * weights[:, None, None, :]
         eq_audio_data = fbank.sum(-1)
         self.audio_data = eq_audio_data
-        self._loudness = None
         return self
 
     def clip_distortion(self, clip_percentile):

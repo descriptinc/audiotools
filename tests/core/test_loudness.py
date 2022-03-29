@@ -3,7 +3,11 @@ import pyloudnorm
 import soundfile as sf
 
 from audiotools import AudioSignal
+from audiotools import datasets
 from audiotools import Meter
+from audiotools import transforms
+
+ATOL = 1e-1
 
 
 def test_loudness_against_pyln():
@@ -15,7 +19,7 @@ def test_loudness_against_pyln():
         signal.sample_rate, filter_class="K-weighting", block_size=0.4
     )
     py_loudness = meter.integrated_loudness(signal.numpy()[0].T)
-    assert np.allclose(signal_loudness, py_loudness, 1e-1)
+    assert np.allclose(signal_loudness, py_loudness)
 
 
 def test_loudness_short():
@@ -51,10 +55,10 @@ def test_batch_loudness():
 def test_integrated_loudness():
     data, rate = sf.read("tests/audio/loudness/sine_1000.wav")
     meter = Meter(rate)
-    loudness = meter.integrated_loudness(data)
+    loudness = meter(data)
 
     targetLoudness = -3.0523438444331137
-    assert np.allclose(loudness, targetLoudness, atol=5e-1)
+    assert np.allclose(loudness, targetLoudness)
 
 
 def test_rel_gate_test():
@@ -63,7 +67,7 @@ def test_rel_gate_test():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -10.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_abs_gate_test():
@@ -72,7 +76,7 @@ def test_abs_gate_test():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -69.5
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_24LKFS_25Hz_2ch():
@@ -81,7 +85,7 @@ def test_24LKFS_25Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_24LKFS_100Hz_2ch():
@@ -90,7 +94,7 @@ def test_24LKFS_100Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_24LKFS_500Hz_2ch():
@@ -99,7 +103,7 @@ def test_24LKFS_500Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_24LKFS_1000Hz_2ch():
@@ -108,7 +112,7 @@ def test_24LKFS_1000Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_24LKFS_2000Hz_2ch():
@@ -117,7 +121,7 @@ def test_24LKFS_2000Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_24LKFS_10000Hz_2ch():
@@ -126,7 +130,7 @@ def test_24LKFS_10000Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_23LKFS_25Hz_2ch():
@@ -135,7 +139,7 @@ def test_23LKFS_25Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_23LKFS_100Hz_2ch():
@@ -144,7 +148,7 @@ def test_23LKFS_100Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_23LKFS_500Hz_2ch():
@@ -153,7 +157,7 @@ def test_23LKFS_500Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_23LKFS_1000Hz_2ch():
@@ -162,7 +166,7 @@ def test_23LKFS_1000Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_23LKFS_2000Hz_2ch():
@@ -171,7 +175,7 @@ def test_23LKFS_2000Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_23LKFS_10000Hz_2ch():
@@ -180,7 +184,7 @@ def test_23LKFS_10000Hz_2ch():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_18LKFS_frequency_sweep():
@@ -189,7 +193,7 @@ def test_18LKFS_frequency_sweep():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -18.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_conf_stereo_vinL_R_23LKFS():
@@ -198,7 +202,7 @@ def test_conf_stereo_vinL_R_23LKFS():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_conf_monovoice_music_24LKFS():
@@ -207,7 +211,7 @@ def test_conf_monovoice_music_24LKFS():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def conf_monovoice_music_24LKFS():
@@ -216,7 +220,7 @@ def conf_monovoice_music_24LKFS():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -24.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
 
 
 def test_conf_monovoice_music_23LKFS():
@@ -225,4 +229,29 @@ def test_conf_monovoice_music_23LKFS():
     loudness = meter.integrated_loudness(data)
 
     targetLoudness = -23.0
-    assert np.allclose(loudness, targetLoudness, atol=0.1)
+    assert np.allclose(loudness, targetLoudness, atol=ATOL)
+
+
+def test_fir_accuracy():
+    transform = transforms.Compose(
+        transforms.ClippingDistortion(prob=0.5),
+        transforms.LowPass(prob=0.5),
+        transforms.HighPass(prob=0.5),
+        transforms.Equalizer(prob=0.5),
+        prob=0.5,
+    )
+    dataset = datasets.CSVDataset(
+        44100, 10, 5.0, csv_files=["tests/audio/spk.csv"], transform=transform
+    )
+
+    for i in range(10):
+        item = dataset[i]
+        kwargs = item["transform_args"]
+        signal = item["signal"]
+        signal = transform(signal, **kwargs)
+
+        signal._loudness = None
+        iir_db = signal.clone().loudness()
+        fir_db = signal.clone().loudness(use_fir=True)
+
+        assert np.allclose(iir_db, fir_db, atol=1e-2)

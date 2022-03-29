@@ -136,3 +136,4 @@ test.md
 test_out.md
 *.html
 *.exec.md
+.DS_Store

@@ -34,7 +34,11 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         t = transform_cls(prob=1.0, **kwargs)
 
         dataset = CSVDataset(
-            44100, 1000, duration, csv_files=["tests/audio/spk.csv"], transform=t
+            44100,
+            batch_size * 10,
+            duration,
+            csv_files=["tests/audio/spk.csv"],
+            transform=t,
         )
         dataloader = torch.utils.data.DataLoader(
             dataset, num_workers=0, batch_size=batch_size, collate_fn=dataset.collate
@@ -45,6 +49,7 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         with torch.no_grad():
             start_time = time.time()
             output = t(batch["signal"], **batch["transform_args"])
+            torch.cuda.synchronize()
             elapsed = time.time() - start_time
 
         times[transform_name] = elapsed
