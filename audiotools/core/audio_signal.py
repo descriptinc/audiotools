@@ -226,11 +226,12 @@ class AudioSignal(
         return clone
 
     def detach(self):
-        self.audio_data = self.audio_data.detach()
-        if self.stft_data is not None:
-            self.stft_data = self.stft_data.detach()
         if self._loudness is not None:
             self._loudness = self._loudness.detach()
+        if self.stft_data is not None:
+            self.stft_data = self.stft_data.detach()
+
+        self.audio_data = self.audio_data.detach()
         return self
 
     def hash(self, batch_idx=0):
@@ -261,12 +262,12 @@ class AudioSignal(
 
     # Tensor operations
     def to(self, device):
-        if self.audio_data is not None:
-            self.audio_data = self.audio_data.to(device)
         if self._loudness is not None:
             self._loudness = self._loudness.to(device)
         if self.stft_data is not None:
             self.stft_data = self.stft_data.to(device)
+        if self.audio_data is not None:
+            self.audio_data = self.audio_data.to(device)
         return self
 
     def float(self):
