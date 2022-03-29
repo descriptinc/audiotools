@@ -9,20 +9,6 @@ import torch.nn.functional as F
 import torchaudio
 
 
-def unfold1d(input, kernel_size: int, stride: int):
-    """Fast version of unfold 1d. Taken from:
-    https://github.com/pytorch/pytorch/issues/60466
-    """
-    *shape, length = input.shape
-    n_frames = (max(length, kernel_size) - kernel_size) // stride + 1
-    tgt_length = (n_frames - 1) * stride + kernel_size
-    input = input[..., :tgt_length].contiguous()
-    strides = list(input.stride())
-    strides = strides[:-1] + [stride, 1]
-    out = input.as_strided(shape + [n_frames, kernel_size], strides)
-    return out.transpose(-1, -2)
-
-
 class Meter(torch.nn.Module, pyloudnorm.Meter):
     """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors."""
 
@@ -113,7 +99,8 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
 
         kernel_size = int(T_g * self.rate)
         stride = int(T_g * self.rate * step)
-        unfolded = unfold1d(input_data.permute(0, 2, 1), kernel_size, stride)
+        unfolded = julius.core.unfold(input_data.permute(0, 2, 1), kernel_size, stride)
+        unfolded = unfolded.transpose(-1, -2)
 
         return unfolded
 
