@@ -430,36 +430,40 @@ class LowPass(BaseTransform):
     def __init__(
         self,
         cutoff: tuple = ("choice", [4000, 8000, 16000]),
+        zeros: int = 51,
         name: str = None,
         prob: float = 1,
     ):
         super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
+        self.zeros = zeros
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, signal, cutoff):
-        return signal.low_pass(cutoff)
+        return signal.low_pass(cutoff, zeros=self.zeros)
 
 
 class HighPass(BaseTransform):
     def __init__(
         self,
         cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]),
+        zeros: int = 51,
         name: str = None,
         prob: float = 1,
     ):
         super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
+        self.zeros = zeros
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, signal, cutoff):
-        return signal.high_pass(cutoff)
+        return signal.high_pass(cutoff, zeros=self.zeros)
 
 
 class RescaleAudio(BaseTransform):
