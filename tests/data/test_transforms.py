@@ -41,6 +41,12 @@ def test_transform(transform_name):
         kwargs["csv_files"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
         kwargs["csv_files"] = ["tests/audio/irs.csv"]
+    if transform_name == "Repeat":
+        kwargs["transform"] = tfm.Compose(
+            tfm.FrequencyMask(),
+            tfm.TimeMask(),
+        )
+        kwargs["n_repeat"] = 5
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)

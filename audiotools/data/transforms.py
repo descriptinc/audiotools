@@ -1,3 +1,4 @@
+import copy
 from contextlib import contextmanager
 from inspect import signature
 from typing import List
@@ -173,13 +174,13 @@ class Choose(Compose):
     # calls `choice` on, with probabilities `self.weights``.
     def __init__(
         self,
-        transforms: list,
+        *transforms: list,
         weights: list = None,
         max_seed: int = 1000,
         name: str = None,
         prob: float = 1.0,
     ):
-        super().__init__(transforms, name=name, prob=prob)
+        super().__init__(*transforms, name=name, prob=prob)
 
         if weights is None:
             _len = len(self.transforms)
@@ -198,6 +199,22 @@ class Choose(Compose):
         parameters = super()._instantiate(state, signal)
         parameters["seed"] = state.randint(self.max_seed)
         return parameters
+
+
+class Repeat(Compose):
+    """Repeatedly applies a given transform."""
+
+    def __init__(
+        self,
+        transform,
+        n_repeat: int = 1,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        transforms = [copy.copy(transform) for _ in range(n_repeat)]
+        super().__init__(transforms, name=name, prob=prob)
+
+        self.n_repeat = n_repeat
 
 
 class ClippingDistortion(BaseTransform):
@@ -546,7 +563,7 @@ class TimeMask(SpectralTransform):
     def __init__(
         self,
         t_center: tuple = ("uniform", 0.0, 1.0),
-        t_width: tuple = ("const", 0.1),
+        t_width: tuple = ("const", 0.025),
         name: str = None,
         prob: float = 1,
     ):
