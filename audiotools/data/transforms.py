@@ -224,14 +224,17 @@ class RepeatUpTo(Choose):
         self,
         transform,
         max_repeat: int = 5,
+        weights: list = None,
+        max_seed: int = 1000,
         name: str = None,
         prob: float = 1.0,
     ):
         transforms = []
         for n in range(1, max_repeat):
-            _transform = Compose([copy.copy(transform) for _ in range(n)])
-            transforms.append(_transform)
-        super().__init__(transforms, name=name, prob=prob)
+            transforms.append(Repeat(transform, n))
+        super().__init__(
+            transforms, name=name, prob=prob, weights=weights, max_seed=max_seed
+        )
 
         self.max_repeat = max_repeat
 
