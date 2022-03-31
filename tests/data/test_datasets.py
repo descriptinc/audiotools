@@ -3,6 +3,7 @@ import torch
 
 import audiotools
 from audiotools import AudioSignal
+from audiotools import data
 from audiotools.data import transforms as tfm
 
 
@@ -103,6 +104,46 @@ def test_shared_transform():
         for k in targets:
             _targets = [int(x) for x in targets[k]]
             _observed = [int(x.item()) for x in observed[k]]
+
+            num_succeeded = 0
+            for val in np.unique(_observed):
+                assert any([x == val for x in _targets])
+                num_succeeded += 1
+            assert num_succeeded >= 2
+
+
+def test_batch_sampler():
+    for nw in (0, 1, 2):
+        dataset = audiotools.data.datasets.CSVDataset(
+            44100,
+            n_examples=100,
+            csv_files=["tests/audio/spk.csv"],
+        )
+
+        sampler = audiotools.datasets.BatchSampler(
+            audiotools.datasets.SequentialSampler(dataset), batch_size=1, drop_last=True
+        )
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_sampler=sampler,
+            num_workers=nw,
+            collate_fn=dataset.collate,
+        )
+
+        targets = {"bs": [1]}
+        observed = {"bs": []}
+
+        for new_bs in [1, 5, 10]:
+            dataloader.batch_sampler.batch_size = new_bs
+            targets["bs"].append(new_bs)
+
+            for batch in dataloader:
+                actual_bs = batch["signal"].batch_size
+                observed["bs"].append(actual_bs)
+
+        for k in targets:
+            _targets = [int(x) for x in targets[k]]
+            _observed = [int(x) for x in observed[k]]
 
             num_succeeded = 0
             for val in np.unique(_observed):
