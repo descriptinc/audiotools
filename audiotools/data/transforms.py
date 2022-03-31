@@ -231,7 +231,7 @@ class RepeatUpTo(Choose):
     ):
         transforms = []
         for n in range(1, max_repeat):
-            transforms.append(Repeat(transform, n))
+            transforms.append(Repeat(transform, n_repeat=n))
         super().__init__(
             transforms, name=name, prob=prob, weights=weights, max_seed=max_seed
         )
