@@ -14,7 +14,7 @@ from audiotools.data.datasets import CSVDataset
 transforms_to_test = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Choose"]:
+        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
             transforms_to_test.append(x)
 
 
@@ -282,6 +282,47 @@ def test_choose_with_compose():
         output = transform(signal, **kwargs)
 
         assert output in targets
+
+
+def test_repeat():
+    seed = 0
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+
+    kwargs = {}
+    kwargs["transform"] = tfm.Compose(
+        tfm.FrequencyMask(),
+        tfm.TimeMask(),
+    )
+    kwargs["n_repeat"] = 5
+
+    transform = tfm.Repeat(**kwargs)
+    kwargs = transform.instantiate(seed, signal)
+    output = transform(signal.clone(), **kwargs)
+
+    _compare_transform("Repeat", output)
+
+    kwargs = {}
+    kwargs["transform"] = tfm.Compose(
+        tfm.FrequencyMask(),
+        tfm.TimeMask(),
+    )
+    kwargs["max_repeat"] = 10
+
+    transform = tfm.RepeatUpTo(**kwargs)
+    kwargs = transform.instantiate(seed, signal)
+    output = transform(signal.clone(), **kwargs)
+
+    _compare_transform("RepeatUpTo", output)
+
+    # Make sure repeat does what it says
+    transform = tfm.Repeat(MulTransform(0.5), n_repeat=3)
+    kwargs = transform.instantiate(seed, signal)
+    signal = AudioSignal(torch.randn(1, 1, 100).clamp(1e-5), 44100)
+    output = transform(signal.clone(), **kwargs)
+
+    scale = (output.audio_data / signal.audio_data).mean()
+    assert scale == (0.5**3)
 
 
 class DummyData(torch.utils.data.Dataset):

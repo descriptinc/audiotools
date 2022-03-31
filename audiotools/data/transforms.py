@@ -1,3 +1,4 @@
+import copy
 from contextlib import contextmanager
 from inspect import signature
 from typing import List
@@ -173,13 +174,13 @@ class Choose(Compose):
     # calls `choice` on, with probabilities `self.weights``.
     def __init__(
         self,
-        transforms: list,
+        *transforms: list,
         weights: list = None,
         max_seed: int = 1000,
         name: str = None,
         prob: float = 1.0,
     ):
-        super().__init__(transforms, name=name, prob=prob)
+        super().__init__(*transforms, name=name, prob=prob)
 
         if weights is None:
             _len = len(self.transforms)
@@ -198,6 +199,44 @@ class Choose(Compose):
         parameters = super()._instantiate(state, signal)
         parameters["seed"] = state.randint(self.max_seed)
         return parameters
+
+
+class Repeat(Compose):
+    """Repeatedly applies a given transform."""
+
+    def __init__(
+        self,
+        transform,
+        n_repeat: int = 1,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        transforms = [copy.copy(transform) for _ in range(n_repeat)]
+        super().__init__(transforms, name=name, prob=prob)
+
+        self.n_repeat = n_repeat
+
+
+class RepeatUpTo(Choose):
+    """Repeats up to a given number of times."""
+
+    def __init__(
+        self,
+        transform,
+        max_repeat: int = 5,
+        weights: list = None,
+        max_seed: int = 1000,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        transforms = []
+        for n in range(1, max_repeat):
+            transforms.append(Repeat(transform, n_repeat=n))
+        super().__init__(
+            transforms, name=name, prob=prob, weights=weights, max_seed=max_seed
+        )
+
+        self.max_repeat = max_repeat
 
 
 class ClippingDistortion(BaseTransform):
@@ -430,36 +469,70 @@ class LowPass(BaseTransform):
     def __init__(
         self,
         cutoff: tuple = ("choice", [4000, 8000, 16000]),
+        zeros: int = 51,
         name: str = None,
         prob: float = 1,
     ):
+        """Applies a LowPass filter.
+
+        Parameters
+        ----------
+        cutoff : tuple, optional
+            Cutoff frequency distribution,
+            by default ("choice", [4000, 8000, 16000])
+        zeros : int, optional
+            Number of zero-crossings in filter, argument to
+            julius.LowPassFilters, by default 51
+        name : str, optional
+            Name of the transform, by default None
+        prob : float, optional
+            Probability transform is applied, by default 1
+        """
         super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
+        self.zeros = zeros
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, signal, cutoff):
-        return signal.low_pass(cutoff)
+        return signal.low_pass(cutoff, zeros=self.zeros)
 
 
 class HighPass(BaseTransform):
     def __init__(
         self,
         cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]),
+        zeros: int = 51,
         name: str = None,
         prob: float = 1,
     ):
+        """Applies a HighPass filter.
+
+        Parameters
+        ----------
+        cutoff : tuple, optional
+            Cutoff frequency distribution,
+            by default ("choice", [50, 100, 250, 500, 1000])
+        zeros : int, optional
+            Number of zero-crossings in filter, argument to
+            julius.LowPassFilters, by default 51
+        name : str, optional
+            Name of the transform, by default None
+        prob : float, optional
+            Probability transform is applied, by default 1
+        """
         super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
+        self.zeros = zeros
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, signal, cutoff):
-        return signal.high_pass(cutoff)
+        return signal.high_pass(cutoff, zeros=self.zeros)
 
 
 class RescaleAudio(BaseTransform):
@@ -542,7 +615,7 @@ class TimeMask(SpectralTransform):
     def __init__(
         self,
         t_center: tuple = ("uniform", 0.0, 1.0),
-        t_width: tuple = ("const", 0.1),
+        t_width: tuple = ("const", 0.025),
         name: str = None,
         prob: float = 1,
     ):
