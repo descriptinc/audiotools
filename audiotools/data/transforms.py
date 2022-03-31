@@ -217,6 +217,25 @@ class Repeat(Compose):
         self.n_repeat = n_repeat
 
 
+class RepeatUpTo(Choose):
+    """Repeats up to a given number of times."""
+
+    def __init__(
+        self,
+        transform,
+        max_repeat: int = 5,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        transforms = []
+        for n in range(1, max_repeat):
+            _transform = Compose([copy.copy(transform) for _ in range(n)])
+            transforms.append(_transform)
+        super().__init__(transforms, name=name, prob=prob)
+
+        self.max_repeat = max_repeat
+
+
 class ClippingDistortion(BaseTransform):
     def __init__(
         self,
