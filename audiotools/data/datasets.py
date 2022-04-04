@@ -137,7 +137,7 @@ class CSVDataset(BaseDataset):
         signal = signal.resample(self.sample_rate)
 
         # Instantiate the transform.
-        item = {"signal": signal}
+        item = {"idx": idx, "signal": signal}
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
 
