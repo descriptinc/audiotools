@@ -154,11 +154,13 @@ class AudioSignal(
                 )
         # Concatenate along the batch dimension
         audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
+        audio_paths = [x.path_to_input_file for x in audio_signals]
 
         batched_signal = cls(
             audio_data,
             sample_rate=audio_signals[0].sample_rate,
         )
+        batched_signal.path_to_input_file = audio_paths
         return batched_signal
 
     # I/O
