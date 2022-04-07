@@ -431,7 +431,7 @@ class VolumeChange(BaseTransform):
 class VolumeNorm(BaseTransform):
     def __init__(
         self,
-        db: float = -24,
+        db: tuple = ("const", -24),
         name: str = None,
         prob: float = 1.0,
     ):
@@ -439,12 +439,11 @@ class VolumeNorm(BaseTransform):
 
         self.db = db
 
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        return {"loudness": signal.metadata["file_loudness"]}
+    def _instantiate(self, state: RandomState):
+        return {"db": util.sample_from_dist(self.db, state)}
 
-    def _transform(self, signal, loudness):
-        db_change = self.db - loudness
-        return signal.volume_change(db_change)
+    def _transform(self, signal, db):
+        return signal.normalize(db)
 
 
 class Silence(BaseTransform):
@@ -676,7 +675,13 @@ class Smoothing(BaseTransform):
         return {"window": AudioSignal(window, signal.sample_rate)}
 
     def _transform(self, signal, window):
-        scale = signal.audio_data.abs().max(dim=-1, keepdim=True).values
+        sscale = signal.audio_data.abs().max(dim=-1, keepdim=True).values
+        sscale[sscale == 0.0] = 1.0
+
         out = signal.convolve(window)
-        out = out * scale / out.audio_data.abs().max(dim=-1, keepdim=True).values
+
+        oscale = out.audio_data.abs().max(dim=-1, keepdim=True).values
+        oscale[oscale == 0.0] = 1.0
+
+        out = out * (sscale / oscale)
         return out

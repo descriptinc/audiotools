@@ -2,9 +2,7 @@ import copy
 from multiprocessing import Manager
 from typing import List
 
-import torch
-from flatten_dict import flatten
-from flatten_dict import unflatten
+from torch.utils.data import BatchSampler as _BatchSampler
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
@@ -13,10 +11,38 @@ from ..core import util
 
 # We need to set SHARED_KEYS statically, with no relationship to the
 # BaseDataset object, or we'll hit RecursionErrors in the lookup.
-SHARED_KEYS = ["duration", "shared_transform", "check_transform", "sample_rate"]
+SHARED_KEYS = [
+    "duration",
+    "shared_transform",
+    "check_transform",
+    "sample_rate",
+    "batch_size",
+]
 
 
-class BaseDataset:
+class SharedMixin:
+    def __getattribute__(self, name: str):
+        # Look up the name in SHARED_KEYS (see above). If it's there,
+        # return it from the dictionary that is kept in shared memory.
+        # Otherwise, do the normal __getattribute__. This line only
+        # runs if the key is in SHARED_KEYS.
+        if name in SHARED_KEYS:
+            return self.shared_dict[name]
+        else:
+            return super().__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        # Look up the name in SHARED_KEYS (see above). If it's there
+        # set the value in the dictionary accordingly, so that it the other
+        # dataset replicas know about it. Otherwise, do the normal
+        # __setattr__. This line only runs if the key is in SHARED_KEYS.
+        if name in SHARED_KEYS:
+            self.shared_dict[name] = value
+        else:
+            super().__setattr__(name, value)
+
+
+class BaseDataset(SharedMixin):
     """This BaseDataset class adds all the necessary logic so that there is
     a dictionary that is shared across processes when working with a
     DataLoader with num_workers > 0. It adds an attribute called
@@ -65,26 +91,6 @@ class BaseDataset:
         self.shared_transform = value
         self.check_transform = True
 
-    def __getattribute__(self, name: str):
-        # Look up the name in SHARED_KEYS (see above). If it's there,
-        # return it from the dictionary that is kept in shared memory.
-        # Otherwise, do the normal __getattribute__. This line only
-        # runs if the key is in SHARED_KEYS.
-        if name in SHARED_KEYS:
-            return self.shared_dict[name]
-        else:
-            return super().__getattribute__(name)
-
-    def __setattr__(self, name, value):
-        # Look up the name in SHARED_KEYS (see above). If it's there
-        # set the value in the dictionary accordingly, so that it the other
-        # dataset replicas know about it. Otherwise, do the normal
-        # __setattr__. This line only runs if the key is in SHARED_KEYS.
-        if name in SHARED_KEYS:
-            self.shared_dict[name] = value
-        else:
-            super().__setattr__(name, value)
-
     def __len__(self):
         return self.length
 
@@ -124,14 +130,12 @@ class CSVDataset(BaseDataset):
             state=state,
             loudness_cutoff=self.loudness_cutoff,
         )
-        if "loudness" in audio_info:
-            signal.metadata["file_loudness"] = float(audio_info["loudness"])
         if self.mono:
             signal = signal.to_mono()
         signal = signal.resample(self.sample_rate)
 
         # Instantiate the transform.
-        item = {"signal": signal}
+        item = {"idx": idx, "signal": signal}
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
 
@@ -139,6 +143,12 @@ class CSVDataset(BaseDataset):
 
 
 # Samplers
+class BatchSampler(_BatchSampler, SharedMixin):
+    def __init__(self, sampler, batch_size: int, drop_last: bool = False):
+        self.shared_dict = Manager().dict()
+        super().__init__(sampler, batch_size, drop_last=drop_last)
+
+
 class ResumableDistributedSampler(DistributedSampler):  # pragma: no cover
     def __init__(self, dataset, start_idx=None, **kwargs):
         super().__init__(dataset, **kwargs)
