@@ -393,3 +393,13 @@ def test_nested_masking():
         kwargs = batch["transform_args"]
         with torch.no_grad():
             output = dataset.transform(signal, **kwargs)
+
+
+def test_smoothing_edge_case():
+    transform = tfm.Smoothing()
+    zeros = torch.zeros(1, 1, 44100)
+    signal = AudioSignal(zeros, 44100)
+    kwargs = transform.instantiate(0, signal)
+    output = transform(signal, **kwargs)
+
+    assert torch.allclose(output.audio_data, zeros)
