@@ -230,7 +230,7 @@ class RepeatUpTo(Choose):
         prob: float = 1.0,
     ):
         transforms = []
-        for n in range(1, max_repeat):
+        for n in range(1, max_repeat + 1):
             transforms.append(Repeat(transform, n_repeat=n))
         super().__init__(
             transforms, name=name, prob=prob, weights=weights, max_seed=max_seed
