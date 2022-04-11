@@ -117,26 +117,32 @@ class DSPMixin:
         self.trim(hop_length, hop_length)
         return self
 
-    def low_pass(self, cutoffs, zeros=51):
+    def low_pass(self, cutoffs, zeros=51, use_julius_fft=False):
         cutoffs = util.ensure_tensor(cutoffs, 2, self.batch_size)
         cutoffs = cutoffs / self.sample_rate
         filtered = torch.empty_like(self.audio_data)
 
         for i, cutoff in enumerate(cutoffs):
             lp_filter = julius.LowPassFilter(cutoff.cpu(), zeros=zeros).to(self.device)
+            if not use_julius_fft:
+                # hacky way to not julius own fft_conv which can cause memory leak
+                lp_filter._lowpasses.fft = None
             filtered[i] = lp_filter(self.audio_data[i])
 
         self.audio_data = filtered
         self.stft_data = None
         return self
 
-    def high_pass(self, cutoffs, zeros=51):
+    def high_pass(self, cutoffs, zeros=51, use_julius_fft=False):
         cutoffs = util.ensure_tensor(cutoffs, 2, self.batch_size)
         cutoffs = cutoffs / self.sample_rate
         filtered = torch.empty_like(self.audio_data)
 
         for i, cutoff in enumerate(cutoffs):
             hp_filter = julius.HighPassFilter(cutoff.cpu(), zeros=zeros).to(self.device)
+            if not use_julius_fft:
+                # hacky way to notuse julius own fft_conv which can cause memory leak
+                hp_filter._highpasses._lowpasses.fft = None
             filtered[i] = hp_filter(self.audio_data[i])
 
         self.audio_data = filtered

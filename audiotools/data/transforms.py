@@ -469,6 +469,7 @@ class LowPass(BaseTransform):
         self,
         cutoff: tuple = ("choice", [4000, 8000, 16000]),
         zeros: int = 51,
+        use_julius_fft: bool = False,
         name: str = None,
         prob: float = 1,
     ):
@@ -482,6 +483,9 @@ class LowPass(BaseTransform):
         zeros : int, optional
             Number of zero-crossings in filter, argument to
             julius.LowPassFilters, by default 51
+        use_julius_fft: bool, optional
+            Wether or not to use the custom fft implementation by julius.
+            Setting it to true can cause memory leaks
         name : str, optional
             Name of the transform, by default None
         prob : float, optional
@@ -491,12 +495,15 @@ class LowPass(BaseTransform):
 
         self.cutoff = cutoff
         self.zeros = zeros
+        self.use_julius_fft = use_julius_fft
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, signal, cutoff):
-        return signal.low_pass(cutoff, zeros=self.zeros)
+        return signal.low_pass(
+            cutoff, zeros=self.zeros, use_julius_fft=self.use_julius_fft
+        )
 
 
 class HighPass(BaseTransform):
@@ -504,6 +511,7 @@ class HighPass(BaseTransform):
         self,
         cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]),
         zeros: int = 51,
+        use_julius_fft: bool = False,
         name: str = None,
         prob: float = 1,
     ):
@@ -517,6 +525,9 @@ class HighPass(BaseTransform):
         zeros : int, optional
             Number of zero-crossings in filter, argument to
             julius.LowPassFilters, by default 51
+        use_julius_fft: bool, optional
+            Wether or not to use the custom fft implementation by julius.
+            Setting it to true can cause memory leaks
         name : str, optional
             Name of the transform, by default None
         prob : float, optional
@@ -526,12 +537,15 @@ class HighPass(BaseTransform):
 
         self.cutoff = cutoff
         self.zeros = zeros
+        self.use_julius_fft = use_julius_fft
 
     def _instantiate(self, state: RandomState):
         return {"cutoff": util.sample_from_dist(self.cutoff, state)}
 
     def _transform(self, signal, cutoff):
-        return signal.high_pass(cutoff, zeros=self.zeros)
+        return signal.high_pass(
+            cutoff, zeros=self.zeros, use_julius_fft=self.use_julius_fft
+        )
 
 
 class RescaleAudio(BaseTransform):
