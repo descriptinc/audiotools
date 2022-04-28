@@ -1,4 +1,4 @@
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 from .core import AudioSignal, STFTParams, Meter, util
 from . import metrics
 from . import data
