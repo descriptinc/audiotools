@@ -384,11 +384,18 @@ def test_stft(window_length, hop_length, window_type):
         assert torch.allclose(recon_stft, signal.stft_data)
 
         # Test with match_stride=True, ignoring the beginning and end.
-        if hop_length == window_length // 4:
+        s = signal.stft_params
+        if s.hop_length == s.window_length // 4:
             og_signal = signal.clone()
-            signal.stft(match_stride=True)
+            stft_data = signal.stft(match_stride=True)
             recon_data = signal.istft(match_stride=True)
             discard = window_length * 2
+
+            right_pad, _ = signal.compute_stft_padding(
+                s.window_length, s.hop_length, match_stride=True
+            )
+            length = signal.signal_length + right_pad
+            assert stft_data.shape[-1] == length // s.hop_length
 
             assert torch.allclose(
                 recon_data.audio_data[..., discard:-discard],
