@@ -383,6 +383,19 @@ def test_stft(window_length, hop_length, window_type):
         recon_stft = mag * torch.exp(1j * phase)
         assert torch.allclose(recon_stft, signal.stft_data)
 
+        # Test with match_stride=True, ignoring the beginning and end.
+        if hop_length == window_length // 4:
+            og_signal = signal.clone()
+            signal.stft(match_stride=True)
+            recon_data = signal.istft(match_stride=True)
+            discard = window_length * 2
+
+            assert torch.allclose(
+                recon_data.audio_data[..., discard:-discard],
+                og_signal.audio_data[..., discard:-discard],
+                atol=1e-6,
+            )
+
 
 def test_log_magnitude():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"

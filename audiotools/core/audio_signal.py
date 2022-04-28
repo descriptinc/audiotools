@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import math
 import pathlib
 import tempfile
 import warnings
@@ -24,8 +25,10 @@ from .loudness import LoudnessMixin
 from .playback import PlayMixin
 
 
-STFTParams = namedtuple("STFTParams", ["window_length", "hop_length", "window_type"])
-STFTParams.__new__.__defaults__ = (None,) * len(STFTParams._fields)
+STFTParams = namedtuple(
+    "STFTParams", ["window_length", "hop_length", "window_type", "match_stride"]
+)
+STFTParams.__new__.__defaults__ = (None, None, None, None)
 """
 STFTParams object is a container that holds STFT parameters - window_length,
 hop_length, and window_type. Not all parameters need to be specified. Ones that
@@ -400,11 +403,13 @@ class AudioSignal(
         default_win_len = int(2 ** (np.ceil(np.log2(0.032 * self.sample_rate))))
         default_hop_len = default_win_len // 4
         default_win_type = "sqrt_hann"
+        default_match_stride = False
 
         default_stft_params = STFTParams(
             window_length=default_win_len,
             hop_length=default_hop_len,
             window_type=default_win_type,
+            match_stride=default_match_stride,
         )._asdict()
 
         value = value._asdict() if value else default_stft_params
@@ -416,8 +421,27 @@ class AudioSignal(
         self._stft_params = STFTParams(**value)
         self.stft_data = None
 
+    def compute_stft_padding(self, window_length, hop_length, match_stride):
+        length = self.signal_length
+
+        if match_stride:
+            assert (
+                hop_length == window_length // 4
+            ), "For match_stride, hop must equal n_fft // 4"
+            right_pad = math.ceil(length / hop_length) * hop_length - length
+            pad = (window_length - hop_length) // 2
+        else:
+            right_pad = 0
+            pad = 0
+
+        return right_pad, pad
+
     def stft(
-        self, window_length=None, hop_length=None, window_type=None, return_complex=True
+        self,
+        window_length=None,
+        hop_length=None,
+        window_type=None,
+        match_stride=None,
     ):
         window_length = (
             self.stft_params.window_length
@@ -430,22 +454,37 @@ class AudioSignal(
         window_type = (
             self.stft_params.window_type if window_type is None else window_type
         )
-
-        stft_data = []
+        match_stride = (
+            self.stft_params.match_stride if match_stride is None else match_stride
+        )
 
         window = self.get_window(window_type, window_length, self.audio_data.device)
         window = window.to(self.audio_data.device)
 
+        audio_data = self.audio_data
+        right_pad, pad = self.compute_stft_padding(
+            window_length, hop_length, match_stride
+        )
+        audio_data = torch.nn.functional.pad(
+            audio_data, (pad, pad + right_pad), "reflect"
+        )
         stft_data = torch.stft(
-            self.audio_data.reshape(-1, self.signal_length),
+            audio_data.reshape(-1, audio_data.shape[-1]),
             n_fft=window_length,
             hop_length=hop_length,
             window=window,
-            return_complex=return_complex,
+            return_complex=True,
+            center=True,
         )
         _, nf, nt = stft_data.shape
         stft_data = stft_data.reshape(self.batch_size, self.num_channels, nf, nt)
+
+        if match_stride:
+            # Drop first two and last two frames, which are added
+            # because of padding. Now num_frames * hop_length = num_samples.
+            stft_data = stft_data[..., 2:-2]
         self.stft_data = stft_data
+
         return stft_data
 
     def istft(
@@ -453,6 +492,7 @@ class AudioSignal(
         window_length=None,
         hop_length=None,
         window_type=None,
+        match_stride=None,
         length=None,
     ):
         if self.stft_data is None:
@@ -469,14 +509,26 @@ class AudioSignal(
         window_type = (
             self.stft_params.window_type if window_type is None else window_type
         )
+        match_stride = (
+            self.stft_params.match_stride if match_stride is None else match_stride
+        )
 
         window = self.get_window(window_type, window_length, self.stft_data.device)
 
         nb, nch, nf, nt = self.stft_data.shape
         stft_data = self.stft_data.reshape(nb * nch, nf, nt)
+        right_pad, pad = self.compute_stft_padding(
+            window_length, hop_length, match_stride
+        )
 
         if length is None:
             length = self.original_signal_length
+            length = length + 2 * pad + right_pad
+
+        if match_stride:
+            # Zero-pad the STFT on either side, putting back the frames that were
+            # dropped in stft().
+            stft_data = torch.nn.functional.pad(stft_data, (2, 2))
 
         audio_data = torch.istft(
             stft_data,
@@ -484,9 +536,13 @@ class AudioSignal(
             hop_length=hop_length,
             window=window,
             length=length,
+            center=True,
         )
         audio_data = audio_data.reshape(nb, nch, -1)
+        if match_stride:
+            audio_data = audio_data[..., pad : -(pad + right_pad)]
         self.audio_data = audio_data
+
         return self
 
     def mel_spectrogram(self, n_mels=80, mel_fmin=0.0, mel_fmax=None, **kwargs):
