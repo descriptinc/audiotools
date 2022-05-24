@@ -83,7 +83,7 @@ for x in dir(tfm):
 
 audio_path = "tests/audio/spk/f10_script4_produced.wav"
 signal = AudioSignal(audio_path, offset=6, duration=5)
-signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
+signal.metadata["loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
 
 audio_dict = {
     "Original": {"audio": signal, "params": None},
