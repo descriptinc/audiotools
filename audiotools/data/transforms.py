@@ -460,7 +460,7 @@ class GlobalVolumeNorm(BaseTransform):
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         assert "loudness" in signal.metadata
         db = util.sample_from_dist(self.db, state)
-        db_change = db - signal.metadata["loudness"]
+        db_change = db - float(signal.metadata["loudness"])
         return {"db": db_change}
 
     def _transform(self, signal, db):
