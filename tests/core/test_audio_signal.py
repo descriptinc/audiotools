@@ -383,6 +383,26 @@ def test_stft(window_length, hop_length, window_type):
         recon_stft = mag * torch.exp(1j * phase)
         assert torch.allclose(recon_stft, signal.stft_data)
 
+        # Test with match_stride=True, ignoring the beginning and end.
+        s = signal.stft_params
+        if s.hop_length == s.window_length // 4:
+            og_signal = signal.clone()
+            stft_data = signal.stft(match_stride=True)
+            recon_data = signal.istft(match_stride=True)
+            discard = window_length * 2
+
+            right_pad, _ = signal.compute_stft_padding(
+                s.window_length, s.hop_length, match_stride=True
+            )
+            length = signal.signal_length + right_pad
+            assert stft_data.shape[-1] == length // s.hop_length
+
+            assert torch.allclose(
+                recon_data.audio_data[..., discard:-discard],
+                og_signal.audio_data[..., discard:-discard],
+                atol=1e-6,
+            )
+
 
 def test_log_magnitude():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
