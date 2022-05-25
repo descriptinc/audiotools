@@ -446,6 +446,27 @@ class VolumeNorm(BaseTransform):
         return signal.normalize(db)
 
 
+class GlobalVolumeNorm(BaseTransform):
+    def __init__(
+        self,
+        db: tuple = ("const", -24),
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        super().__init__(name=name, prob=prob)
+
+        self.db = db
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        assert "loudness" in signal.metadata
+        db = util.sample_from_dist(self.db, state)
+        db_change = db - float(signal.metadata["loudness"])
+        return {"db": db_change}
+
+    def _transform(self, signal, db):
+        return signal.volume_change(db)
+
+
 class Silence(BaseTransform):
     def __init__(self, name: str = None, prob: float = 0.1):
         super().__init__(name=name, prob=prob)

@@ -130,6 +130,8 @@ class CSVDataset(BaseDataset):
             state=state,
             loudness_cutoff=self.loudness_cutoff,
         )
+        for k, v in audio_info.items():
+            signal.metadata[k] = v
         if self.mono:
             signal = signal.to_mono()
         signal = signal.resample(self.sample_rate)

@@ -44,7 +44,7 @@ def test_transform(transform_name):
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
-    signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
+    signal.metadata["loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
     transform = transform_cls(prob=1.0, **kwargs)
 
     kwargs = transform.instantiate(seed, signal)
@@ -60,9 +60,7 @@ def test_transform(transform_name):
     batch_size = 4
     signal = AudioSignal(audio_path, offset=10, duration=2)
     signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
-    signal_batch.metadata["file_loudness"] = (
-        AudioSignal(audio_path).ffmpeg_loudness().item()
-    )
+    signal_batch.metadata["loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
 
     states = [seed + idx for idx in list(range(batch_size))]
     kwargs = transform.batch_instantiate(states, signal_batch)
@@ -72,7 +70,7 @@ def test_transform(transform_name):
 
     ## Test that you can apply transform with the same args twice.
     signal = AudioSignal(audio_path, offset=10, duration=2)
-    signal.metadata["file_loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
+    signal.metadata["loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
     kwargs = transform.instantiate(seed, signal)
     output_a = transform(signal.clone(), **kwargs)
     output_b = transform(signal.clone(), **kwargs)
