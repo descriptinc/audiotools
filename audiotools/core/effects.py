@@ -34,7 +34,11 @@ class EffectMixin:
         if other_eq is not None:
             other = other.equalizer(other_eq)
 
-        tgt_loudness = self.loudness() - snr
+        if self.loudness() <= -70:  # (all zeros)
+            # don't change loudness, just add the noise to the sample.
+            tgt_loudness = other.loudness()
+        else:
+            tgt_loudness = self.loudness() - snr
         other = other.normalize(tgt_loudness)
 
         self.audio_data = self.audio_data + other.audio_data
