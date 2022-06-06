@@ -8,8 +8,10 @@ import tempfile
 from pathlib import Path
 
 import argbind
+import markdown2 as md
 import matplotlib.pyplot as plt
 import torch
+from IPython.display import HTML
 
 
 def upload_file_to_discourse(
@@ -175,10 +177,24 @@ def discourse_audio_table(audio_dict, first_column=None, **kwargs):  # pragma: n
     return output, uploads
 
 
-def disp(obj, label=None, **kwargs):  # pragma: no cover
+def in_notebook():  # pragma: no cover
+    try:
+        from IPython import get_ipython
+
+        if "IPKernelApp" not in get_ipython().config:  # pragma: no cover
+            return False
+    except ImportError:
+        return False
+    except AttributeError:
+        return False
+    return True
+
+
+def disp(obj, label=None, upload_to_discourse=False, **kwargs):  # pragma: no cover
     from audiotools import AudioSignal
 
-    DISCOURSE = bool(os.environ.get("UPLOAD_TO_DISCOURSE", False))
+    DISCOURSE = bool(os.environ.get("UPLOAD_TO_DISCOURSE", upload_to_discourse))
+    IN_NOTEBOOK = in_notebook()
 
     if isinstance(obj, AudioSignal):
         if DISCOURSE:
@@ -186,13 +202,20 @@ def disp(obj, label=None, **kwargs):  # pragma: no cover
             print(info[0])
         else:
             audio_elem = obj.embed(display=False, return_html=True)
-            print(audio_elem)
+            if IN_NOTEBOOK:
+                return HTML(audio_elem)
+            else:
+                print(audio_elem)
     if isinstance(obj, dict):
         if DISCOURSE:
             table = discourse_audio_table(obj, **kwargs)[0]
+            print(table)
         else:
             table = audio_table(obj, **kwargs)
-        print(table)
+            if IN_NOTEBOOK:
+                return HTML(md.markdown(table, extras=["tables"]))
+            else:
+                print(table)
     if isinstance(obj, plt.Figure):
         if DISCOURSE:
             info = upload_figure_to_discourse(**kwargs)

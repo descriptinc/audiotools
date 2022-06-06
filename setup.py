@@ -51,6 +51,7 @@ setup(
         "pystoi",
         "torch_stoi",
         "flatten-dict",
+        "markdown2",
     ],
     extras_require={
         "tests": [
