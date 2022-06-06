@@ -52,6 +52,7 @@ setup(
         "torch_stoi",
         "flatten-dict",
         "markdown2",
+        "protobuf==3.20.1",  # Have to freeze protobuf version, https://github.com/protocolbuffers/protobuf/issues/10051
     ],
     extras_require={
         "tests": [
