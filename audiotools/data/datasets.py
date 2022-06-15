@@ -106,6 +106,7 @@ class CSVDataset(BaseDataset):
         n_examples: int = 1000,
         duration: float = 0.5,
         csv_files: List[str] = None,
+        csv_weights: List[float] = None,
         loudness_cutoff: float = -40,
         mono: bool = True,
         transform=None,
@@ -117,13 +118,16 @@ class CSVDataset(BaseDataset):
         self.audio_lists = util.read_csv(csv_files)
         self.loudness_cutoff = loudness_cutoff
         self.mono = mono
+        self.csv_weights = csv_weights
 
     def __getitem__(self, idx):
         state = util.random_state(idx)
 
         # Load an audio file randomly from the list of lists,
         # seeded by the current index.
-        audio_info = util.choose_from_list_of_lists(state, self.audio_lists)
+        audio_info = util.choose_from_list_of_lists(
+            state, self.audio_lists, p=self.csv_weights
+        )
         signal = AudioSignal.salient_excerpt(
             audio_info["path"],
             duration=self.duration,

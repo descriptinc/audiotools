@@ -320,6 +320,7 @@ class BackgroundNoise(BaseTransform):
         self,
         snr: tuple = ("uniform", 10.0, 30.0),
         csv_files: List[str] = None,
+        csv_weights: List[float] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 3,
         name: str = None,
@@ -334,13 +335,16 @@ class BackgroundNoise(BaseTransform):
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.audio_files = util.read_csv(csv_files)
+        self.csv_weights = csv_weights
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        bg_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
+        bg_path = util.choose_from_list_of_lists(
+            state, self.audio_files, p=self.csv_weights
+        )["path"]
 
         # Get properties of input signal to use when creating
         # background signal.
@@ -367,6 +371,7 @@ class RoomImpulseResponse(BaseTransform):
         self,
         drr: tuple = ("uniform", 0.0, 30.0),
         csv_files: List[str] = None,
+        csv_weights: List[float] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 6,
         name: str = None,
@@ -380,13 +385,16 @@ class RoomImpulseResponse(BaseTransform):
         self.n_bands = n_bands
         self.use_original_phase = use_original_phase
         self.audio_files = util.read_csv(csv_files)
+        self.csv_weights = csv_weights
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        ir_path = util.choose_from_list_of_lists(state, self.audio_files)["path"]
+        ir_path = util.choose_from_list_of_lists(
+            state, self.audio_files, p=self.csv_weights
+        )["path"]
 
         # Get properties of input signal to use when creating
         # background signal.
