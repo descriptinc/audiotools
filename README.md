@@ -109,7 +109,7 @@ We can listen to different items in the batch:
 ```{.python .cb.nb show=code:verbatim+stdout:raw}
 outputs = {}
 for idx in [0, 2, 5]:
-    output = AudioSignal(spk_batch[idx], spk_batch.sample_rate)
+    output = spk_batch[idx]
     outputs[f"batch_idx={idx}"] = output
 post.disp(outputs)
 ```
@@ -126,7 +126,7 @@ Let's listen to the first and last item in the output:
 ```{.python .cb.nb show=code:verbatim+stdout:raw}
 outputs = {}
 for idx in [0, -1]:
-    output = AudioSignal(spk_plus_nz_batch[idx], spk_plus_nz_batch.sample_rate)
+    output = spk_plus_nz_batch[idx]
     outputs[f"batch_idx={idx}"] = output
 post.disp(outputs)
 ```
@@ -341,8 +341,8 @@ sr = clean_spk.sample_rate
 outputs = {}
 for i in range(clean_spk.batch_size):
     _outputs = {
-        "clean": AudioSignal(clean_spk[i], sr),
-        "noisy": AudioSignal(noisy_spk[i], sr),
+        "clean": clean_spk[i],
+        "noisy": noisy_spk[i],
     }
     outputs[f"{i+1}"] = _outputs
 post.disp(outputs)
