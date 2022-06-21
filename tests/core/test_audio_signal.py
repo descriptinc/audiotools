@@ -318,6 +318,24 @@ def test_trim():
     assert np.allclose(sig1.audio_data, array)
 
 
+def test_zero_pad_to_multiple():
+    array = np.random.randn(4, 2, 16000)
+    sig1 = AudioSignal(array, sample_rate=16000)
+    hop = 256
+
+    sig1.zero_pad_to_multiple(hop, mode="after")
+    assert sig1.signal_length and not sig1.signal_length % hop
+    assert np.allclose(sig1.audio_data[..., :16000], array)
+    assert sig1.audio_data[..., 16000:].abs().sum().item() == 0
+
+    sig1 = AudioSignal(array, sample_rate=16000)
+
+    sig1.zero_pad_to_multiple(hop, mode="before")
+    assert sig1.signal_length and not sig1.signal_length % hop
+    assert np.allclose(sig1.audio_data[..., -16000:], array)
+    assert sig1.audio_data[..., :-16000].abs().sum().item() == 0
+
+
 def test_to_from_ops():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path)

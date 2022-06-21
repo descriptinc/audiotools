@@ -299,6 +299,14 @@ class AudioSignal(
             self.zero_pad(0, max(length - self.signal_length, 0))
         return self
 
+    def zero_pad_to_multiple(self, length, mode="after"):
+        target_length = math.ceil(self.signal_length / length) * length
+        if mode == "before":
+            self.zero_pad(max(target_length - self.signal_length, 0), 0)
+        elif mode == "after":
+            self.zero_pad(0, max(target_length - self.signal_length, 0))
+        return self
+
     def trim(self, before, after):
         if after == 0:
             self.audio_data = self.audio_data[..., before:]
