@@ -154,8 +154,8 @@ def read_csv(filelists):
     return files
 
 
-def choose_from_list_of_lists(state, list_of_lists):
-    idx = state.randint(len(list_of_lists))
+def choose_from_list_of_lists(state, list_of_lists, p=None):
+    idx = state.choice(list(range(len(list_of_lists))), p=p)
     item_idx = state.randint(len(list_of_lists[idx]))
     return list_of_lists[idx][item_idx]
 
