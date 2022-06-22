@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 import warnings
 from collections import namedtuple
+from typing import Dict
 
 import julius
 import librosa
@@ -54,6 +55,7 @@ class AudioSignal(
         offset=0,
         duration=None,
         device=None,
+        metadata: Dict = {},
     ):
 
         audio_path = None
@@ -88,7 +90,7 @@ class AudioSignal(
         self.window = None
         self.stft_params = stft_params
 
-        self.metadata = {}
+        self.metadata = metadata
 
     @classmethod
     def excerpt(cls, audio_path, offset=None, duration=None, state=None, **kwargs):
@@ -128,6 +130,7 @@ class AudioSignal(
     ):
         signal_lengths = [x.signal_length for x in audio_signals]
         sample_rates = [x.sample_rate for x in audio_signals]
+        metadatas = [x.metadata for x in audio_signals]
 
         if len(set(sample_rates)) != 1:
             if resample:
@@ -162,6 +165,7 @@ class AudioSignal(
         batched_signal = cls(
             audio_data,
             sample_rate=audio_signals[0].sample_rate,
+            metadata=metadatas,
         )
         batched_signal.path_to_input_file = audio_paths
         return batched_signal
