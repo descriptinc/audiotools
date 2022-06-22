@@ -514,12 +514,14 @@ def test_batching():
     assert batched_signal.batch_size == batch_size
 
     signals = []
-    # All different lengths, different sample rate, pad signals
-    for _ in range(batch_size):
+    # All different lengths, different sample rate, pad signals, random metadata
+    for i in range(batch_size):
         L = np.random.randint(8000, 32000)
         sr = np.random.choice([8000, 16000, 32000])
         array = np.random.randn(2, L)
+        metadata = {"int": i, "str": f"index={i}"}
         signal = AudioSignal(array, sample_rate=int(sr))
+        signal.metadata = metadata
         signals.append(signal)
 
     with pytest.raises(RuntimeError):
@@ -534,3 +536,7 @@ def test_batching():
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
     assert batched_signal.path_to_input_file == list(range(len(signals)))
+
+    metadata = batched_signal.metadata
+    assert metadata["int"].tolist() == list(range(len(signals)))
+    assert metadata["str"] == [f"index={i}" for i in range(len(signals))]
