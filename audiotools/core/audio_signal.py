@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 import warnings
 from collections import namedtuple
+from typing import Any
 from typing import Dict
 
 import julius
@@ -55,7 +56,7 @@ class AudioSignal(
         offset=0,
         duration=None,
         device=None,
-        metadata: Dict = {},
+        metadata: Dict[str, Any] = {},
     ):
 
         audio_path = None
