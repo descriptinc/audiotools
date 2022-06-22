@@ -1,6 +1,7 @@
 import csv
 import numbers
 import os
+import pathlib
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -221,5 +222,7 @@ def collate(list_of_dicts):
                 batch[k] = AudioSignal.batch(v, pad_signals=True)
             else:
                 # Borrow the default collate fn from torch.
+                if all(isinstance(s, pathlib.Path) for s in v):
+                    v = [str(s) for s in v]
                 batch[k] = torch.utils.data._utils.collate.default_collate(v)
     return unflatten(batch)

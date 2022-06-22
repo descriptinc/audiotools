@@ -11,6 +11,8 @@ import librosa
 import numpy as np
 import torch
 import torchaudio
+from flatten_dict import flatten
+from flatten_dict import unflatten
 from librosa.filters import mel as librosa_mel_fn
 from scipy import signal
 
@@ -696,6 +698,7 @@ class AudioSignal(
             audio_data = self.audio_data
             _loudness = self._loudness
             stft_data = self.stft_data
+            metadata = self.metadata
 
         elif isinstance(key, (bool, int, list, slice, tuple)) or (
             torch.is_tensor(key) and key.ndim <= 1
@@ -708,8 +711,14 @@ class AudioSignal(
             _loudness = self._loudness[key] if self._loudness is not None else None
             stft_data = self.stft_data[key] if self.stft_data is not None else None
 
+            _metadata = flatten(self.metadata)
+            metadata = {}
+            for k, v in _metadata.items():
+                metadata[k] = v[key]
+
         copy = type(self)(audio_data, self.sample_rate, stft_params=self.stft_params)
         copy._loudness = _loudness
+        copy.metadata = metadata
         copy._stft_data = stft_data
 
         return copy
