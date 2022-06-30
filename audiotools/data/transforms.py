@@ -239,6 +239,67 @@ class RepeatUpTo(Choose):
         self.max_repeat = max_repeat
 
 
+class Shuffle(Choose):
+    def __init__(
+        self,
+        *transforms: list,
+        max_seed: int = 1000,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        super().__init__(*transforms, name=name, prob=prob)
+        self.max_seed = max_seed
+
+    @contextmanager
+    def _shuffle(self, seed):
+        n_tfm = len(self.transforms)
+
+        if n_tfm <= 1:
+            yield
+        else:
+            state = seed.sum().item()
+            state = util.random_state(state)
+
+            idx_old = list(range(n_tfm))
+            idx_new = copy.deepcopy(idx_old)
+
+            while idx_old == idx_new:
+                idx_new = list(state.permutation(idx_new))
+
+            old_transforms = self.transforms
+            self.transforms = tuple(self.transforms[i] for i in idx_new)
+            yield
+            self.transforms = old_transforms
+
+    def transform(self, signal, **kwargs):
+        tfm_kwargs = self.prepare(kwargs)
+        mask = tfm_kwargs["mask"]
+        seed = tfm_kwargs["seed"]
+
+        if torch.any(mask):
+            tfm_kwargs_mask = self.apply_mask(tfm_kwargs, mask)
+            tfm_kwargs_mask = {
+                k: v for k, v in tfm_kwargs_mask.items() if k not in ["mask", "seed"]
+            }
+
+            with self._shuffle(seed):
+                signal[mask] = super(Choose, self)._transform(
+                    signal[mask], **tfm_kwargs_mask
+                )
+
+        if torch.any(~mask):
+            tfm_kwargs_mask = self.apply_mask(tfm_kwargs, ~mask)
+            tfm_kwargs_mask = {
+                k: v for k, v in tfm_kwargs_mask.items() if k not in ["mask", "seed"]
+            }
+
+            signal[~mask] = super(Choose, self)._transform(
+                signal[~mask], **tfm_kwargs_mask
+            )
+
+        return signal
+
+
 class ClippingDistortion(BaseTransform):
     def __init__(
         self,
