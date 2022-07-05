@@ -4,8 +4,8 @@ import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 from typing import List
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -202,7 +202,7 @@ def prepare_batch(batch, device="cpu"):
 
 def verify_dist_tuple(dist_tuple):
     if dist_tuple[0] == "const":
-        assert not isinstance(dist_tuple[1], Iterable)
+        assert not isinstance(dist_tuple[1], (List, Tuple))
 
 
 def sample_from_dist(dist_tuple, state=None):

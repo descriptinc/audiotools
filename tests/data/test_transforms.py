@@ -14,7 +14,7 @@ from audiotools.data.datasets import CSVDataset
 transforms_to_test = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
+        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo", "Shuffle"]:
             transforms_to_test.append(x)
 
 
@@ -401,3 +401,162 @@ def test_smoothing_edge_case():
     output = transform(signal, **kwargs)
 
     assert torch.allclose(output.audio_data, zeros)
+
+
+def test_shuffle_basic():
+    seed = 0
+
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+    transform = tfm.Shuffle(
+        [
+            tfm.LowPass(cutoff=("const", 3000)),
+            tfm.Quantization(channels=("const", 8)),
+        ],
+    )
+    baseline = tfm.Compose(
+        [
+            tfm.Quantization(channels=("const", 8)),
+            tfm.LowPass(cutoff=("const", 3000)),
+        ],
+    )
+
+    kwargs = transform.instantiate(seed, signal)
+    output_shuffle = transform(signal.clone(), **kwargs)
+
+    kwargs = baseline.instantiate(seed, signal)
+    output_baseline = baseline(signal.clone(), **kwargs)
+
+    assert torch.allclose(
+        output_shuffle.audio_data, output_baseline.audio_data, atol=1e-6
+    )
+
+    _compare_transform("Shuffle", output_shuffle)
+
+    assert isinstance(transform[0], tfm.LowPass)
+    assert isinstance(transform[1], tfm.Quantization)
+    assert len(transform) == 2
+
+    # Make sure __iter__ works
+    for _tfm in transform:
+        pass
+
+
+def test_shuffle_with_duplicate_transforms():
+    muls = [0.5, 0.25, 0.125]
+    transform = tfm.Shuffle([MulTransform(x) for x in muls])
+    full_mul = np.prod(muls)
+
+    kwargs = transform.instantiate(0)
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+
+    output = transform(signal.clone(), **kwargs)
+    expected_output = signal.audio_data * full_mul
+
+    assert torch.allclose(output.audio_data, expected_output)
+
+
+def test_nested_shuffle():
+    seed = 0
+
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+    transform = tfm.Shuffle(
+        [
+            tfm.HighPass(cutoff=("const", 100)),
+            tfm.Shuffle(
+                [
+                    tfm.LowPass(cutoff=("const", 3000)),
+                    tfm.Quantization(channels=("const", 8)),
+                ]
+            ),
+        ],
+    )
+    baseline = tfm.Compose(
+        [
+            tfm.Quantization(channels=("const", 8)),
+            tfm.LowPass(cutoff=("const", 3000)),
+            tfm.HighPass(cutoff=("const", 100)),
+        ],
+    )
+
+    kwargs = transform.instantiate(seed, signal)
+    output_shuffle = transform(signal.clone(), **kwargs)
+
+    kwargs = baseline.instantiate(seed, signal)
+    output_baseline = baseline(signal.clone(), **kwargs)
+
+    assert torch.allclose(
+        output_shuffle.audio_data, output_baseline.audio_data, atol=1e-6
+    )
+
+
+def test_shuffle_filtering():
+    muls = [0.5, 0.25, 0.125]
+    transform = tfm.Shuffle([MulTransform(x, name=str(x)) for x in muls])
+
+    kwargs = transform.instantiate(0)
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+
+    for s in range(len(muls)):
+        for _ in range(10):
+            _muls = np.random.choice(muls, size=s, replace=False).tolist()
+            full_mul = np.prod(_muls)
+            with transform.filter(*[str(x) for x in _muls]):
+                output = transform(signal.clone(), **kwargs)
+
+            expected_output = signal.audio_data * full_mul
+            assert torch.allclose(output.audio_data, expected_output)
+
+
+def test_choose_with_shuffle():
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+
+    transform = tfm.Choose(
+        [
+            tfm.Shuffle([MulTransform(0.0)]),
+            tfm.Shuffle([MulTransform(2.0)]),
+        ]
+    )
+
+    targets = [signal.clone() * 0.0, signal.clone() * 2.0]
+
+    for seed in range(10):
+        kwargs = transform.instantiate(seed, signal)
+        output = transform(signal, **kwargs)
+
+        assert output in targets
+
+
+def test_shuffle_mask():
+    seed = 0
+
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    signal = AudioSignal(audio_path, offset=10, duration=2)
+
+    transform = tfm.Shuffle(
+        [
+            tfm.LowPass(cutoff=("const", 3000)),
+            tfm.Quantization(channels=("const", 8)),
+        ],
+        prob=0.0,
+    )
+    baseline = tfm.Compose(
+        [
+            tfm.LowPass(cutoff=("const", 3000)),
+            tfm.Quantization(channels=("const", 8)),
+        ],
+    )
+
+    kwargs = transform.instantiate(seed, signal)
+    output_shuffle = transform(signal.clone(), **kwargs)
+
+    kwargs = baseline.instantiate(seed, signal)
+    output_baseline = baseline(signal.clone(), **kwargs)
+
+    assert torch.allclose(
+        output_shuffle.audio_data, output_baseline.audio_data, atol=1e-6
+    )
