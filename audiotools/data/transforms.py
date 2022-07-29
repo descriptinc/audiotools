@@ -366,6 +366,36 @@ class BackgroundNoise(BaseTransform):
         return signal.mix(bg_signal.clone(), snr, eq)
 
 
+class CrossTalk(BaseTransform):
+    def __init__(
+        self,
+        snr: tuple = ("uniform", -5.0, 5.0),
+        max_seed: int = 1000,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        """
+        min and max refer to SNR.
+        """
+        super().__init__(name=name, prob=prob)
+
+        self.snr = snr
+        self.max_seed = max_seed
+
+    def _instantiate(self, state: RandomState):
+        snr = util.sample_from_dist(self.snr, state)
+        seed = state.randint(self.max_seed)
+        return {"snr": snr, "seed": seed}
+
+    def _transform(self, signal, snr, seed):
+        state = seed.sum().item()
+        state = util.random_state(state)
+
+        idx = np.arange(signal.batch_size)
+        state.shuffle(idx)
+        return signal.mix(signal[idx.tolist()], snr)
+
+
 class RoomImpulseResponse(BaseTransform):
     def __init__(
         self,
