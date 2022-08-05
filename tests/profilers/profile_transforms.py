@@ -14,7 +14,7 @@ from audiotools.data.datasets import CSVDataset
 transforms_to_demo = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Choose"]:
+        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
             transforms_to_demo.append(x)
 
 
