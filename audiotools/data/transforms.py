@@ -168,15 +168,11 @@ class Compose(BaseTransform):
 class Choose(Compose):
     # Class logic is the same as Compose, but instead of applying all
     # the transforms in sequence, it applies just a single transform,
-    # which is picked deterministically by summing all of the `seed`
-    # integers (which could be just one or a batch of integers), and then
-    # using the sum as a seed to build a RandomState object that it then
-    # calls `choice` on, with probabilities `self.weights``.
+    # which is chosen for each item in the batch.
     def __init__(
         self,
         *transforms: list,
         weights: list = None,
-        max_seed: int = 1000,
         name: str = None,
         prob: float = 1.0,
     ):
@@ -186,19 +182,16 @@ class Choose(Compose):
             _len = len(self.transforms)
             weights = [1 / _len for _ in range(_len)]
         self.weights = np.array(weights)
-        self.max_seed = max_seed
-
-    def _transform(self, signal, seed, **kwargs):
-        state = seed.sum().item()
-        state = util.random_state(state)
-        idx = list(range(len(self.transforms)))
-        idx = state.choice(idx, p=self.weights)
-        return self.transforms[idx](signal, **kwargs)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        parameters = super()._instantiate(state, signal)
-        parameters["seed"] = state.randint(self.max_seed)
-        return parameters
+        kwargs = super()._instantiate(state, signal)
+        tfm_idx = list(range(len(self.transforms)))
+        tfm_idx = state.choice(tfm_idx, p=self.weights)
+        for i, t in enumerate(self.transforms):
+            mask = kwargs[t.name]["mask"]
+            if mask.item():
+                kwargs[t.name]["mask"] = tt(i == tfm_idx)
+        return kwargs
 
 
 class Repeat(Compose):
@@ -225,16 +218,13 @@ class RepeatUpTo(Choose):
         transform,
         max_repeat: int = 5,
         weights: list = None,
-        max_seed: int = 1000,
         name: str = None,
         prob: float = 1.0,
     ):
         transforms = []
         for n in range(1, max_repeat):
             transforms.append(Repeat(transform, n_repeat=n))
-        super().__init__(
-            transforms, name=name, prob=prob, weights=weights, max_seed=max_seed
-        )
+        super().__init__(transforms, name=name, prob=prob, weights=weights)
 
         self.max_repeat = max_repeat
 
