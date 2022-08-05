@@ -78,7 +78,7 @@ def test_low_pass():
     f = 440
     t = torch.arange(0, 1, 1 / sample_rate)
     sine_wave = torch.sin(2 * np.pi * f * t)
-    window = AudioSignal.get_window("hanning", sine_wave.shape[-1], sine_wave.device)
+    window = AudioSignal.get_window("hann", sine_wave.shape[-1], sine_wave.device)
     sine_wave = sine_wave * window
     signal = AudioSignal(sine_wave.unsqueeze(0), sample_rate=sample_rate)
     out = signal.deepcopy().low_pass(220)
@@ -102,7 +102,7 @@ def test_high_pass():
     f = 440
     t = torch.arange(0, 1, 1 / sample_rate)
     sine_wave = torch.sin(2 * np.pi * f * t)
-    window = AudioSignal.get_window("hanning", sine_wave.shape[-1], sine_wave.device)
+    window = AudioSignal.get_window("hann", sine_wave.shape[-1], sine_wave.device)
     sine_wave = sine_wave * window
     signal = AudioSignal(sine_wave.unsqueeze(0), sample_rate=sample_rate)
     out = signal.deepcopy().high_pass(220)
