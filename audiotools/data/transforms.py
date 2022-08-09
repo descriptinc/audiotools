@@ -383,8 +383,9 @@ class CrossTalk(BaseTransform):
 
         idx = np.arange(signal.batch_size)
         state.shuffle(idx)
+        input_loudness = signal.loudness()
         mix = signal.mix(signal[idx.tolist()], snr)
-        return mix.ensure_max_of_audio()
+        return mix.normalize(input_loudness)
 
 
 class RoomImpulseResponse(BaseTransform):
