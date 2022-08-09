@@ -347,7 +347,7 @@ def test_device():
 
 @pytest.mark.parametrize("window_length", [2048, 512])
 @pytest.mark.parametrize("hop_length", [512, 128])
-@pytest.mark.parametrize("window_type", ["sqrt_hann", "hanning", None])
+@pytest.mark.parametrize("window_type", ["sqrt_hann", "hann", None])
 def test_stft(window_length, hop_length, window_type):
     if hop_length >= window_length:
         hop_length = window_length // 2
@@ -418,7 +418,7 @@ def test_log_magnitude():
 @pytest.mark.parametrize("n_mels", [40, 80, 128])
 @pytest.mark.parametrize("window_length", [2048, 512])
 @pytest.mark.parametrize("hop_length", [512, 128])
-@pytest.mark.parametrize("window_type", ["sqrt_hann", "hanning", None])
+@pytest.mark.parametrize("window_type", ["sqrt_hann", "hann", None])
 def test_mel_spectrogram(n_mels, window_length, hop_length, window_type):
     if hop_length >= window_length:
         hop_length = window_length // 2

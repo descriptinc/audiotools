@@ -353,7 +353,7 @@ class ImpulseResponseMixin:
         for idx in range(self.batch_size):
             window_idx = early_idx[idx, 0].nonzero()
             window[idx, ..., window_idx] = self.get_window(
-                "hanning", window_idx.shape[-1], self.device
+                "hann", window_idx.shape[-1], self.device
             )
         return early_response, late_field, window
 
