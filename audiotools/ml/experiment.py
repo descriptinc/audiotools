@@ -1,0 +1,112 @@
+"""
+Experiment tracking.
+"""
+import os
+import shlex
+import shutil
+import socket
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import List
+
+import yaml
+
+
+class Experiment:
+    def __init__(
+        self,
+        exp_directory: str = "runs/",
+        exp_name: str = None,
+        remotes: List[str] = None,
+    ):
+        """This class contains utilities for managing experiments.
+        It is a context manager, that when you enter it, changes
+        your directory to a specified experiment folder (which
+        optionally can have an automatically generated experiment
+        name, or a specified one), and changes the CUDA device used
+        to the specified device (or devices).
+
+        Parameters
+        ----------
+        exp_directory : str
+            Folder where all experiments are saved, by default "runs/".
+        exp_name : str, optional
+            Name of the experiment, by default uses the current time, date, and
+            hostname to save.
+        remotes : List[str], optional
+            When calling .sync(), parent directory of where to sync the current
+            contents of the experiment directory. The remotes are written to a file when the
+            experiment is snapshotted called exp.yml, which is then used to
+            perform syncing. The experiment is synced to [remote]/exp_name.
+        """
+        if exp_name is None:
+            exp_name = self.generate_exp_name()
+        exp_dir = Path(exp_directory) / exp_name
+        exp_dir.mkdir(parents=True, exist_ok=True)
+
+        self.exp_dir = exp_dir
+        self.exp_name = exp_name
+        self.git_tracked_files = (
+            subprocess.check_output(
+                shlex.split("git ls-tree --full-tree --name-only -r HEAD")
+            )
+            .decode("utf-8")
+            .splitlines()
+        )
+        self.parent_directory = Path(".").absolute()
+        self.remotes = remotes if remotes is not None else []
+
+    def __enter__(self):
+        self.prev_dir = os.getcwd()
+        os.chdir(self.exp_dir)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        os.chdir(self.prev_dir)
+
+    @staticmethod
+    def generate_exp_name():
+        current_time = datetime.now().strftime("%b%d_%H-%M-%S")
+        return current_time + "_" + socket.gethostname()
+
+    def snapshot(self):
+        """Captures a full snapshot of all the files tracked by git at the time
+        the experiment is run. It also captures the diff against the committed
+        code as a separate file.
+        """
+        for f in self.git_tracked_files:
+            Path(f).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(self.parent_directory / f, f)
+
+        # Create metadata exp.yml file if it isn't there.
+        if not Path("exp.yml").exists():
+            exp_metadata = {
+                "remotes": [os.path.join(r, self.exp_name) for r in self.remotes]
+            }
+            with open("exp.yml", "w") as f:
+                yaml.dump(exp_metadata, f)
+
+    def sync(self):
+        """Syncs experiment snapshot to all remotes, stored in exp.yml."""
+        print("Syncing snapshot")
+        with open("exp.yml", "r") as f:
+            exp_metadata = yaml.load(f, Loader=yaml.Loader)
+        remotes = exp_metadata["remotes"]
+
+        for remote in remotes:
+            if remote.startswith("gs://"):
+                # Sync using GCP
+                command = f"gsutil -m rsync -x '.DS_Store' -d -r . {remote}"
+                print(f"Running {command}")
+                subprocess.check_call(
+                    shlex.split(command),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+
+    @classmethod
+    def load(cls, exp_path):
+        exp_path = Path(exp_path)
+        exp_name = exp_path.name
+        return cls(exp_path.parent, exp_name)
