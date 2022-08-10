@@ -8,6 +8,7 @@ import torch
 from flatten_dict import flatten
 from flatten_dict import unflatten
 from numpy.random import RandomState
+from yaml import load
 
 from ..core import AudioSignal
 from ..core import util
@@ -113,6 +114,10 @@ class BaseTransform:
         return kwargs
 
 
+class Identity(BaseTransform):
+    pass
+
+
 class SpectralTransform(BaseTransform):
     def transform(self, signal, **kwargs):
         signal.stft()
@@ -178,25 +183,38 @@ class Mix(Compose):
         name: str = None,
         prob: float = 1.0,
     ):
-        super().__init__(name=name, prob=prob)
-
-        self.num_sources = len(transforms)
-        self.source_list = transforms
+        super().__init__(*transforms, name=name, prob=prob)
         self.snr = snr
 
     def _transform(self, signal, snrs, **kwargs):
-        signal_list = []
-        for transform, snr in zip(self.transforms, snrs):
-            if any([x in transform.name for x in self.transforms_to_apply]):
-                output = transform(signal.clone(), **kwargs)
-                output.normalize(signal.loudness() - snr)
-                signal_list.append(output)
-        return sum(signal_list)
+        sources = []
+
+        # First transform is special.
+        # All SNRs are relative to incoming signal.
+        signal = self.transforms[0](signal.clone(), **kwargs)
+        loudness = signal.loudness()
+        sources.append(signal)
+
+        # Generate all the other signals, normalize their
+        # loudnesses.
+        for i in range(1, len(self.transforms)):
+            output = self.transforms[i](signal.clone(), **kwargs)
+            output.normalize(loudness - snrs[..., i])
+            sources.append(output)
+
+        # Rescale the mix and sources to be the same
+        # loudness as the first signal. Rescale
+        # all of the signals before summing.
+        mix = sum(sources)
+        db_diff = mix.loudness() - loudness
+        mix.volume_change(db_diff)
+        mix.sources = [x.volume_change(db_diff) for x in sources]
+        return mix
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         parameters = super()._instantiate(state, signal)
         parameters["snrs"] = [
-            util.sample_from_dist(self.snr, state) for _ in range(self.num_sources)
+            util.sample_from_dist(self.snr, state) for _ in range(len(self.transforms))
         ]
         return parameters
 
@@ -272,6 +290,7 @@ class AudioSource(BaseTransform):
         csv_weights: List[float] = None,
         loudness_cutoff: float = -40,
         offset: float = None,
+        duration: float = None,
         name: str = None,
         prob: float = 1.0,
     ):
@@ -280,11 +299,12 @@ class AudioSource(BaseTransform):
         self.csv_weights = csv_weights
         self.loudness_cutoff = loudness_cutoff
         self.offset = offset
+        self.duration = duration
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         is_mono = signal.num_channels == 1
         sample_rate = signal.sample_rate
-        duration = signal.signal_duration
+        duration = signal.signal_duration if self.duration is None else self.duration
         stft_params = signal.stft_params
 
         audio_info = util.choose_from_list_of_lists(
@@ -308,9 +328,9 @@ class AudioSource(BaseTransform):
         for k, v in audio_info.items():
             signal.metadata[k] = v
 
+        signal = signal.resample(sample_rate)
         if is_mono:
             signal = signal.to_mono()
-        signal = signal.resample(sample_rate)
 
         return {"loaded_signal": signal}
 
@@ -413,29 +433,15 @@ class BackgroundNoise(BaseTransform):
         self.snr = snr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
-        self.audio_files = util.read_csv(csv_files)
-        self.csv_weights = csv_weights
+        self.loader = AudioSource(csv_files, csv_weights, loudness_cutoff=None)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        bg_path = util.choose_from_list_of_lists(
-            state, self.audio_files, p=self.csv_weights
-        )["path"]
-
-        # Get properties of input signal to use when creating
-        # background signal.
-        duration = signal.signal_duration
-        sample_rate = signal.sample_rate
-        is_mono = signal.num_channels == 1
-
-        bg_signal = AudioSignal.excerpt(
-            bg_path, duration=duration, state=state
-        ).resample(sample_rate)
-        if is_mono:
-            bg_signal = bg_signal.to_mono()
+        kwargs = self.loader.instantiate(state, signal)
+        bg_signal = self.loader(signal[0].clone(), **kwargs)
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
 
@@ -443,38 +449,6 @@ class BackgroundNoise(BaseTransform):
         # Clone bg_signal so that transform can be repeatedly applied
         # to different signals with the same effect.
         return signal.mix(bg_signal.clone(), snr, eq)
-
-
-class CrossTalk(BaseTransform):
-    def __init__(
-        self,
-        snr: tuple = ("uniform", -5.0, 5.0),
-        max_seed: int = 1000,
-        name: str = None,
-        prob: float = 1.0,
-    ):
-        """
-        min and max refer to SNR.
-        """
-        super().__init__(name=name, prob=prob)
-
-        self.snr = snr
-        self.max_seed = max_seed
-
-    def _instantiate(self, state: RandomState):
-        snr = util.sample_from_dist(self.snr, state)
-        seed = state.randint(self.max_seed)
-        return {"snr": snr, "seed": seed}
-
-    def _transform(self, signal, snr, seed):
-        state = seed.sum().item()
-        state = util.random_state(state)
-
-        idx = np.arange(signal.batch_size)
-        state.shuffle(idx)
-        input_loudness = signal.loudness()
-        mix = signal.mix(signal[idx.tolist()], snr)
-        return mix.normalize(input_loudness)
 
 
 class RoomImpulseResponse(BaseTransform):
@@ -495,30 +469,18 @@ class RoomImpulseResponse(BaseTransform):
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.use_original_phase = use_original_phase
-        self.audio_files = util.read_csv(csv_files)
-        self.csv_weights = csv_weights
+        self.loader = AudioSource(
+            csv_files, csv_weights, loudness_cutoff=None, offset=0.0, duration=1.0
+        )
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        ir_path = util.choose_from_list_of_lists(
-            state, self.audio_files, p=self.csv_weights
-        )["path"]
-
-        # Get properties of input signal to use when creating
-        # background signal.
-        sample_rate = signal.sample_rate
-        is_mono = signal.num_channels == 1
-
-        ir_signal = (
-            AudioSignal(ir_path, duration=1.0)
-            .resample(sample_rate)
-            .zero_pad_to(sample_rate)
-        )
-        if is_mono:
-            ir_signal = ir_signal.to_mono()
+        loader_kwargs = self.loader.instantiate(state, signal)
+        ir_signal = self.loader(signal[0].clone(), **loader_kwargs)
+        ir_signal.zero_pad_to(signal.sample_rate)
 
         return {"eq": eq, "ir_signal": ir_signal, "drr": drr}
 

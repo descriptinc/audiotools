@@ -76,6 +76,7 @@ class AudioSignal(
         self.path_to_input_file = None
 
         self.audio_data = None
+        self.sources = None  # List of AudioSignal objects.
         self.stft_data = None
         if audio_path is not None:
             self.load_from_file(
@@ -707,9 +708,14 @@ class AudioSignal(
             _loudness = self._loudness[key] if self._loudness is not None else None
             stft_data = self.stft_data[key] if self.stft_data is not None else None
 
+        sources = None
+        if self.sources is not None:
+            sources = [x[key] for x in self.sources]
+
         copy = type(self)(audio_data, self.sample_rate, stft_params=self.stft_params)
         copy._loudness = _loudness
         copy._stft_data = stft_data
+        copy.sources = sources
 
         return copy
 
@@ -723,6 +729,7 @@ class AudioSignal(
             self.audio_data = value.audio_data
             self._loudness = value._loudness
             self.stft_data = value.stft_data
+            self.sources = value.sources
             return
 
         elif isinstance(key, (bool, int, list, slice, tuple)) or (
@@ -734,6 +741,10 @@ class AudioSignal(
                 self._loudness[key] = value._loudness
             if self.stft_data is not None and value.stft_data is not None:
                 self.stft_data[key] = value.stft_data
+            if self.sources is not None and value.sources is not None:
+                num_sources = min(len(self.sources), len(value.sources))
+                for i in range(num_sources):
+                    self.sources[i][key] = value.sources[i][key]
             return
 
     def __ne__(self, other):
