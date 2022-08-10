@@ -402,6 +402,36 @@ class BackgroundNoise(AudioSource):
         return signal.mix(bg_signal.clone(), snr, eq)
 
 
+class CrossTalk(AudioSource):
+    def __init__(
+        self,
+        snr: tuple = ("uniform", 0.0, 10.0),
+        csv_files: List[str] = None,
+        csv_weights: List[float] = None,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        """
+        min and max refer to SNR.
+        """
+        super().__init__(
+            csv_files=csv_files, csv_weights=csv_weights, name=name, prob=prob
+        )
+
+        self.snr = snr
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        snr = util.sample_from_dist(self.snr, state)
+        crosstalk_signal = super()._instantiate(state, signal)["loaded_signal"]
+
+        return {"crosstalk_signal": crosstalk_signal, "snr": snr}
+
+    def _transform(self, signal, crosstalk_signal, snr):
+        # Clone bg_signal so that transform can be repeatedly applied
+        # to different signals with the same effect.
+        return signal.mix(crosstalk_signal.clone(), snr)
+
+
 class RoomImpulseResponse(AudioSource):
     def __init__(
         self,
