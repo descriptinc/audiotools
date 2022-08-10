@@ -165,6 +165,42 @@ class Compose(BaseTransform):
             yield transform
 
 
+class Mix(Compose):
+    """This transform is similar to Compose, but instead of the
+    transforms being applied one after the other, they are instead
+    applied in parallel and then mixed into a single signal.
+    """
+
+    def __init__(
+        self,
+        *transforms: list,
+        snr: tuple = ("uniform", 10.0, 30.0),
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        super().__init__(name=name, prob=prob)
+
+        self.num_sources = len(transforms)
+        self.source_list = transforms
+        self.snr = snr
+
+    def _transform(self, signal, snrs, **kwargs):
+        signal_list = []
+        for transform, snr in zip(self.transforms, snrs):
+            if any([x in transform.name for x in self.transforms_to_apply]):
+                output = transform(signal.clone(), **kwargs)
+                output.normalize(signal.loudness() - snr)
+                signal_list.append(output)
+        return sum(signal_list)
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
+        parameters = super()._instantiate(state, signal)
+        parameters["snrs"] = [
+            util.sample_from_dist(self.snr, state) for _ in range(self.num_sources)
+        ]
+        return parameters
+
+
 class Choose(Compose):
     # Class logic is the same as Compose, but instead of applying all
     # the transforms in sequence, it applies just a single transform,
@@ -227,6 +263,59 @@ class RepeatUpTo(Choose):
         super().__init__(transforms, name=name, prob=prob, weights=weights)
 
         self.max_repeat = max_repeat
+
+
+class AudioSource(BaseTransform):
+    def __init__(
+        self,
+        csv_files: List[str] = None,
+        csv_weights: List[float] = None,
+        loudness_cutoff: float = -40,
+        offset: float = None,
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.audio_lists = util.read_csv(csv_files)
+        self.csv_weights = csv_weights
+        self.loudness_cutoff = loudness_cutoff
+        self.offset = offset
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        is_mono = signal.num_channels == 1
+        sample_rate = signal.sample_rate
+        duration = signal.signal_duration
+        stft_params = signal.stft_params
+
+        audio_info = util.choose_from_list_of_lists(
+            state, self.audio_lists, p=self.csv_weights
+        )
+        if self.offset is None:
+            signal = AudioSignal.salient_excerpt(
+                audio_info["path"],
+                duration=duration,
+                state=state,
+                loudness_cutoff=self.loudness_cutoff,
+                stft_params=stft_params,
+            )
+        else:
+            signal = AudioSignal(
+                audio_info["path"],
+                offset=self.offset,
+                duration=duration,
+                stft_params=stft_params,
+            )
+        for k, v in audio_info.items():
+            signal.metadata[k] = v
+
+        if is_mono:
+            signal = signal.to_mono()
+        signal = signal.resample(sample_rate)
+
+        return {"loaded_signal": signal}
+
+    def _transform(self, signal, loaded_signal):
+        return loaded_signal
 
 
 class ClippingDistortion(BaseTransform):

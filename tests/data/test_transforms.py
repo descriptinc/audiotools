@@ -1,4 +1,3 @@
-from aifc import Error
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +40,8 @@ def test_transform(transform_name):
         kwargs["csv_files"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
         kwargs["csv_files"] = ["tests/audio/irs.csv"]
+    if transform_name == "AudioSource":
+        kwargs["csv_files"] = ["tests/audio/spk.csv"]
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)

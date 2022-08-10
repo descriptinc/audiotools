@@ -100,7 +100,7 @@ class AudioSignal(
         upper_bound = max(total_duration - duration, 0)
         offset = state.uniform(lower_bound, upper_bound)
 
-        signal = cls(audio_path, offset=offset, duration=duration)
+        signal = cls(audio_path, offset=offset, duration=duration, **kwargs)
         signal.metadata["offset"] = offset
         signal.metadata["duration"] = duration
 
