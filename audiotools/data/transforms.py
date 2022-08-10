@@ -429,7 +429,10 @@ class CrossTalk(AudioSource):
     def _transform(self, signal, crosstalk_signal, snr):
         # Clone bg_signal so that transform can be repeatedly applied
         # to different signals with the same effect.
-        return signal.mix(crosstalk_signal.clone(), snr)
+        loudness = signal.loudness()
+        mix = signal.mix(crosstalk_signal.clone(), snr)
+        mix.normalize(loudness)
+        return mix
 
 
 class RoomImpulseResponse(AudioSource):
