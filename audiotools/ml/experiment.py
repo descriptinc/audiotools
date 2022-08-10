@@ -8,9 +8,6 @@ import socket
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List
-
-import yaml
 
 
 class Experiment:
@@ -18,7 +15,6 @@ class Experiment:
         self,
         exp_directory: str = "runs/",
         exp_name: str = None,
-        remotes: List[str] = None,
     ):
         """This class contains utilities for managing experiments.
         It is a context manager, that when you enter it, changes
@@ -34,11 +30,6 @@ class Experiment:
         exp_name : str, optional
             Name of the experiment, by default uses the current time, date, and
             hostname to save.
-        remotes : List[str], optional
-            When calling .sync(), parent directory of where to sync the current
-            contents of the experiment directory. The remotes are written to a file when the
-            experiment is snapshotted called exp.yml, which is then used to
-            perform syncing. The experiment is synced to [remote]/exp_name.
         """
         if exp_name is None:
             exp_name = self.generate_exp_name()
@@ -55,7 +46,6 @@ class Experiment:
             .splitlines()
         )
         self.parent_directory = Path(".").absolute()
-        self.remotes = remotes if remotes is not None else []
 
     def __enter__(self):
         self.prev_dir = os.getcwd()
@@ -78,35 +68,3 @@ class Experiment:
         for f in self.git_tracked_files:
             Path(f).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(self.parent_directory / f, f)
-
-        # Create metadata exp.yml file if it isn't there.
-        if not Path("exp.yml").exists():
-            exp_metadata = {
-                "remotes": [os.path.join(r, self.exp_name) for r in self.remotes]
-            }
-            with open("exp.yml", "w") as f:
-                yaml.dump(exp_metadata, f)
-
-    def sync(self):
-        """Syncs experiment snapshot to all remotes, stored in exp.yml."""
-        print("Syncing snapshot")
-        with open("exp.yml", "r") as f:
-            exp_metadata = yaml.load(f, Loader=yaml.Loader)
-        remotes = exp_metadata["remotes"]
-
-        for remote in remotes:
-            if remote.startswith("gs://"):
-                # Sync using GCP
-                command = f"gsutil -m rsync -x '.DS_Store' -d -r . {remote}"
-                print(f"Running {command}")
-                subprocess.check_call(
-                    shlex.split(command),
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-
-    @classmethod
-    def load(cls, exp_path):
-        exp_path = Path(exp_path)
-        exp_name = exp_path.name
-        return cls(exp_path.parent, exp_name)

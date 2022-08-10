@@ -10,7 +10,7 @@ from audiotools.data.datasets import ResumableDistributedSampler as DistributedS
 from audiotools.data.datasets import ResumableSequentialSampler as SequentialSampler
 
 
-class Accelerator:
+class Accelerator:  # pragma: no cover
     def __init__(self, amp: bool = False):
         """This class is used to prepare models and dataloaders for
         usage with DDP or DP. Use the functions prepare_model, prepare_dataloader to
