@@ -598,7 +598,7 @@ class AudioSignal(
 
     # Operator overloading
     def __add__(self, other):
-        new_signal = self.deepcopy()
+        new_signal = self.clone()
         new_signal.audio_data += util._get_value(other)
         return new_signal
 
@@ -610,7 +610,7 @@ class AudioSignal(
         return self + other
 
     def __sub__(self, other):
-        new_signal = self.deepcopy()
+        new_signal = self.clone()
         new_signal.audio_data -= util._get_value(other)
         return new_signal
 
@@ -619,7 +619,7 @@ class AudioSignal(
         return self
 
     def __mul__(self, other):
-        new_signal = self.deepcopy()
+        new_signal = self.clone()
         new_signal.audio_data *= util._get_value(other)
         return new_signal
 
