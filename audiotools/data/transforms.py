@@ -462,14 +462,16 @@ class RoomImpulseResponse(AudioSource):
         name: str = None,
         prob: float = 1.0,
         use_original_phase: bool = False,
+        offset: float = 0.0,
+        duration: float = 1.0,
     ):
         super().__init__(
             csv_files=csv_files,
             csv_weights=csv_weights,
             name=name,
             prob=prob,
-            offset=0.0,
-            duration=1.0,
+            offset=offset,
+            duration=duration,
         )
 
         self.drr = drr
