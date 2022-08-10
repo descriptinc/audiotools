@@ -192,10 +192,13 @@ class Choose(Compose):
         kwargs = super()._instantiate(state, signal)
         tfm_idx = list(range(len(self.transforms)))
         tfm_idx = state.choice(tfm_idx, p=self.weights)
+        one_hot = []
         for i, t in enumerate(self.transforms):
             mask = kwargs[t.name]["mask"]
             if mask.item():
                 kwargs[t.name]["mask"] = tt(i == tfm_idx)
+            one_hot.append(kwargs[t.name]["mask"])
+        kwargs["one_hot"] = one_hot
         return kwargs
 
 
