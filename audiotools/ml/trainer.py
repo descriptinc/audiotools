@@ -40,10 +40,7 @@ def iter_summary(output, width=None) -> Table:
 
 def epoch_summary(epoch, output, width=None) -> Table:
     """Make a table summarizing each epoch."""
-    if width is None:
-        expand = False
-    else:
-        expand = True
+    expand = width is not None
     table = Table(title=f"Summary for Epoch {epoch}", expand=expand, width=width)
 
     table.add_column("Key", style="cyan", justify="right")
@@ -265,24 +262,6 @@ class BaseTrainer:
         torch.save(state, save_path)
         return save_path
 
-    @staticmethod
-    def prepare_batch(batch, device="cpu"):
-        if isinstance(batch, dict):
-            for key, val in batch.items():
-                try:
-                    batch[key] = val.to(device).float()
-                except:
-                    pass
-        elif torch.is_tensor(batch):
-            batch = batch.to(device).float()
-        elif isinstance(batch, list):
-            for i in range(len(batch)):
-                try:
-                    batch[i] = batch[i].to(device).float()
-                except:
-                    pass
-        return batch
-
     def wrapper(self, loop, engine, batch):
         timer = SimpleTimer()
 
@@ -318,7 +297,7 @@ class BaseTrainer:
         output = self.wrapper(self.val_loop, engine, batch)
         return output
 
-    def train_loop(self, engine, batch):
+    def train_loop(self, engine, batch):  # pragma: no cover
         """
         Performs a single training step of the model
         given the batch. Use self.prepare_batch to
@@ -349,7 +328,7 @@ class BaseTrainer:
         """
         raise NotImplementedError()
 
-    def val_loop(self, engine, batch):
+    def val_loop(self, engine, batch):  # pragma: no cover
         """
         Performs a single validation step of the model
         given the batch. Use self.prepare_batch to
@@ -380,7 +359,7 @@ class BaseTrainer:
         """
         raise NotImplementedError()
 
-    def checkpoint(self, engine):
+    def checkpoint(self, engine):  # pragma: no cover
         """
         This callback is called after Events.EPOCH_COMPLETED.
         You can use it to save models, optimizer, and whatever
@@ -452,8 +431,6 @@ class BaseTrainer:
         if self.rank == 0:
             self.live.console.print(*args, **kwargs)
             self.file_console.print(*args, **kwargs)
-        else:
-            print(*args)
 
     def validate(self, engine):
         if self.val_data is not None:
@@ -584,7 +561,6 @@ class BaseTrainer:
 
         epoch_length = len(train_data) if epoch_length is None else epoch_length
         val_epoch_length = len(val_data) if val_data is not None else None
-
         ctx = self.view(epoch_length, val_epoch_length, num_epochs)
         with torch.autograd.set_detect_anomaly(detect_anomaly):
             with ctx as self.live:
