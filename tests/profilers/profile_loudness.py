@@ -31,9 +31,8 @@ def collate(list_of_dicts):
 
 def run(batch_size=64, duration=5.0, device="cuda"):
     dataset = CSVDataset(
-        44100,
+        AudioSignal.zeros(duration, 44100),
         10 * batch_size,
-        duration,
         csv_files=["tests/audio/spk.csv"],
     )
     dataloader = torch.utils.data.DataLoader(

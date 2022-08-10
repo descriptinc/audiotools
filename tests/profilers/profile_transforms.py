@@ -34,9 +34,8 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         t = transform_cls(prob=1.0, **kwargs)
 
         dataset = CSVDataset(
-            44100,
+            AudioSignal.zeros(duration, 44100),
             batch_size * 10,
-            duration,
             csv_files=["tests/audio/spk.csv"],
             transform=t,
         )

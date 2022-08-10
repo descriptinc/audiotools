@@ -2,16 +2,19 @@ import copy
 from multiprocessing import Manager
 from typing import List
 
+import torch
 from torch.utils.data import BatchSampler as _BatchSampler
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
+from . import transforms
 from ..core import AudioSignal
 from ..core import util
 
 # We need to set SHARED_KEYS statically, with no relationship to the
 # BaseDataset object, or we'll hit RecursionErrors in the lookup.
 SHARED_KEYS = [
+    "signal",
     "duration",
     "shared_transform",
     "check_transform",
@@ -102,49 +105,31 @@ class BaseDataset(SharedMixin):
 class CSVDataset(BaseDataset):
     def __init__(
         self,
-        sample_rate: int,
+        signal: AudioSignal,
         n_examples: int = 1000,
-        duration: float = 0.5,
         csv_files: List[str] = None,
         csv_weights: List[float] = None,
         loudness_cutoff: float = -40,
-        mono: bool = True,
         transform=None,
     ):
-        super().__init__(
-            n_examples, duration=duration, transform=transform, sample_rate=sample_rate
-        )
+        super().__init__(n_examples, signal=signal, transform=transform)
 
-        self.audio_lists = util.read_csv(csv_files)
-        self.loudness_cutoff = loudness_cutoff
-        self.mono = mono
-        self.csv_weights = csv_weights
+        self.loader = transforms.AudioSource(
+            csv_files, csv_weights, loudness_cutoff=loudness_cutoff
+        )
 
     def __getitem__(self, idx):
         state = util.random_state(idx)
 
-        # Load an audio file randomly from the list of lists,
-        # seeded by the current index.
-        audio_info = util.choose_from_list_of_lists(
-            state, self.audio_lists, p=self.csv_weights
-        )
-        signal = AudioSignal.salient_excerpt(
-            audio_info["path"],
-            duration=self.duration,
-            state=state,
-            loudness_cutoff=self.loudness_cutoff,
-        )
-        for k, v in audio_info.items():
-            signal.metadata[k] = v
-        if self.mono:
-            signal = signal.to_mono()
-        signal = signal.resample(self.sample_rate)
+        # Clone shared signal for thread safety.
+        signal = self.signal.clone()
+        kwargs = self.loader.instantiate(state, signal)
+        signal = self.loader(signal, **kwargs)
 
         # Instantiate the transform.
         item = {"idx": idx, "signal": signal}
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
-
         return item
 
 

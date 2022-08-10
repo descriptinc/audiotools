@@ -328,9 +328,9 @@ class AudioSource(BaseTransform):
         for k, v in audio_info.items():
             signal.metadata[k] = v
 
-        signal = signal.resample(sample_rate)
         if is_mono:
             signal = signal.to_mono()
+        signal = signal.resample(sample_rate)
 
         return {"loaded_signal": signal}
 
@@ -440,7 +440,8 @@ class BackgroundNoise(BaseTransform):
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        kwargs = self.loader.instantiate(state, signal)
+        copy_state = copy.deepcopy(state)
+        kwargs = self.loader.instantiate(copy_state, signal)
         bg_signal = self.loader(signal[0].clone(), **kwargs)
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
@@ -478,7 +479,8 @@ class RoomImpulseResponse(BaseTransform):
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        loader_kwargs = self.loader.instantiate(state, signal)
+        copy_state = copy.deepcopy(state)
+        loader_kwargs = self.loader.instantiate(copy_state, signal)
         ir_signal = self.loader(signal[0].clone(), **loader_kwargs)
         ir_signal.zero_pad_to(signal.sample_rate)
 

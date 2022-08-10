@@ -13,7 +13,7 @@ from audiotools.data.datasets import CSVDataset
 transforms_to_test = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
+        if x not in ["Compose", "Mix", "Choose", "Repeat", "RepeatUpTo"]:
             transforms_to_test.append(x)
 
 
@@ -23,6 +23,8 @@ def _compare_transform(transform_name, signal):
 
     if regression_data.exists():
         regression_signal = AudioSignal(regression_data)
+        regression_signal.play()
+        signal.play()
         assert torch.allclose(
             signal.audio_data, regression_signal.audio_data, atol=1e-6
         )
@@ -380,7 +382,10 @@ def test_nested_masking():
     )
 
     dataset = CSVDataset(
-        44100, 100, 0.5, csv_files=["tests/audio/spk.csv"], transform=transform
+        AudioSignal.zeros(0.5, 44100),
+        100,
+        csv_files=["tests/audio/spk.csv"],
+        transform=transform,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=0, batch_size=10, collate_fn=dataset.collate

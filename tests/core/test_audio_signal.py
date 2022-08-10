@@ -261,6 +261,12 @@ def test_indexing():
         assert np.allclose(a1[mask], a2[mask])
 
 
+def test_zeros():
+    x = AudioSignal.zeros(0.5, 44100)
+    assert x.signal_duration == 0.5
+    assert x.sample_rate == 44100
+
+
 def test_zero_pad():
     array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)

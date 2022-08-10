@@ -124,6 +124,20 @@ class AudioSignal(
         return excerpt
 
     @classmethod
+    def zeros(
+        cls,
+        duration: float,
+        sample_rate: int,
+        num_channels: int = 1,
+        batch_size: int = 1,
+        **kwargs,
+    ):
+        n_samples = int(duration * sample_rate)
+        return cls(
+            torch.zeros(batch_size, num_channels, n_samples), sample_rate, **kwargs
+        )
+
+    @classmethod
     def batch(
         cls, audio_signals, pad_signals=False, truncate_signals=False, resample=False
     ):
