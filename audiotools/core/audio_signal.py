@@ -243,6 +243,8 @@ class AudioSignal(
             clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
+        clone.path_to_input_file = copy.deepcopy(self.path_to_input_file)
+        clone.metadata = copy.deepcopy(self.metadata)
         return clone
 
     def detach(self):
