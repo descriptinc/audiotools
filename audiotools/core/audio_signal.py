@@ -229,6 +229,8 @@ class AudioSignal(
             clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
+        if self.sources is not None:
+            clone.sources = [x.clone() for x in self.sources]
         return clone
 
     def detach(self):
@@ -236,6 +238,8 @@ class AudioSignal(
             self._loudness = self._loudness.detach()
         if self.stft_data is not None:
             self.stft_data = self.stft_data.detach()
+        if self.sources is not None:
+            self.sources = [x.detach() for x in self.sources]
 
         self.audio_data = self.audio_data.detach()
         return self
@@ -274,6 +278,8 @@ class AudioSignal(
             self.stft_data = self.stft_data.to(device)
         if self.audio_data is not None:
             self.audio_data = self.audio_data.to(device)
+        if self.sources is not None:
+            self.sources = [x.to(device) for x in self.sources]
         return self
 
     def float(self):
@@ -745,6 +751,8 @@ class AudioSignal(
                 num_sources = min(len(self.sources), len(value.sources))
                 for i in range(num_sources):
                     self.sources[i][key] = value.sources[i][key]
+            if self.sources is None and value.sources is not None:
+                self.sources = value.sources
             return
 
     def __ne__(self, other):
