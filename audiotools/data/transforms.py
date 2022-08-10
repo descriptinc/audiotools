@@ -170,55 +170,6 @@ class Compose(BaseTransform):
             yield transform
 
 
-class Mix(Compose):
-    """This transform is similar to Compose, but instead of the
-    transforms being applied one after the other, they are instead
-    applied in parallel and then mixed into a single signal.
-    """
-
-    def __init__(
-        self,
-        *transforms: list,
-        snr: tuple = ("uniform", 10.0, 30.0),
-        name: str = None,
-        prob: float = 1.0,
-    ):
-        super().__init__(*transforms, name=name, prob=prob)
-        self.snr = snr
-
-    def _transform(self, signal, snrs, **kwargs):
-        sources = []
-
-        # First transform is special.
-        # All SNRs are relative to incoming signal.
-        signal = self.transforms[0](signal.clone(), **kwargs)
-        loudness = signal.loudness()
-        sources.append(signal)
-
-        # Generate all the other signals, normalize their
-        # loudnesses.
-        for i in range(1, len(self.transforms)):
-            output = self.transforms[i](signal.clone(), **kwargs)
-            output.normalize(loudness - snrs[..., i])
-            sources.append(output)
-
-        # Rescale the mix and sources to be the same
-        # loudness as the first signal. Rescale
-        # all of the signals before summing.
-        mix = sum(sources)
-        db_diff = mix.loudness() - loudness
-        mix.volume_change(db_diff)
-        mix.sources = [x.volume_change(db_diff) for x in sources]
-        return mix
-
-    def _instantiate(self, state: RandomState, signal: AudioSignal = None):
-        parameters = super()._instantiate(state, signal)
-        parameters["snrs"] = [
-            util.sample_from_dist(self.snr, state) for _ in range(len(self.transforms))
-        ]
-        return parameters
-
-
 class Choose(Compose):
     # Class logic is the same as Compose, but instead of applying all
     # the transforms in sequence, it applies just a single transform,

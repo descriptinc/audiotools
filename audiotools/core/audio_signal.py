@@ -243,8 +243,6 @@ class AudioSignal(
             clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
-        if self.sources is not None:
-            clone.sources = [x.clone() for x in self.sources]
         return clone
 
     def detach(self):
@@ -252,8 +250,6 @@ class AudioSignal(
             self._loudness = self._loudness.detach()
         if self.stft_data is not None:
             self.stft_data = self.stft_data.detach()
-        if self.sources is not None:
-            self.sources = [x.detach() for x in self.sources]
 
         self.audio_data = self.audio_data.detach()
         return self
@@ -292,8 +288,6 @@ class AudioSignal(
             self.stft_data = self.stft_data.to(device)
         if self.audio_data is not None:
             self.audio_data = self.audio_data.to(device)
-        if self.sources is not None:
-            self.sources = [x.to(device) for x in self.sources]
         return self
 
     def float(self):
@@ -729,8 +723,6 @@ class AudioSignal(
             stft_data = self.stft_data[key] if self.stft_data is not None else None
 
         sources = None
-        if self.sources is not None:
-            sources = [x[key] for x in self.sources]
 
         copy = type(self)(audio_data, self.sample_rate, stft_params=self.stft_params)
         copy._loudness = _loudness
@@ -749,7 +741,6 @@ class AudioSignal(
             self.audio_data = value.audio_data
             self._loudness = value._loudness
             self.stft_data = value.stft_data
-            self.sources = value.sources
             return
 
         elif isinstance(key, (bool, int, list, slice, tuple)) or (
@@ -761,12 +752,6 @@ class AudioSignal(
                 self._loudness[key] = value._loudness
             if self.stft_data is not None and value.stft_data is not None:
                 self.stft_data[key] = value.stft_data
-            if self.sources is not None and value.sources is not None:
-                num_sources = min(len(self.sources), len(value.sources))
-                for i in range(num_sources):
-                    self.sources[i][key] = value.sources[i][key]
-            if self.sources is None and value.sources is not None:
-                self.sources = value.sources
             return
 
     def __ne__(self, other):
