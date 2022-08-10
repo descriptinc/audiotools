@@ -105,24 +105,28 @@ class BaseDataset(SharedMixin):
 class CSVDataset(BaseDataset):
     def __init__(
         self,
-        signal: AudioSignal,
+        sample_rate: int,
         n_examples: int = 1000,
+        duration: float = 0.5,
         csv_files: List[str] = None,
         csv_weights: List[float] = None,
         loudness_cutoff: float = -40,
+        num_channels: int = 1,
         transform=None,
     ):
-        super().__init__(n_examples, signal=signal, transform=transform)
+        super().__init__(
+            n_examples, duration=duration, transform=transform, sample_rate=sample_rate
+        )
 
         self.loader = transforms.AudioSource(
             csv_files, csv_weights, loudness_cutoff=loudness_cutoff
         )
+        self.num_channels = num_channels
 
     def __getitem__(self, idx):
         state = util.random_state(idx)
 
-        # Clone shared signal for thread safety.
-        signal = self.signal.clone()
+        signal = AudioSignal.zeros(self.duration, self.sample_rate, self.num_channels)
         kwargs = self.loader.instantiate(state, signal)
         signal = self.loader(signal, **kwargs)
 

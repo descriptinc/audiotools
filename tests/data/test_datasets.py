@@ -9,7 +9,7 @@ from audiotools.data import transforms as tfm
 
 def test_static_shared_args():
     dataset = audiotools.data.datasets.CSVDataset(
-        AudioSignal.zeros(0.5, 44100),
+        44100,
         n_examples=100,
         csv_files=["tests/audio/spk.csv"],
     )
@@ -22,7 +22,7 @@ def test_static_shared_args():
             collate_fn=dataset.collate,
         )
 
-        targets = {"dur": [dataloader.dataset.signal.signal_duration], "sr": [44100]}
+        targets = {"dur": [dataloader.dataset.duration], "sr": [44100]}
         observed = {"dur": [], "sr": []}
 
         sample_rates = [8000, 16000, 44100]
@@ -33,7 +33,8 @@ def test_static_shared_args():
 
             # Change attributes in the shared dict.
             # Later we'll make sure they actually worked.
-            dataloader.dataset.signal = AudioSignal.zeros(dur, sr)
+            dataloader.dataset.duration = dur
+            dataloader.dataset.sample_rate = sr
 
             # Record observations from the batch and the signal.
             targets["dur"].append(dur)
@@ -72,7 +73,7 @@ def test_shared_transform():
     for nw in (0, 1, 2):
         transform = IDTransform(1)
         dataset = audiotools.data.datasets.CSVDataset(
-            AudioSignal.zeros(0.5, 44100),
+            44100,
             n_examples=10,
             csv_files=["tests/audio/spk.csv"],
             transform=transform,
@@ -114,7 +115,7 @@ def test_shared_transform():
 def test_batch_sampler():
     for nw in (0, 1, 2):
         dataset = audiotools.data.datasets.CSVDataset(
-            AudioSignal.zeros(0.5, 44100),
+            44100,
             n_examples=100,
             csv_files=["tests/audio/spk.csv"],
         )
@@ -159,7 +160,7 @@ def test_csv_dataset():
         ],
     )
     dataset = audiotools.data.datasets.CSVDataset(
-        AudioSignal.zeros(0.5, 44100),
+        44100,
         n_examples=100,
         csv_files=["tests/audio/spk.csv"],
         transform=transform,
@@ -195,7 +196,7 @@ def test_dataset_pipeline():
         ]
     )
     dataset = audiotools.data.datasets.CSVDataset(
-        AudioSignal.zeros(0.5, 44100),
+        44100,
         10,
         csv_files=["tests/audio/spk.csv"],
         transform=transform,

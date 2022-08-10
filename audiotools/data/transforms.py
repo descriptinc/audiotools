@@ -249,6 +249,7 @@ class AudioSource(BaseTransform):
         self.audio_lists = util.read_csv(csv_files)
         self.csv_weights = csv_weights
         self.loudness_cutoff = loudness_cutoff
+
         self.offset = offset
         self.duration = duration
 
@@ -375,12 +376,16 @@ class BackgroundNoise(AudioSource):
         n_bands: int = 3,
         name: str = None,
         prob: float = 1.0,
+        offset: float = None,
+        duration: float = None,
     ):
-        """
-        min and max refer to SNR.
-        """
         super().__init__(
-            csv_files=csv_files, csv_weights=csv_weights, name=name, prob=prob
+            csv_files=csv_files,
+            csv_weights=csv_weights,
+            name=name,
+            prob=prob,
+            offset=offset,
+            duration=duration,
         )
 
         self.snr = snr
@@ -410,12 +415,16 @@ class CrossTalk(AudioSource):
         csv_weights: List[float] = None,
         name: str = None,
         prob: float = 1.0,
+        offset: float = None,
+        duration: float = None,
     ):
-        """
-        min and max refer to SNR.
-        """
         super().__init__(
-            csv_files=csv_files, csv_weights=csv_weights, name=name, prob=prob
+            csv_files=csv_files,
+            csv_weights=csv_weights,
+            name=name,
+            prob=prob,
+            offset=offset,
+            duration=duration,
         )
 
         self.snr = snr

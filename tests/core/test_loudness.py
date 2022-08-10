@@ -241,8 +241,9 @@ def test_fir_accuracy():
         prob=0.5,
     )
     dataset = datasets.CSVDataset(
-        AudioSignal.zeros(5.0, 44100),
+        44100,
         10,
+        5.0,
         csv_files=["tests/audio/spk.csv"],
         transform=transform,
     )

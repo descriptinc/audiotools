@@ -40,7 +40,9 @@ def test_transform(transform_name):
         kwargs["csv_files"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
         kwargs["csv_files"] = ["tests/audio/irs.csv"]
-    if transform_name == "AudioSource":
+    if transform_name == "BaseAudioSource":
+        kwargs["csv_files"] = ["tests/audio/spk.csv"]
+    if transform_name == "AudioInput":
         kwargs["csv_files"] = ["tests/audio/spk.csv"]
     if transform_name == "CrossTalk":
         kwargs["csv_files"] = ["tests/audio/spk.csv"]
@@ -382,7 +384,7 @@ def test_nested_masking():
     )
 
     dataset = CSVDataset(
-        AudioSignal.zeros(0.5, 44100),
+        44100,
         100,
         csv_files=["tests/audio/spk.csv"],
         transform=transform,

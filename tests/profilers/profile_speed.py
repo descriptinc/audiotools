@@ -20,8 +20,9 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         ]
     )
     dataset = CSVDataset(
-        AudioSignal.zeros(duration, 44100),
+        44100,
         1000,
+        duration,
         csv_files=["tests/audio/spk.csv"],
         transform=transform,
     )
