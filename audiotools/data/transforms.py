@@ -310,6 +310,7 @@ class AudioSource(BaseTransform):
         audio_info = util.choose_from_list_of_lists(
             state, self.audio_lists, p=self.csv_weights
         )
+
         if self.offset is None:
             signal = AudioSignal.salient_excerpt(
                 audio_info["path"],
@@ -331,7 +332,6 @@ class AudioSource(BaseTransform):
         if is_mono:
             signal = signal.to_mono()
         signal = signal.resample(sample_rate)
-
         return {"loaded_signal": signal}
 
     def _transform(self, signal, loaded_signal):
@@ -414,7 +414,7 @@ class MuLawQuantization(BaseTransform):
         return signal.mulaw_quantization(channels)
 
 
-class BackgroundNoise(BaseTransform):
+class BackgroundNoise(AudioSource):
     def __init__(
         self,
         snr: tuple = ("uniform", 10.0, 30.0),
@@ -428,21 +428,20 @@ class BackgroundNoise(BaseTransform):
         """
         min and max refer to SNR.
         """
-        super().__init__(name=name, prob=prob)
+        super().__init__(
+            csv_files=csv_files, csv_weights=csv_weights, name=name, prob=prob
+        )
 
         self.snr = snr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
-        self.loader = AudioSource(csv_files, csv_weights, loudness_cutoff=None)
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        copy_state = copy.deepcopy(state)
-        kwargs = self.loader.instantiate(copy_state, signal)
-        bg_signal = self.loader(signal[0].clone(), **kwargs)
+        bg_signal = super()._instantiate(state, signal)["loaded_signal"]
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
 
@@ -452,7 +451,7 @@ class BackgroundNoise(BaseTransform):
         return signal.mix(bg_signal.clone(), snr, eq)
 
 
-class RoomImpulseResponse(BaseTransform):
+class RoomImpulseResponse(AudioSource):
     def __init__(
         self,
         drr: tuple = ("uniform", 0.0, 30.0),
@@ -464,24 +463,26 @@ class RoomImpulseResponse(BaseTransform):
         prob: float = 1.0,
         use_original_phase: bool = False,
     ):
-        super().__init__(name=name, prob=prob)
+        super().__init__(
+            csv_files=csv_files,
+            csv_weights=csv_weights,
+            name=name,
+            prob=prob,
+            offset=0.0,
+            duration=1.0,
+        )
 
         self.drr = drr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.use_original_phase = use_original_phase
-        self.loader = AudioSource(
-            csv_files, csv_weights, loudness_cutoff=None, offset=0.0, duration=1.0
-        )
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        copy_state = copy.deepcopy(state)
-        loader_kwargs = self.loader.instantiate(copy_state, signal)
-        ir_signal = self.loader(signal[0].clone(), **loader_kwargs)
+        ir_signal = super()._instantiate(state, signal)["loaded_signal"]
         ir_signal.zero_pad_to(signal.sample_rate)
 
         return {"eq": eq, "ir_signal": ir_signal, "drr": drr}
