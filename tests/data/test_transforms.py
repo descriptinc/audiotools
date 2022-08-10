@@ -40,9 +40,7 @@ def test_transform(transform_name):
         kwargs["csv_files"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
         kwargs["csv_files"] = ["tests/audio/irs.csv"]
-    if transform_name == "BaseAudioSource":
-        kwargs["csv_files"] = ["tests/audio/spk.csv"]
-    if transform_name == "AudioInput":
+    if transform_name == "AudioSource":
         kwargs["csv_files"] = ["tests/audio/spk.csv"]
     if transform_name == "CrossTalk":
         kwargs["csv_files"] = ["tests/audio/spk.csv"]
