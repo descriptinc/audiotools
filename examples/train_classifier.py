@@ -7,8 +7,8 @@ import torchaudio
 from torch.utils.tensorboard import SummaryWriter
 
 import audiotools
+from audiotools import AudioSignal
 from audiotools import transforms as tfm
-from audiotools.core.audio_signal import AudioSignal
 
 Adam = argbind.bind(torch.optim.Adam, without_prefix=True)
 
