@@ -71,7 +71,6 @@ def train(accel, batch_size: int = 16):
             label = batch["label"]
 
             model.train()
-
             optimizer.zero_grad()
             logits = model(signal)
             loss = criterion(logits, label)
@@ -90,7 +89,6 @@ def train(accel, batch_size: int = 16):
                 accel.unwrap(model).save(ckpt_path / "best.model.pth", metadata)
 
     trainer = Trainer(writer=writer, rank=accel.local_rank)
-
     trainer.run(train_dataloader, num_epochs=10, epoch_length=100)
 
 
