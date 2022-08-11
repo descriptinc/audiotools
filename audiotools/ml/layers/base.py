@@ -11,6 +11,7 @@ EXTERN = [
     "__main__",
     "numpy.**",
     "julius.**",
+    "torchaudio.**",
 ]
 
 
