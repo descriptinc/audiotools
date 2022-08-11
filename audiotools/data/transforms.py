@@ -12,6 +12,7 @@ from yaml import load
 
 from ..core import AudioSignal
 from ..core import util
+from .datasets import AudioLoader
 
 tt = torch.tensor
 
@@ -237,62 +238,6 @@ class RepeatUpTo(Choose):
         self.max_repeat = max_repeat
 
 
-class AudioSource(BaseTransform):
-    def __init__(
-        self,
-        csv_files: List[str] = None,
-        csv_weights: List[float] = None,
-        loudness_cutoff: float = -40,
-        offset: float = None,
-        duration: float = None,
-        name: str = None,
-        prob: float = 1.0,
-    ):
-        super().__init__(name=name, prob=prob)
-        self.audio_lists = util.read_csv(csv_files)
-        self.csv_weights = csv_weights
-        self.loudness_cutoff = loudness_cutoff
-
-        self.offset = offset
-        self.duration = duration
-
-    def _instantiate(self, state: RandomState, signal: AudioSignal):
-        is_mono = signal.num_channels == 1
-        sample_rate = signal.sample_rate
-        duration = signal.signal_duration if self.duration is None else self.duration
-        stft_params = signal.stft_params
-
-        audio_info = util.choose_from_list_of_lists(
-            state, self.audio_lists, p=self.csv_weights
-        )
-
-        if self.offset is None:
-            signal = AudioSignal.salient_excerpt(
-                audio_info["path"],
-                duration=duration,
-                state=state,
-                loudness_cutoff=self.loudness_cutoff,
-                stft_params=stft_params,
-            )
-        else:
-            signal = AudioSignal(
-                audio_info["path"],
-                offset=self.offset,
-                duration=duration,
-                stft_params=stft_params,
-            )
-        for k, v in audio_info.items():
-            signal.metadata[k] = v
-
-        if is_mono:
-            signal = signal.to_mono()
-        signal = signal.resample(sample_rate)
-        return {"loaded_signal": signal}
-
-    def _transform(self, signal, loaded_signal):
-        return loaded_signal
-
-
 class ClippingDistortion(BaseTransform):
     def __init__(
         self,
@@ -369,7 +314,7 @@ class MuLawQuantization(BaseTransform):
         return signal.mulaw_quantization(channels)
 
 
-class BackgroundNoise(AudioSource):
+class BackgroundNoise(BaseTransform):
     def __init__(
         self,
         snr: tuple = ("uniform", 10.0, 30.0),
@@ -379,28 +324,28 @@ class BackgroundNoise(AudioSource):
         n_bands: int = 3,
         name: str = None,
         prob: float = 1.0,
-        offset: float = None,
-        duration: float = None,
+        loudness_cutoff: float = None,
     ):
-        super().__init__(
-            csv_files=csv_files,
-            csv_weights=csv_weights,
-            name=name,
-            prob=prob,
-            offset=offset,
-            duration=duration,
-        )
+        super().__init__(name=name, prob=prob)
 
         self.snr = snr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loudness_cutoff = loudness_cutoff
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        bg_signal = super()._instantiate(state, signal)["loaded_signal"]
+        bg_signal, _ = self.loader(
+            state,
+            signal.sample_rate,
+            duration=signal.signal_duration,
+            loudness_cutoff=self.loudness_cutoff,
+            num_channels=signal.num_channels,
+        )
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
 
@@ -410,7 +355,7 @@ class BackgroundNoise(AudioSource):
         return signal.mix(bg_signal.clone(), snr, eq)
 
 
-class CrossTalk(AudioSource):
+class CrossTalk(BaseTransform):
     def __init__(
         self,
         snr: tuple = ("uniform", 0.0, 10.0),
@@ -418,23 +363,23 @@ class CrossTalk(AudioSource):
         csv_weights: List[float] = None,
         name: str = None,
         prob: float = 1.0,
-        offset: float = None,
-        duration: float = None,
+        loudness_cutoff: float = -40,
     ):
-        super().__init__(
-            csv_files=csv_files,
-            csv_weights=csv_weights,
-            name=name,
-            prob=prob,
-            offset=offset,
-            duration=duration,
-        )
+        super().__init__(name=name, prob=prob)
 
         self.snr = snr
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loudness_cutoff = loudness_cutoff
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         snr = util.sample_from_dist(self.snr, state)
-        crosstalk_signal = super()._instantiate(state, signal)["loaded_signal"]
+        crosstalk_signal, _ = self.loader(
+            state,
+            signal.sample_rate,
+            duration=signal.signal_duration,
+            loudness_cutoff=self.loudness_cutoff,
+            num_channels=signal.num_channels,
+        )
 
         return {"crosstalk_signal": crosstalk_signal, "snr": snr}
 
@@ -447,7 +392,7 @@ class CrossTalk(AudioSource):
         return mix
 
 
-class RoomImpulseResponse(AudioSource):
+class RoomImpulseResponse(BaseTransform):
     def __init__(
         self,
         drr: tuple = ("uniform", 0.0, 30.0),
@@ -461,26 +406,30 @@ class RoomImpulseResponse(AudioSource):
         offset: float = 0.0,
         duration: float = 1.0,
     ):
-        super().__init__(
-            csv_files=csv_files,
-            csv_weights=csv_weights,
-            name=name,
-            prob=prob,
-            offset=offset,
-            duration=duration,
-        )
+        super().__init__(name=name, prob=prob)
 
         self.drr = drr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.use_original_phase = use_original_phase
 
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.offset = offset
+        self.duration = duration
+
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        ir_signal = super()._instantiate(state, signal)["loaded_signal"]
+        ir_signal, _ = self.loader(
+            state,
+            signal.sample_rate,
+            offset=self.offset,
+            duration=self.duration,
+            loudness_cutoff=None,
+            num_channels=signal.num_channels,
+        )
         ir_signal.zero_pad_to(signal.sample_rate)
 
         return {"eq": eq, "ir_signal": ir_signal, "drr": drr}

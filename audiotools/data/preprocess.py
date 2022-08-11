@@ -5,7 +5,9 @@ from pathlib import Path
 from ..core import AudioSignal
 
 
-def create_csv(audio_files: list, output_csv: Path, loudness: bool = False):
+def create_csv(
+    audio_files: list, output_csv: Path, loudness: bool = False, data_path: str = None
+):
     """Converts a folder of audio files to a CSV file.
 
     Parameters
@@ -18,7 +20,8 @@ def create_csv(audio_files: list, output_csv: Path, loudness: bool = False):
     loudness : bool
         Compute loudness of entire file and store alongside path.
     """
-    data_path = Path(os.getenv("PATH_TO_DATA", ""))
+    if data_path is None:
+        data_path = Path(os.getenv("PATH_TO_DATA", ""))
 
     info = []
     for af in audio_files:

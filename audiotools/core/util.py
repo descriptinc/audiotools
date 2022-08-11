@@ -177,7 +177,7 @@ def read_csv(filelists):
             reader = csv.DictReader(f)
             _files = []
             for x in reader:
-                x["path"] = data_path / x["path"]
+                x["path"] = str(data_path / x["path"])
                 _files.append(x)
         files.append(sorted(_files, key=lambda x: x["path"]))
     return files
@@ -186,7 +186,7 @@ def read_csv(filelists):
 def choose_from_list_of_lists(state, list_of_lists, p=None):
     idx = state.choice(list(range(len(list_of_lists))), p=p)
     item_idx = state.randint(len(list_of_lists[idx]))
-    return list_of_lists[idx][item_idx]
+    return list_of_lists[idx][item_idx], idx
 
 
 @contextmanager

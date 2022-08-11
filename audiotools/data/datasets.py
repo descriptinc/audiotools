@@ -2,12 +2,10 @@ import copy
 from multiprocessing import Manager
 from typing import List
 
-import torch
 from torch.utils.data import BatchSampler as _BatchSampler
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from . import transforms
 from ..core import AudioSignal
 from ..core import util
 
@@ -102,6 +100,52 @@ class BaseDataset(SharedMixin):
         return util.collate(list_of_dicts)
 
 
+class AudioLoader:
+    def __init__(
+        self,
+        csv_files: List[str] = None,
+        csv_weights: List[float] = None,
+        loudness_cutoff: float = -40,
+    ):
+        self.audio_lists = util.read_csv(csv_files)
+        self.csv_weights = csv_weights
+        self.loudness_cutoff = loudness_cutoff
+
+    def __call__(
+        self,
+        state,
+        sample_rate: int,
+        duration: float,
+        loudness_cutoff: float = -40,
+        num_channels: int = 1,
+        offset: float = None,
+    ):
+        audio_info, csv_idx = util.choose_from_list_of_lists(
+            state, self.audio_lists, p=self.csv_weights
+        )
+
+        if offset is None:
+            signal = AudioSignal.salient_excerpt(
+                audio_info["path"],
+                duration=duration,
+                state=state,
+                loudness_cutoff=loudness_cutoff,
+            )
+        else:
+            signal = AudioSignal(
+                audio_info["path"],
+                offset=offset,
+                duration=duration,
+            )
+        for k, v in audio_info.items():
+            signal.metadata[k] = v
+
+        if num_channels == 1:
+            signal = signal.to_mono()
+        signal = signal.resample(sample_rate)
+        return signal, csv_idx
+
+
 class CSVDataset(BaseDataset):
     def __init__(
         self,
@@ -118,20 +162,28 @@ class CSVDataset(BaseDataset):
             n_examples, duration=duration, transform=transform, sample_rate=sample_rate
         )
 
-        self.loader = transforms.AudioSource(
-            csv_files, csv_weights, loudness_cutoff=loudness_cutoff
-        )
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loudness_cutoff = loudness_cutoff
         self.num_channels = num_channels
 
     def __getitem__(self, idx):
         state = util.random_state(idx)
 
-        signal = AudioSignal.zeros(self.duration, self.sample_rate, self.num_channels)
-        kwargs = self.loader.instantiate(state, signal)
-        signal = self.loader(signal, **kwargs)
+        signal, csv_idx = self.loader(
+            state,
+            self.sample_rate,
+            duration=self.duration,
+            loudness_cutoff=self.loudness_cutoff,
+            num_channels=self.num_channels,
+        )
 
         # Instantiate the transform.
-        item = {"idx": idx, "signal": signal}
+        item = {
+            "idx": idx,
+            "signal": signal,
+            "label": csv_idx,
+            "metadata": signal.metadata,
+        }
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
         return item
