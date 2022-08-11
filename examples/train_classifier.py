@@ -16,10 +16,10 @@ Adam = argbind.bind(torch.optim.Adam, without_prefix=True)
 class Model(torchaudio.models.DeepSpeech, audiotools.ml.BaseModel):
     def __init__(self, n_feature: int = 80, n_hidden: int = 128, **kwargs):
         super().__init__(n_feature, n_hidden=n_hidden, **kwargs)
+        self.n_mels = n_feature
 
     def forward(self, signal):
-        n_mels = self.fc1.fc.in_features
-        data = signal.mel_spectrogram(n_mels)
+        data = signal.mel_spectrogram(self.n_mels)
         data = data.permute(0, 1, 3, 2)
         logits = super().forward(data)
         return logits.mean(dim=1)
