@@ -87,6 +87,19 @@ def test_copy_and_clone():
         assert np.allclose(a1, a3)
         assert np.allclose(a1, a4)
 
+    for a in ["path_to_input_file", "metadata"]:
+        a1 = getattr(signal, a)
+        a2 = getattr(cloned, a)
+        a3 = getattr(copied, a)
+        a4 = getattr(deep_copied, a)
+
+        assert id(a1) == id(a2) if isinstance(a1, str) else id(a1) != id(a2)
+        assert id(a1) == id(a3)
+        assert id(a1) == id(a4) if isinstance(a1, str) else id(a1) != id(a2)
+
+    # for clone, id should differ if path is list, and should differ always for metadata
+    # if path is string, id should remain same...
+
     assert signal.original_signal_length == copied.original_signal_length
     assert signal.original_signal_length == deep_copied.original_signal_length
     assert signal.original_signal_length == cloned.original_signal_length
