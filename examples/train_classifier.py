@@ -8,6 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import audiotools
 from audiotools import transforms as tfm
+from audiotools.core.audio_signal import AudioSignal
 
 Adam = argbind.bind(torch.optim.Adam, without_prefix=True)
 
@@ -18,7 +19,7 @@ class Model(torchaudio.models.DeepSpeech, audiotools.ml.BaseModel):
         super().__init__(n_feature, n_hidden=n_hidden, **kwargs)
         self.n_mels = n_feature
 
-    def forward(self, signal):
+    def forward(self, signal: AudioSignal):
         data = signal.mel_spectrogram(self.n_mels)
         data = data.permute(0, 1, 3, 2)
         logits = super().forward(data)
