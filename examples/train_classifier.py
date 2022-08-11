@@ -43,12 +43,11 @@ def train(accel):
     model = accel.prepare_model(Model(80, 128, 2))
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
-    device = "cpu"
     ckpt_path = Path("checkpoints/")
 
     class Trainer(audiotools.ml.BaseTrainer):
         def train_loop(self, engine, batch):
-            batch = audiotools.util.prepare_batch(batch, device)
+            batch = audiotools.util.prepare_batch(batch, accel.device)
 
             signal = batch["signal"]
             kwargs = batch["transform_args"]
