@@ -60,11 +60,12 @@ class Experiment:
         current_time = datetime.now().strftime("%b%d_%H-%M-%S")
         return current_time + "_" + socket.gethostname()
 
-    def snapshot(self):
+    def snapshot(self, filter_fn=lambda f: True):
         """Captures a full snapshot of all the files tracked by git at the time
         the experiment is run. It also captures the diff against the committed
         code as a separate file.
         """
         for f in self.git_tracked_files:
-            Path(f).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(self.parent_directory / f, f)
+            if filter_fn(f):
+                Path(f).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(self.parent_directory / f, f)

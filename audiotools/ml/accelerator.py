@@ -35,6 +35,7 @@ class Accelerator:  # pragma: no cover
 
         self.use_ddp = self.world_size > 1 and local_rank is not None
         self.use_dp = self.world_size > 1 and local_rank is None
+        self.device = "cpu" if self.world_size == 0 else "cuda"
 
         if self.use_ddp:
             local_rank = int(local_rank)
@@ -79,7 +80,7 @@ class Accelerator:  # pragma: no cover
             self.device_ctx.__exit__(exc_type, exc_value, traceback)
 
     def prepare_model(self, model):
-        model = model.to("cuda")
+        model = model.to(self.device)
         if self.use_ddp:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
             model = DistributedDataParallel(model, device_ids=[self.local_rank])

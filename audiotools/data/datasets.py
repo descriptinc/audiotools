@@ -182,7 +182,6 @@ class CSVDataset(BaseDataset):
             "idx": idx,
             "signal": signal,
             "label": csv_idx,
-            "metadata": signal.metadata,
         }
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
