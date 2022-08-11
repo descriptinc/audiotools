@@ -51,7 +51,7 @@ def train(accel):
 
             signal = batch["signal"]
             kwargs = batch["transform_args"]
-            signal = dataset.transform(signal.clone(), **kwargs)
+            signal = transform(signal.clone(), **kwargs)
             label = batch["label"]
 
             model.train()
