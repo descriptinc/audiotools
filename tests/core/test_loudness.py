@@ -241,7 +241,11 @@ def test_fir_accuracy():
         prob=0.5,
     )
     dataset = datasets.CSVDataset(
-        44100, 10, 5.0, csv_files=["tests/audio/spk.csv"], transform=transform
+        44100,
+        10,
+        5.0,
+        csv_files=["tests/audio/spk.csv"],
+        transform=transform,
     )
 
     for i in range(10):

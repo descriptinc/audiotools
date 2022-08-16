@@ -120,7 +120,7 @@ class EffectMixin:
         # Rescale to the input's amplitude
         max_transformed = self.audio_data.abs().max(dim=-1, keepdims=True).values
         scale_factor = max_spk.clamp(1e-8) / max_transformed.clamp(1e-8)
-        self *= scale_factor
+        self = self * scale_factor
 
         return self
 

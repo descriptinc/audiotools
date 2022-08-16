@@ -12,6 +12,7 @@ from ..core import util
 # We need to set SHARED_KEYS statically, with no relationship to the
 # BaseDataset object, or we'll hit RecursionErrors in the lookup.
 SHARED_KEYS = [
+    "signal",
     "duration",
     "shared_transform",
     "check_transform",
@@ -99,6 +100,52 @@ class BaseDataset(SharedMixin):
         return util.collate(list_of_dicts)
 
 
+class AudioLoader:
+    def __init__(
+        self,
+        csv_files: List[str] = None,
+        csv_weights: List[float] = None,
+        loudness_cutoff: float = -40,
+    ):
+        self.audio_lists = util.read_csv(csv_files)
+        self.csv_weights = csv_weights
+        self.loudness_cutoff = loudness_cutoff
+
+    def __call__(
+        self,
+        state,
+        sample_rate: int,
+        duration: float,
+        loudness_cutoff: float = -40,
+        num_channels: int = 1,
+        offset: float = None,
+    ):
+        audio_info, csv_idx = util.choose_from_list_of_lists(
+            state, self.audio_lists, p=self.csv_weights
+        )
+
+        if offset is None:
+            signal = AudioSignal.salient_excerpt(
+                audio_info["path"],
+                duration=duration,
+                state=state,
+                loudness_cutoff=loudness_cutoff,
+            )
+        else:
+            signal = AudioSignal(
+                audio_info["path"],
+                offset=offset,
+                duration=duration,
+            )
+        for k, v in audio_info.items():
+            signal.metadata[k] = v
+
+        if num_channels == 1:
+            signal = signal.to_mono()
+        signal = signal.resample(sample_rate)
+        return signal, csv_idx
+
+
 class CSVDataset(BaseDataset):
     def __init__(
         self,
@@ -108,43 +155,36 @@ class CSVDataset(BaseDataset):
         csv_files: List[str] = None,
         csv_weights: List[float] = None,
         loudness_cutoff: float = -40,
-        mono: bool = True,
+        num_channels: int = 1,
         transform=None,
     ):
         super().__init__(
             n_examples, duration=duration, transform=transform, sample_rate=sample_rate
         )
 
-        self.audio_lists = util.read_csv(csv_files)
+        self.loader = AudioLoader(csv_files, csv_weights)
         self.loudness_cutoff = loudness_cutoff
-        self.mono = mono
-        self.csv_weights = csv_weights
+        self.num_channels = num_channels
 
     def __getitem__(self, idx):
         state = util.random_state(idx)
 
-        # Load an audio file randomly from the list of lists,
-        # seeded by the current index.
-        audio_info = util.choose_from_list_of_lists(
-            state, self.audio_lists, p=self.csv_weights
-        )
-        signal = AudioSignal.salient_excerpt(
-            audio_info["path"],
+        signal, csv_idx = self.loader(
+            state,
+            self.sample_rate,
             duration=self.duration,
-            state=state,
             loudness_cutoff=self.loudness_cutoff,
+            num_channels=self.num_channels,
         )
-        for k, v in audio_info.items():
-            signal.metadata[k] = v
-        if self.mono:
-            signal = signal.to_mono()
-        signal = signal.resample(self.sample_rate)
 
         # Instantiate the transform.
-        item = {"idx": idx, "signal": signal}
+        item = {
+            "idx": idx,
+            "signal": signal,
+            "label": csv_idx,
+        }
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
-
         return item
 
 

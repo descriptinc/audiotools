@@ -28,7 +28,7 @@ def test_static_shared_args():
         sample_rates = [8000, 16000, 44100]
 
         for batch in dataloader:
-            dur = np.random.rand()
+            dur = np.random.rand() + 1.0
             sr = int(np.random.choice(sample_rates))
 
             # Change attributes in the shared dict.
@@ -196,7 +196,10 @@ def test_dataset_pipeline():
         ]
     )
     dataset = audiotools.data.datasets.CSVDataset(
-        44100, 10, csv_files=["tests/audio/spk.csv"], transform=transform
+        44100,
+        10,
+        csv_files=["tests/audio/spk.csv"],
+        transform=transform,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=0, batch_size=1, collate_fn=dataset.collate

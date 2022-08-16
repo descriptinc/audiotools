@@ -8,9 +8,11 @@ import torch
 from flatten_dict import flatten
 from flatten_dict import unflatten
 from numpy.random import RandomState
+from yaml import load
 
 from ..core import AudioSignal
 from ..core import util
+from .datasets import AudioLoader
 
 tt = torch.tensor
 
@@ -113,6 +115,10 @@ class BaseTransform:
         return kwargs
 
 
+class Identity(BaseTransform):
+    pass
+
+
 class SpectralTransform(BaseTransform):
     def transform(self, signal, **kwargs):
         signal.stft()
@@ -187,10 +193,13 @@ class Choose(Compose):
         kwargs = super()._instantiate(state, signal)
         tfm_idx = list(range(len(self.transforms)))
         tfm_idx = state.choice(tfm_idx, p=self.weights)
+        one_hot = []
         for i, t in enumerate(self.transforms):
             mask = kwargs[t.name]["mask"]
             if mask.item():
                 kwargs[t.name]["mask"] = tt(i == tfm_idx)
+            one_hot.append(kwargs[t.name]["mask"])
+        kwargs["one_hot"] = one_hot
         return kwargs
 
 
@@ -315,38 +324,28 @@ class BackgroundNoise(BaseTransform):
         n_bands: int = 3,
         name: str = None,
         prob: float = 1.0,
+        loudness_cutoff: float = None,
     ):
-        """
-        min and max refer to SNR.
-        """
         super().__init__(name=name, prob=prob)
 
         self.snr = snr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
-        self.audio_files = util.read_csv(csv_files)
-        self.csv_weights = csv_weights
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loudness_cutoff = loudness_cutoff
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        bg_path = util.choose_from_list_of_lists(
-            state, self.audio_files, p=self.csv_weights
-        )["path"]
-
-        # Get properties of input signal to use when creating
-        # background signal.
-        duration = signal.signal_duration
-        sample_rate = signal.sample_rate
-        is_mono = signal.num_channels == 1
-
-        bg_signal = AudioSignal.excerpt(
-            bg_path, duration=duration, state=state
-        ).resample(sample_rate)
-        if is_mono:
-            bg_signal = bg_signal.to_mono()
+        bg_signal, _ = self.loader(
+            state,
+            signal.sample_rate,
+            duration=signal.signal_duration,
+            loudness_cutoff=self.loudness_cutoff,
+            num_channels=signal.num_channels,
+        )
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
 
@@ -359,33 +358,38 @@ class BackgroundNoise(BaseTransform):
 class CrossTalk(BaseTransform):
     def __init__(
         self,
-        snr: tuple = ("uniform", -5.0, 5.0),
-        max_seed: int = 1000,
+        snr: tuple = ("uniform", 0.0, 10.0),
+        csv_files: List[str] = None,
+        csv_weights: List[float] = None,
         name: str = None,
         prob: float = 1.0,
+        loudness_cutoff: float = -40,
     ):
-        """
-        min and max refer to SNR.
-        """
         super().__init__(name=name, prob=prob)
 
         self.snr = snr
-        self.max_seed = max_seed
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loudness_cutoff = loudness_cutoff
 
-    def _instantiate(self, state: RandomState):
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
         snr = util.sample_from_dist(self.snr, state)
-        seed = state.randint(self.max_seed)
-        return {"snr": snr, "seed": seed}
+        crosstalk_signal, _ = self.loader(
+            state,
+            signal.sample_rate,
+            duration=signal.signal_duration,
+            loudness_cutoff=self.loudness_cutoff,
+            num_channels=signal.num_channels,
+        )
 
-    def _transform(self, signal, snr, seed):
-        state = seed.sum().item()
-        state = util.random_state(state)
+        return {"crosstalk_signal": crosstalk_signal, "snr": snr}
 
-        idx = np.arange(signal.batch_size)
-        state.shuffle(idx)
-        input_loudness = signal.loudness()
-        mix = signal.mix(signal[idx.tolist()], snr)
-        return mix.normalize(input_loudness)
+    def _transform(self, signal, crosstalk_signal, snr):
+        # Clone bg_signal so that transform can be repeatedly applied
+        # to different signals with the same effect.
+        loudness = signal.loudness()
+        mix = signal.mix(crosstalk_signal.clone(), snr)
+        mix.normalize(loudness)
+        return mix
 
 
 class RoomImpulseResponse(BaseTransform):
@@ -399,6 +403,8 @@ class RoomImpulseResponse(BaseTransform):
         name: str = None,
         prob: float = 1.0,
         use_original_phase: bool = False,
+        offset: float = 0.0,
+        duration: float = 1.0,
     ):
         super().__init__(name=name, prob=prob)
 
@@ -406,30 +412,25 @@ class RoomImpulseResponse(BaseTransform):
         self.eq_amount = eq_amount
         self.n_bands = n_bands
         self.use_original_phase = use_original_phase
-        self.audio_files = util.read_csv(csv_files)
-        self.csv_weights = csv_weights
+
+        self.loader = AudioLoader(csv_files, csv_weights)
+        self.offset = offset
+        self.duration = duration
 
     def _instantiate(self, state: RandomState, signal: AudioSignal = None):
         eq_amount = util.sample_from_dist(self.eq_amount, state)
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        ir_path = util.choose_from_list_of_lists(
-            state, self.audio_files, p=self.csv_weights
-        )["path"]
-
-        # Get properties of input signal to use when creating
-        # background signal.
-        sample_rate = signal.sample_rate
-        is_mono = signal.num_channels == 1
-
-        ir_signal = (
-            AudioSignal(ir_path, duration=1.0)
-            .resample(sample_rate)
-            .zero_pad_to(sample_rate)
+        ir_signal, _ = self.loader(
+            state,
+            signal.sample_rate,
+            offset=self.offset,
+            duration=self.duration,
+            loudness_cutoff=None,
+            num_channels=signal.num_channels,
         )
-        if is_mono:
-            ir_signal = ir_signal.to_mono()
+        ir_signal.zero_pad_to(signal.sample_rate)
 
         return {"eq": eq, "ir_signal": ir_signal, "drr": drr}
 

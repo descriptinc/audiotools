@@ -1,4 +1,5 @@
 import os
+import random
 import tempfile
 
 import numpy as np
@@ -26,6 +27,22 @@ def test_check_random_state():
 
     # seed is none of the above : error
     pytest.raises(ValueError, util.random_state, "random")
+
+
+def test_seed():
+    util.seed(0)
+    torch_result_a = torch.randn(1)
+    np_result_a = np.random.randn(1)
+    py_result_a = random.random()
+
+    util.seed(0, set_cudnn=True)
+    torch_result_b = torch.randn(1)
+    np_result_b = np.random.randn(1)
+    py_result_b = random.random()
+
+    assert torch_result_a == torch_result_b
+    assert np_result_a == np_result_b
+    assert py_result_a == py_result_b
 
 
 def test_hz_to_bin():

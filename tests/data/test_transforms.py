@@ -1,4 +1,3 @@
-from aifc import Error
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +13,7 @@ from audiotools.data.datasets import CSVDataset
 transforms_to_test = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
+        if x not in ["Compose", "Mix", "Choose", "Repeat", "RepeatUpTo"]:
             transforms_to_test.append(x)
 
 
@@ -41,6 +40,10 @@ def test_transform(transform_name):
         kwargs["csv_files"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
         kwargs["csv_files"] = ["tests/audio/irs.csv"]
+    if transform_name == "AudioSource":
+        kwargs["csv_files"] = ["tests/audio/spk.csv"]
+    if transform_name == "CrossTalk":
+        kwargs["csv_files"] = ["tests/audio/spk.csv"]
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
@@ -379,7 +382,10 @@ def test_nested_masking():
     )
 
     dataset = CSVDataset(
-        44100, 100, 0.5, csv_files=["tests/audio/spk.csv"], transform=transform
+        44100,
+        100,
+        csv_files=["tests/audio/spk.csv"],
+        transform=transform,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=0, batch_size=10, collate_fn=dataset.collate

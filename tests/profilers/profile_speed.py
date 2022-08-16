@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 
+from audiotools import AudioSignal
 from audiotools.core import util
 from audiotools.data import transforms as tfm
 from audiotools.data.datasets import CSVDataset
@@ -19,7 +20,11 @@ def run(batch_size=64, duration=5.0, device="cuda"):
         ]
     )
     dataset = CSVDataset(
-        44100, 1000, duration, csv_files=["tests/audio/spk.csv"], transform=transform
+        44100,
+        1000,
+        duration,
+        csv_files=["tests/audio/spk.csv"],
+        transform=transform,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=16, batch_size=batch_size, collate_fn=dataset.collate

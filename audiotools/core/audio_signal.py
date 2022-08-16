@@ -76,6 +76,7 @@ class AudioSignal(
         self.path_to_input_file = None
 
         self.audio_data = None
+        self.sources = None  # List of AudioSignal objects.
         self.stft_data = None
         if audio_path is not None:
             self.load_from_file(
@@ -100,7 +101,7 @@ class AudioSignal(
         upper_bound = max(total_duration - duration, 0)
         offset = state.uniform(lower_bound, upper_bound)
 
-        signal = cls(audio_path, offset=offset, duration=duration)
+        signal = cls(audio_path, offset=offset, duration=duration, **kwargs)
         signal.metadata["offset"] = offset
         signal.metadata["duration"] = duration
 
@@ -121,6 +122,20 @@ class AudioSignal(
             if num_tries is not None and num_try >= num_tries:
                 break
         return excerpt
+
+    @classmethod
+    def zeros(
+        cls,
+        duration: float,
+        sample_rate: int,
+        num_channels: int = 1,
+        batch_size: int = 1,
+        **kwargs,
+    ):
+        n_samples = int(duration * sample_rate)
+        return cls(
+            torch.zeros(batch_size, num_channels, n_samples), sample_rate, **kwargs
+        )
 
     @classmethod
     def batch(
@@ -228,6 +243,8 @@ class AudioSignal(
             clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
+        clone.path_to_input_file = copy.deepcopy(self.path_to_input_file)
+        clone.metadata = copy.deepcopy(self.metadata)
         return clone
 
     def detach(self):
@@ -598,7 +615,7 @@ class AudioSignal(
 
     # Operator overloading
     def __add__(self, other):
-        new_signal = self.deepcopy()
+        new_signal = self.clone()
         new_signal.audio_data += util._get_value(other)
         return new_signal
 
@@ -610,7 +627,7 @@ class AudioSignal(
         return self + other
 
     def __sub__(self, other):
-        new_signal = self.deepcopy()
+        new_signal = self.clone()
         new_signal.audio_data -= util._get_value(other)
         return new_signal
 
@@ -619,7 +636,7 @@ class AudioSignal(
         return self
 
     def __mul__(self, other):
-        new_signal = self.deepcopy()
+        new_signal = self.clone()
         new_signal.audio_data *= util._get_value(other)
         return new_signal
 
@@ -707,9 +724,12 @@ class AudioSignal(
             _loudness = self._loudness[key] if self._loudness is not None else None
             stft_data = self.stft_data[key] if self.stft_data is not None else None
 
+        sources = None
+
         copy = type(self)(audio_data, self.sample_rate, stft_params=self.stft_params)
         copy._loudness = _loudness
         copy._stft_data = stft_data
+        copy.sources = sources
 
         return copy
 
