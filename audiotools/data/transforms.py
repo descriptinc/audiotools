@@ -737,3 +737,53 @@ class Smoothing(BaseTransform):
 
         out = out * (sscale / oscale)
         return out
+
+
+class TimeNoise(TimeMask):
+    def __init__(
+        self,
+        t_center: tuple = ("uniform", 0.0, 1.0),
+        t_width: tuple = ("const", 0.025),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(t_center=t_center, t_width=t_width, name=name, prob=prob)
+
+    def _transform(self, signal, tmin_s: float, tmax_s: float):
+        signal = signal.mask_timesteps(tmin_s=tmin_s, tmax_s=tmax_s, val=0.0)
+        mag, phase = signal.magnitude, signal.phase
+
+        mag_r, phase_r = torch.randn_like(mag), torch.randn_like(phase)
+        mask = (mag == 0.0) * (phase == 0.0)
+
+        mag[mask] = mag_r[mask]
+        phase[mask] = phase_r[mask]
+
+        signal.magnitude = mag
+        signal.phase = phase
+        return signal
+
+
+class FrequencyNoise(FrequencyMask):
+    def __init__(
+        self,
+        f_center: tuple = ("uniform", 0.0, 1.0),
+        f_width: tuple = ("const", 0.1),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(f_center=f_center, f_width=f_width, name=name, prob=prob)
+
+    def _transform(self, signal, fmin_hz: float, fmax_hz: float):
+        signal = signal.mask_frequencies(fmin_hz=fmin_hz, fmax_hz=fmax_hz)
+        mag, phase = signal.magnitude, signal.phase
+
+        mag_r, phase_r = torch.randn_like(mag), torch.randn_like(phase)
+        mask = (mag == 0.0) * (phase == 0.0)
+
+        mag[mask] = mag_r[mask]
+        phase[mask] = phase_r[mask]
+
+        signal.magnitude = mag
+        signal.phase = phase
+        return signal
