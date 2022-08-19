@@ -51,9 +51,7 @@ class BaseModel(nn.Module):
         return list(self.parameters())[0].device
 
     @classmethod
-    def load(
-        cls, location, *args, package=True, package_name=None, strict=False, **kwargs
-    ):
+    def load(cls, location, *args, package_name=None, strict=False, **kwargs):
         try:
             model = cls._load_package(location, package_name=package_name)
         except:
