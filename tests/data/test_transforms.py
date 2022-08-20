@@ -10,6 +10,7 @@ from audiotools import util
 from audiotools.data import transforms as tfm
 from audiotools.data.datasets import CSVDataset
 
+non_deterministic_transforms = ["TimeNoise", "FrequencyNoise"]
 transforms_to_test = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
@@ -33,6 +34,7 @@ def _compare_transform(transform_name, signal):
 @pytest.mark.parametrize("transform_name", transforms_to_test)
 def test_transform(transform_name):
     seed = 0
+    util.seed(seed)
     transform_cls = getattr(tfm, transform_name)
 
     kwargs = {}
@@ -53,10 +55,14 @@ def test_transform(transform_name):
     kwargs = transform.instantiate(seed, signal)
     for k in kwargs[transform_name]:
         assert k in transform.keys
+
     output = transform(signal, **kwargs)
     assert isinstance(output, AudioSignal)
 
     _compare_transform(transform_name, output)
+
+    if transform_name in non_deterministic_transforms:
+        return
 
     # Test that if you make a batch of signals and call it,
     # the first item in the batch is still the same as above.

@@ -5,17 +5,18 @@ import tempfile
 import torch
 from torch import nn
 
-EXTERN = [
-    "audiotools.**",
-    "tqdm",
-    "__main__",
-    "numpy.**",
-    "julius.**",
-    "torchaudio.**",
-]
-
 
 class BaseModel(nn.Module):
+    EXTERN = [
+        "audiotools.**",
+        "tqdm",
+        "__main__",
+        "numpy.**",
+        "julius.**",
+        "torchaudio.**",
+    ]
+    INTERN = []
+
     def save(self, path, metadata=None, package=True, intern=[], extern=[], mock=[]):
         sig = inspect.signature(self.__class__)
         args = {}
@@ -50,9 +51,7 @@ class BaseModel(nn.Module):
         return list(self.parameters())[0].device
 
     @classmethod
-    def load(
-        cls, location, *args, package=True, package_name=None, strict=False, **kwargs
-    ):
+    def load(cls, location, *args, package_name=None, strict=False, **kwargs):
         try:
             model = cls._load_package(location, package_name=package_name)
         except:
@@ -90,9 +89,9 @@ class BaseModel(nn.Module):
         # file (this is undocumented).
         with tempfile.NamedTemporaryFile(suffix=".pth") as f:
             with torch.package.PackageExporter(f.name, **kwargs) as exp:
-                exp.intern(["wav2wav.modules.**"] + intern)
+                exp.intern(self.INTERN + intern)
                 exp.mock(mock)
-                exp.extern(EXTERN + extern)
+                exp.extern(self.EXTERN + extern)
                 exp.save_pickle(package_name, resource_name, self)
 
                 if hasattr(self, "metadata"):
