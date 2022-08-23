@@ -71,7 +71,7 @@ class BaseTransform:
 
     def instantiate(
         self,
-        state: RandomState,
+        state: RandomState = None,
         signal: AudioSignal = None,
     ):
         state = util.random_state(state)
@@ -105,7 +105,7 @@ class BaseTransform:
 
     def batch_instantiate(
         self,
-        states: list,
+        states: list = None,
         signal: AudioSignal = None,
     ):
         kwargs = []
