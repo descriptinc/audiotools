@@ -10,6 +10,7 @@ from typing import Type
 
 import rich
 from flatten_dict import unflatten
+from rich.text import Text
 from rich.tree import Tree
 
 from . import BaseModel
@@ -17,8 +18,9 @@ from . import BaseModel
 
 def convert_to_tree(d, tree: Tree):
     for k in d:
-        if d[k] is None:
-            tree.add(k)
+        if not isinstance(d[k], dict):
+            style = "green" if d[k] else "red"
+            tree.add(Text(k, style=style))
         else:
             convert_to_tree(d[k], tree.add(k))
     return tree
@@ -89,6 +91,17 @@ class BaseModelRegistry:
     ):
         raise NotImplementedError()
 
+    def print_tree(self, files, name):
+        def exists(f):
+            local_path = Path(self.cache) / str(f).split(self.location)[-1]
+            return local_path.exists()
+
+        files = unflatten({str(f): exists(f) for f in files}, splitter="path")
+        tree = convert_to_tree(files, Tree(name))
+
+        rich.print(tree)
+        rich.print("[green]downloaded[/green]", "[red]not downloaded[/red]")
+
 
 class LocalModelRegistry(BaseModelRegistry):
     def copy(self, src, dst):
@@ -98,13 +111,9 @@ class LocalModelRegistry(BaseModelRegistry):
 
     def list_models(self, domain: str):
         base_path = f"{self.location}/{domain}"
-
-        files = glob.glob(f"{self.location}/{domain}/**", recursive=True)
-        files = [Path(f).relative_to(base_path) for f in files if Path(f).is_file()]
-
-        files = unflatten({str(f): None for f in files}, splitter="path")
-        tree = convert_to_tree(files, Tree(base_path))
-        rich.print(tree)
+        files = glob.glob(f"{base_path}/**", recursive=True)
+        files = [Path(f).relative_to(self.location) for f in files if Path(f).is_file()]
+        self.print_tree(files, base_path)
 
 
 class GCPModelRegistry(BaseModelRegistry):
@@ -120,10 +129,8 @@ class GCPModelRegistry(BaseModelRegistry):
         files = (
             subprocess.check_output(shlex.split(command)).decode("utf-8").splitlines()
         )
-        files = [Path(f).relative_to(base_path) for f in files]
-        files = unflatten({str(f): None for f in files}, splitter="path")
-        tree = convert_to_tree(files, Tree(base_path))
-        rich.print(tree)
+        files = [Path(f).relative_to(self.location) for f in files]
+        self.print_tree(files, base_path)
 
 
 if __name__ == "__main__":
@@ -150,8 +157,8 @@ if __name__ == "__main__":
     generator = Generator()
     discriminator = Discriminator()
 
-    registry.upload(generator, "dummy", version="test")
-    registry.upload(discriminator, "dummy", version="test")
+    # registry.upload(generator, "dummy", version="test")
+    # registry.upload(discriminator, "dummy", version="test")
 
     registry.list_models("dummy")
     model_path = registry.download("dummy", "20220824/generator/package.pth")
