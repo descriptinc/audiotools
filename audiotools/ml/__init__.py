@@ -1,3 +1,4 @@
+from . import registry
 from . import tricks
 from .accelerator import Accelerator
 from .experiment import Experiment

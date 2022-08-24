@@ -35,6 +35,8 @@ class OtherModel(ml.BaseModel):
 
 def test_base_model():
     # Save and load
+    ml.BaseModel.EXTERN = ["test_model"]
+
     x = torch.randn(10, 1)
     model1 = Model()
 
@@ -43,33 +45,35 @@ def test_base_model():
     out1 = seed_and_run(model1, x)
 
     with tempfile.NamedTemporaryFile(suffix=".pth") as f:
-        model1.save(f.name, extern=["test_model"])
+        model1.save(
+            f.name,
+        )
         model2 = Model.load(f.name)
         out2 = seed_and_run(model2, x)
         assert torch.allclose(out1, out2)
 
         # test re-export
-        model2.save(f.name, extern=["test_model"])
+        model2.save(f.name)
         model3 = Model.load(f.name)
         out3 = seed_and_run(model3, x)
         assert torch.allclose(out1, out3)
 
         # make sure legacy/save load works
-        model1.save(f.name, package=False, extern=["test_model"])
+        model1.save(f.name, package=False)
         model2 = Model.load(f.name)
         out2 = seed_and_run(model2, x)
         assert torch.allclose(out1, out2)
 
         # make sure new way -> legacy save -> legacy load works
-        model1.save(f.name, package=True, extern=["test_model"])
+        model1.save(f.name, package=True)
         model2 = Model.load(f.name)
-        model2.save(f.name, package=False, extern=["test_model"])
+        model2.save(f.name, package=False)
         model3 = Model.load(f.name)
         out3 = seed_and_run(model3, x)
 
         # save/load without package, but with model2 being a model
         # without an argument of arg1 to its instantiation.
-        model1.save(f.name, package=False, extern=["test_model"])
+        model1.save(f.name, package=False)
         model2 = OtherModel.load(f.name)
         out2 = seed_and_run(model2, x)
         assert torch.allclose(out1, out2)

@@ -13,7 +13,7 @@ from flatten_dict import unflatten
 from rich.text import Text
 from rich.tree import Tree
 
-from . import BaseModel
+from .layers.base import BaseModel
 
 
 def convert_to_tree(d, tree: Tree):
@@ -32,13 +32,13 @@ class BaseModelRegistry:
         location: str,
         cache: str = "/tmp/cache",
     ):
-        self.location = location
-        self.cache = cache
+        self.location = str(location)
+        self.cache = Path(cache)
 
-    def copy(self, src, dst):
+    def copy(self, src, dst):  # pragma: no cover
         raise NotImplementedError()
 
-    def upload(
+    def upload_model(
         self,
         model: Type[BaseModel],
         domain: str,
@@ -62,11 +62,13 @@ class BaseModelRegistry:
 
         return target_base
 
-    def upload_artifact(
+    def upload_file(
         self,
         local_path: str,
-        remote_path: str,
+        domain: str,
+        path: str,
     ):
+        remote_path = f"{self.location}/{domain}/{path}"
         self.copy(local_path, remote_path)
 
     def download(
@@ -76,7 +78,7 @@ class BaseModelRegistry:
         overwrite: bool = False,
     ):
         # Check if model exists locally.
-        local_path = Path(self.cache) / domain / path
+        local_path = self.cache / domain / path
         remote_path = f"{self.location}/{domain}/{path}"
         local_path.parent.mkdir(exist_ok=True, parents=True)
 
@@ -85,22 +87,25 @@ class BaseModelRegistry:
 
         return local_path
 
-    def list_models(
+    def get_files(
         self,
         domain: str,
-    ):
+    ):  # pragma: no cover
         raise NotImplementedError()
 
-    def print_tree(self, files, name):
+    def list_models(self, domain: str):
+        files = self.get_files(domain)
+
         def exists(f):
-            local_path = Path(self.cache) / str(f).split(self.location)[-1]
+            local_path = self.cache / str(f).split(self.location)[-1]
             return local_path.exists()
 
-        files = unflatten({str(f): exists(f) for f in files}, splitter="path")
-        tree = convert_to_tree(files, Tree(name))
-
+        _files = unflatten({str(f): exists(f) for f in files}, splitter="path")
+        tree = convert_to_tree(_files, Tree(self.location))
         rich.print(tree)
         rich.print("[green]downloaded[/green]", "[red]not downloaded[/red]")
+
+        return [str(f).split(domain + "/")[-1] for f in files]
 
 
 class LocalModelRegistry(BaseModelRegistry):
@@ -109,20 +114,20 @@ class LocalModelRegistry(BaseModelRegistry):
         command = f"cp {str(src)} {str(dst)}"
         subprocess.check_call(shlex.split(command))
 
-    def list_models(self, domain: str):
+    def get_files(self, domain: str):
         base_path = f"{self.location}/{domain}"
         files = glob.glob(f"{base_path}/**", recursive=True)
         files = [Path(f).relative_to(self.location) for f in files if Path(f).is_file()]
-        self.print_tree(files, self.location)
+        return files
 
 
-class GCPModelRegistry(BaseModelRegistry):
+class GCPModelRegistry(BaseModelRegistry):  # pragma: no cover
     def copy(self, src, dst):
         command = f"gsutil -m cp {str(src)} {str(dst)}"
         print(f"Running {command}")
         subprocess.check_call(shlex.split(command))
 
-    def list_models(self, domain: str):
+    def get_files(self, domain: str):
         base_path = f"{self.location}/{domain}"
         command = f"gsutil ls {base_path}/**"
 
@@ -130,36 +135,4 @@ class GCPModelRegistry(BaseModelRegistry):
             subprocess.check_output(shlex.split(command)).decode("utf-8").splitlines()
         )
         files = [Path(f).relative_to(self.location) for f in files]
-        self.print_tree(files, self.location)
-
-
-if __name__ == "__main__":
-    from torch import nn
-
-    registry = GCPModelRegistry("gs://wav2wav/debug")
-
-    class Generator(BaseModel):
-        def __init__(self):
-            super().__init__()
-            self.linear = nn.Linear(1, 1)
-
-        def forward(self, x):
-            return self.linear(x)
-
-    class Discriminator(BaseModel):
-        def __init__(self):
-            super().__init__()
-            self.linear = nn.Linear(1, 1)
-
-        def forward(self, x):
-            return self.linear(x)
-
-    generator = Generator()
-    discriminator = Discriminator()
-
-    # registry.upload(generator, "dummy", version="test")
-    # registry.upload(discriminator, "dummy", version="test")
-
-    registry.list_models("dummy")
-    model_path = registry.download("dummy", "20220824/generator/package.pth")
-    model = Generator.load(model_path)
+        return files
