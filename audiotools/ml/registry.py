@@ -113,7 +113,7 @@ class LocalModelRegistry(BaseModelRegistry):
         base_path = f"{self.location}/{domain}"
         files = glob.glob(f"{base_path}/**", recursive=True)
         files = [Path(f).relative_to(self.location) for f in files if Path(f).is_file()]
-        self.print_tree(files, base_path)
+        self.print_tree(files, self.location)
 
 
 class GCPModelRegistry(BaseModelRegistry):
@@ -130,7 +130,7 @@ class GCPModelRegistry(BaseModelRegistry):
             subprocess.check_output(shlex.split(command)).decode("utf-8").splitlines()
         )
         files = [Path(f).relative_to(self.location) for f in files]
-        self.print_tree(files, base_path)
+        self.print_tree(files, self.location)
 
 
 if __name__ == "__main__":
