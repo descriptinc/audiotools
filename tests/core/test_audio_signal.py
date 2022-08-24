@@ -128,6 +128,11 @@ def test_salient_excerpt(loudness_cutoff):
         signal = AudioSignal.salient_excerpt(
             f.name, loudness_cutoff=np.inf, duration=1, num_tries=10
         )
+        signal = AudioSignal.salient_excerpt(
+            f.name,
+            loudness_cutoff=None,
+            duration=1,
+        )
 
 
 def test_arithmetic():
