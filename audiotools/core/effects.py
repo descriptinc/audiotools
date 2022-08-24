@@ -404,4 +404,5 @@ class ImpulseResponseMixin:
             + late_field
         )
         self.audio_data = aug_ir_data
+        self.ensure_max_of_audio()
         return self
