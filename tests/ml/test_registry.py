@@ -58,10 +58,10 @@ def test_local_registry():
         with open(tmpdir / "metadata.json", "w") as f:
             d = {"test": "test"}
             json.dump(d, f)
-        registry.upload_file(
+        registry.upload(
             tmpdir / "metadata.json", "domain", f"{version}/metadata/metadata_a.json"
         )
-        registry.upload_file(
+        registry.upload(
             tmpdir / "metadata.json", "domain", f"{version}/metadata/metadata_b.json"
         )
         registry.list_models("domain")

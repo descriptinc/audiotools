@@ -19,8 +19,9 @@ from .layers.base import BaseModel
 def convert_to_tree(d, tree: Tree):
     for k in d:
         if not isinstance(d[k], dict):
+            prefix = "✅ " if d[k] else "❌ "
             style = "green" if d[k] else "red"
-            tree.add(Text(k, style=style))
+            tree.add(Text(prefix + k, style=style))
         else:
             convert_to_tree(d[k], tree.add(k))
     return tree
@@ -30,8 +31,9 @@ class BaseModelRegistry:
     def __init__(
         self,
         location: str,
-        cache: str = "/tmp/cache",
+        cache: str = None,
     ):
+        cache = location if cache is None else cache
         self.location = str(location)
         self.cache = Path(cache)
 
@@ -62,7 +64,7 @@ class BaseModelRegistry:
 
         return target_base
 
-    def upload_file(
+    def upload(
         self,
         local_path: str,
         domain: str,
@@ -103,8 +105,6 @@ class BaseModelRegistry:
         _files = unflatten({str(f): exists(f) for f in files}, splitter="path")
         tree = convert_to_tree(_files, Tree(self.location))
         rich.print(tree)
-        rich.print("[green]downloaded[/green]", "[red]not downloaded[/red]")
-
         return [str(f).split(domain + "/")[-1] for f in files]
 
 
