@@ -27,7 +27,7 @@ class Discriminator(ml.BaseModel):
 
 
 def test_local_registry():
-    ml.BaseModel.EXTERN = ["test_registry"]
+    ml.BaseModel.EXTERN += ["test_registry"]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)

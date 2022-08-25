@@ -35,7 +35,7 @@ class OtherModel(ml.BaseModel):
 
 def test_base_model():
     # Save and load
-    ml.BaseModel.EXTERN = ["test_model"]
+    ml.BaseModel.EXTERN += ["test_model"]
 
     x = torch.randn(10, 1)
     model1 = Model()

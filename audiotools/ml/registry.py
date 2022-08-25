@@ -111,7 +111,7 @@ class BaseModelRegistry:
 class LocalModelRegistry(BaseModelRegistry):
     def copy(self, src, dst):
         Path(dst).parent.mkdir(exist_ok=True, parents=True)
-        command = f"cp {str(src)} {str(dst)}"
+        command = f"rsync -r {str(src)} {str(dst)}"
         subprocess.check_call(shlex.split(command))
 
     def get_files(self, domain: str):
@@ -123,7 +123,7 @@ class LocalModelRegistry(BaseModelRegistry):
 
 class GCPModelRegistry(BaseModelRegistry):  # pragma: no cover
     def copy(self, src, dst):
-        command = f"gsutil -m cp {str(src)} {str(dst)}"
+        command = f"gsutil -m rsync -r {str(src)} {str(dst)}"
         print(f"Running {command}")
         subprocess.check_call(shlex.split(command))
 
