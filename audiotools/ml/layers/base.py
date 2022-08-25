@@ -80,8 +80,6 @@ class BaseModel(nn.Module):
             kwargs["importer"] = (self.importer, torch.package.sys_importer)
             del self.importer
 
-        sig = inspect.signature(torch.package.PackageExporter)
-
         # Why do we use a tempfile, you ask?
         # It's so we can load a packaged model and then re-save
         # it to the same location. torch.package throws an

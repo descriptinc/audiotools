@@ -314,6 +314,30 @@ class MuLawQuantization(BaseTransform):
         return signal.mulaw_quantization(channels)
 
 
+class NoiseFloor(BaseTransform):
+    def __init__(
+        self,
+        db: tuple = ("const", -50.0),
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        super().__init__(name=name, prob=prob)
+
+        self.db = db
+
+    def _instantiate(self, state: RandomState, signal: AudioSignal):
+        db = util.sample_from_dist(self.db, state)
+        audio_data = state.randn(signal.num_channels, signal.signal_length)
+        nz_signal = AudioSignal(audio_data, signal.sample_rate)
+        nz_signal.normalize(db)
+        return {"nz_signal": nz_signal}
+
+    def _transform(self, signal, nz_signal):
+        # Clone bg_signal so that transform can be repeatedly applied
+        # to different signals with the same effect.
+        return signal + nz_signal
+
+
 class BackgroundNoise(BaseTransform):
     def __init__(
         self,
