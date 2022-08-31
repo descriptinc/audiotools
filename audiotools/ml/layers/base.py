@@ -148,6 +148,7 @@ class BaseModel(nn.Module):
         folder: Path,
         package: bool = True,
         strict: bool = False,
+        **kwargs,
     ):
         folder = Path(folder) / cls.__name__.lower()
         model_pth = "package.pth" if package else "weights.pth"
@@ -158,6 +159,6 @@ class BaseModel(nn.Module):
         excluded = ["package.pth", "weights.pth"]
         files = [x for x in folder.glob("*") if x.is_file() and x.name not in excluded]
         for f in files:
-            extra_data[f.name] = torch.load(folder / f)
+            extra_data[f.name] = torch.load(folder / f, **kwargs)
 
         return model, extra_data
