@@ -1,6 +1,7 @@
 import inspect
 import shutil
 import tempfile
+from pathlib import Path
 
 import torch
 from torch import nn
@@ -119,3 +120,24 @@ class BaseModel(nn.Module):
         model.importer = imp
 
         return model
+
+    def save_package_and_weights(
+        self,
+        folder: str,
+        extra_data: dict = None,
+    ):
+        extra_data = {} if extra_data is None else extra_data
+        model_name = type(self).__name__.lower()
+        target_base = Path(f"{folder}/{model_name}/")
+        target_base.mkdir(exist_ok=True, parents=True)
+
+        package_path = target_base / f"package.pth"
+        weights_path = target_base / f"weights.pth"
+
+        self.save(package_path)
+        self.save(weights_path, package=False)
+
+        for path, obj in extra_data.items():
+            torch.save(obj, target_base / path)
+
+        return target_base

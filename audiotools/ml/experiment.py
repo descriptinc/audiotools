@@ -4,10 +4,10 @@ Experiment tracking.
 import os
 import shlex
 import shutil
-import socket
 import subprocess
-from datetime import datetime
 from pathlib import Path
+
+import randomname
 
 
 class Experiment:
@@ -57,8 +57,7 @@ class Experiment:
 
     @staticmethod
     def generate_exp_name():
-        current_time = datetime.now().strftime("%b%d_%H-%M-%S")
-        return current_time + "_" + socket.gethostname()
+        return randomname.get_name()
 
     def snapshot(self, filter_fn=lambda f: True):
         """Captures a full snapshot of all the files tracked by git at the time
