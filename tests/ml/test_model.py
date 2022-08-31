@@ -79,3 +79,7 @@ def test_base_model():
         assert torch.allclose(out1, out2)
 
         assert torch.allclose(out1, out3)
+
+    with tempfile.TemporaryDirectory() as d:
+        model1.save_to_folder(d, {"data": 1.0})
+        Model.load_from_folder(d)

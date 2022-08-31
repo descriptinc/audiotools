@@ -1,6 +1,7 @@
 import inspect
 import shutil
 import tempfile
+from pathlib import Path
 
 import torch
 from torch import nn
@@ -119,3 +120,44 @@ class BaseModel(nn.Module):
         model.importer = imp
 
         return model
+
+    def save_to_folder(
+        self,
+        folder: str,
+        extra_data: dict = None,
+    ):
+        extra_data = {} if extra_data is None else extra_data
+        model_name = type(self).__name__.lower()
+        target_base = Path(f"{folder}/{model_name}/")
+        target_base.mkdir(exist_ok=True, parents=True)
+
+        package_path = target_base / f"package.pth"
+        weights_path = target_base / f"weights.pth"
+
+        self.save(package_path)
+        self.save(weights_path, package=False)
+
+        for path, obj in extra_data.items():
+            torch.save(obj, target_base / path)
+
+        return target_base
+
+    @classmethod
+    def load_from_folder(
+        cls,
+        folder: Path,
+        package: bool = True,
+        strict: bool = False,
+    ):
+        folder = Path(folder) / cls.__name__.lower()
+        model_pth = "package.pth" if package else "weights.pth"
+        model_pth = folder / model_pth
+
+        model = cls.load(model_pth, strict=strict)
+        extra_data = {}
+        excluded = ["package.pth", "weights.pth"]
+        files = [x for x in folder.glob("*") if x.is_file() and x.name not in excluded]
+        for f in files:
+            extra_data[f.name] = torch.load(folder / f)
+
+        return model, extra_data
