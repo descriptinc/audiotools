@@ -149,7 +149,7 @@ class BaseModel(nn.Module):
         package: bool = True,
         strict: bool = False,
     ):
-        folder = Path(folder) / cls.__name__
+        folder = Path(folder) / cls.__name__.lower()
         model_pth = "package.pth" if package else "weights.pth"
         model_pth = folder / model_pth
 

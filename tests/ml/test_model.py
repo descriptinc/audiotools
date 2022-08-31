@@ -82,4 +82,4 @@ def test_base_model():
 
     with tempfile.TemporaryDirectory() as d:
         model1.save_to_folder(d, {"data": 1.0})
-        print(Model.load_from_folder(d))
+        Model.load_from_folder(d)
