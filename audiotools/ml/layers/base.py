@@ -121,7 +121,7 @@ class BaseModel(nn.Module):
 
         return model
 
-    def save_package_and_weights(
+    def save_to_folder(
         self,
         folder: str,
         extra_data: dict = None,
@@ -141,3 +141,23 @@ class BaseModel(nn.Module):
             torch.save(obj, target_base / path)
 
         return target_base
+
+    @classmethod
+    def load_from_folder(
+        cls,
+        folder: Path,
+        package: bool = True,
+        strict: bool = False,
+    ):
+        folder = Path(folder) / cls.__name__
+        model_pth = "package.pth" if package else "weights.pth"
+        model_pth = folder / model_pth
+
+        model = cls.load(model_pth, strict=strict)
+        extra_data = {}
+        excluded = ["package.pth", "weights.pth"]
+        files = [x for x in folder.glob("*") if x.is_file() and x.name not in excluded]
+        for f in files:
+            extra_data[f.name] = torch.load(folder / f)
+
+        return model, extra_data

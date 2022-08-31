@@ -1,6 +1,7 @@
 """
 Experiment tracking.
 """
+import datetime
 import os
 import shlex
 import shutil
@@ -57,7 +58,9 @@ class Experiment:
 
     @staticmethod
     def generate_exp_name():
-        return randomname.get_name()
+        date = datetime.datetime.now().strftime("%y%m%d")
+        name = f"{date}-{randomname.get_name()}"
+        return name
 
     def snapshot(self, filter_fn=lambda f: True):
         """Captures a full snapshot of all the files tracked by git at the time

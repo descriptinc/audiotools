@@ -80,5 +80,6 @@ def test_base_model():
 
         assert torch.allclose(out1, out3)
 
-    with tempfile.TemporaryDirectory() as dir:
-        model1.save_package_and_weights(dir, {"data": 1.0})
+    with tempfile.TemporaryDirectory() as d:
+        model1.save_to_folder(d, {"data": 1.0})
+        print(Model.load_from_folder(d))
