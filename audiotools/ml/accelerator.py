@@ -83,7 +83,9 @@ class Accelerator:  # pragma: no cover
         model = model.to(self.device)
         if self.use_ddp:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DistributedDataParallel(model, device_ids=[self.local_rank], **kwargs)
+            model = DistributedDataParallel(
+                model, device_ids=[self.local_rank], **kwargs
+            )
         elif self.use_dp:
             model = DataParallel(model, **kwargs)
         return model
