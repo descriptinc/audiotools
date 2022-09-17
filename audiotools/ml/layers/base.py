@@ -159,6 +159,6 @@ class BaseModel(nn.Module):
         excluded = ["package.pth", "weights.pth"]
         files = [x for x in folder.glob("*") if x.is_file() and x.name not in excluded]
         for f in files:
-            extra_data[f.name] = torch.load(folder / f, **kwargs)
+            extra_data[f.name] = torch.load(f, **kwargs)
 
         return model, extra_data
