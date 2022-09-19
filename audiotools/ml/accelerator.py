@@ -79,13 +79,15 @@ class Accelerator:  # pragma: no cover
         if self.device_ctx is not None:
             self.device_ctx.__exit__(exc_type, exc_value, traceback)
 
-    def prepare_model(self, model):
+    def prepare_model(self, model, **kwargs):
         model = model.to(self.device)
         if self.use_ddp:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DistributedDataParallel(model, device_ids=[self.local_rank])
+            model = DistributedDataParallel(
+                model, device_ids=[self.local_rank], **kwargs
+            )
         elif self.use_dp:
-            model = DataParallel(model)
+            model = DataParallel(model, **kwargs)
         return model
 
     # Automatic mixed-precision utilities
