@@ -1,5 +1,6 @@
 from . import tricks
 from .accelerator import Accelerator
 from .experiment import Experiment
-from .layers.base import BaseModel
+from .layers import BaseModel
 from .trainer import BaseTrainer
+from . import layers

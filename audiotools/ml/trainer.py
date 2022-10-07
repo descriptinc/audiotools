@@ -75,6 +75,7 @@ class BaseTrainer:
         rank=0,
         quiet: bool = False,
         record_memory: bool = False,
+        log_file: str = "log.txt",
         **kwargs,
     ):
         """
@@ -123,7 +124,7 @@ class BaseTrainer:
         >>>         if self.is_best(engine, 'mse/val'):
         >>>             model.save('checkpoints/best.model.pth')
         >>>         if self.top_k(engine, 'mse/val', 5):
-        >>>             model.save(f'checkpoints/top{k}.{epoch}.model.pth')
+        >>>             model.save(f'checkpoints/top5.{epoch}.model.pth')
         >>>
         >>> trainer = Trainer(writer=tb)
         >>> trainer.run(train_data, val_data, num_epochs=3)
@@ -161,7 +162,7 @@ class BaseTrainer:
         )
         self.live = self.pbar
         self.epoch_summary = None
-        self.log_file = None
+        self.log_file = log_file
 
         # Set up trainer engine
         self.trainer = ignite.engine.Engine(self._train_loop)
@@ -226,7 +227,7 @@ class BaseTrainer:
             )
 
             self.stdout_console = Console()
-            self.file_console = Console(file=open("log.txt", "w"))
+            self.file_console = Console(file=open(self.log_file, "w"))
 
     @property
     def state(self):

@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 import warnings
 from collections import namedtuple
+import functools
 
 import julius
 import librosa
@@ -392,6 +393,7 @@ class AudioSignal(
 
     # STFT
     @staticmethod
+    @functools.lru_cache(None)
     def get_window(window_type, window_length, device):
         """
         Wrapper around scipy.signal.get_window so one can also get the
@@ -402,7 +404,7 @@ class AudioSignal(
             window_length (int): Length of the window
 
         Returns:
-            np.ndarray: Window returned by scipy.signa.get_window
+            np.ndarray: Window returned by scipy.signal.get_window
         """
         if window_type == "average":
             window = np.ones(window_length) / window_length
@@ -564,12 +566,23 @@ class AudioSignal(
 
         return self
 
+    @staticmethod
+    @functools.lru_cache(None)
+    def get_mel_filters(sr, n_fft, n_mels, mel_fmin=0.0, mel_fmax=None):
+        return librosa_mel_fn(
+            sr=sr,
+            n_fft=n_fft,
+            n_mels=n_mels,
+            fmin=mel_fmin,
+            fmax=mel_fmax,
+        )
+
     def mel_spectrogram(self, n_mels=80, mel_fmin=0.0, mel_fmax=None, **kwargs):
         stft = self.stft(**kwargs)
         magnitude = torch.abs(stft)
 
         nf = magnitude.shape[2]
-        mel_basis = librosa_mel_fn(
+        mel_basis = self.get_mel_filters(
             sr=self.sample_rate,
             n_fft=2 * (nf - 1),
             n_mels=n_mels,

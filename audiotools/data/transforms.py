@@ -13,6 +13,7 @@ from yaml import load
 from ..core import AudioSignal
 from ..core import util
 from .datasets import AudioLoader
+from .. import ml
 
 tt = torch.tensor
 
@@ -811,3 +812,6 @@ class FrequencyNoise(FrequencyMask):
         signal.magnitude = mag
         signal.phase = phase
         return signal
+
+class SpectralDenoising(SpectralTransform):
+    pass
