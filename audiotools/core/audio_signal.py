@@ -568,13 +568,13 @@ class AudioSignal(
 
     @staticmethod
     @functools.lru_cache(None)
-    def get_mel_filters(sr, n_fft, n_mels, mel_fmin=0.0, mel_fmax=None):
+    def get_mel_filters(sr, n_fft, n_mels, fmin=0.0, fmax=None):
         return librosa_mel_fn(
             sr=sr,
             n_fft=n_fft,
             n_mels=n_mels,
-            fmin=mel_fmin,
-            fmax=mel_fmax,
+            fmin=fmin,
+            fmax=fmax,
         )
 
     def mel_spectrogram(self, n_mels=80, mel_fmin=0.0, mel_fmax=None, **kwargs):
