@@ -188,8 +188,6 @@ class BaseTrainer:
         )
 
         for k, v in kwargs.items():
-            if hasattr(self, k):
-                raise ValueError(f"{k} set in kwargs but overwrites self.{k}.")
             setattr(self, k, v)
 
         f = lambda: {

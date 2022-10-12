@@ -63,8 +63,6 @@ def test_trainer():
 
             assert trainer.state == trainer.trainer.state
 
-            pytest.raises(ValueError, Trainer, log_file="something")
-
             trainer = Trainer(quiet=True)
             trainer.run(train_data, val_data, num_epochs=5)
 
