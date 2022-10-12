@@ -27,10 +27,11 @@ class DSPMixin:
 
         return window_length, hop_length
 
-    def windows(self, window_duration, hop_duration):
-        window_length, hop_length = self._preprocess_signal_for_windowing(
-            window_duration, hop_duration
-        )
+    def windows(self, window_duration, hop_duration, preprocess: bool = True):
+        if preprocess:
+            window_length, hop_length = self._preprocess_signal_for_windowing(
+                window_duration, hop_duration
+            )
 
         self.audio_data = self.audio_data.reshape(-1, 1, self.signal_length)
 
@@ -45,7 +46,7 @@ class DSPMixin:
                     break
                 yield self[b, ..., start_idx:end_idx]
 
-    def collect_windows(self, window_duration, hop_duration):
+    def collect_windows(self, window_duration, hop_duration, preprocess: bool = True):
         """Function which collects overlapping windows from
         an AudioSignal.
 
@@ -58,9 +59,10 @@ class DSPMixin:
         Returns:
             AudioSignal: Signal of shape (nb * num_windows, nc, window_length).
         """
-        window_length, hop_length = self._preprocess_signal_for_windowing(
-            window_duration, hop_duration
-        )
+        if preprocess:
+            window_length, hop_length = self._preprocess_signal_for_windowing(
+                window_duration, hop_duration
+            )
 
         # self.audio_data: (nb, nch, nt).
         unfolded = torch.nn.functional.unfold(

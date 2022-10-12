@@ -97,20 +97,22 @@ def upload_figure_to_discourse(
     return formatted, info
 
 
-def audio_table(audio_dict, first_column=None, format_fn=None):  # pragma: no cover
+def audio_table(
+    audio_dict, first_column=None, format_fn=None, **kwargs
+):  # pragma: no cover
     from audiotools import AudioSignal
 
     output = []
     columns = None
 
-    def _default_format_fn(label, x):
+    def _default_format_fn(label, x, **kwargs):
         if torch.is_tensor(x):
             x = x.tolist()
 
         if x is None:
             return "."
         elif isinstance(x, AudioSignal):
-            return x.embed(display=False, return_html=True)
+            return x.embed(display=False, return_html=True, **kwargs)
         else:
             return str(x)
 
@@ -135,7 +137,7 @@ def audio_table(audio_dict, first_column=None, format_fn=None):  # pragma: no co
 
         formatted_audio = []
         for col in columns[1:]:
-            formatted_audio.append(format_fn(col, v[col]))
+            formatted_audio.append(format_fn(col, v[col], **kwargs))
 
         row = f"| {k} | "
         row += " | ".join(formatted_audio)

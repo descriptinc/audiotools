@@ -91,11 +91,8 @@ class Accelerator:  # pragma: no cover
         return model
 
     # Automatic mixed-precision utilities
-    def autocast(self):
-        if self.amp:
-            return torch.cuda.amp.autocast()
-        else:
-            return contextlib.nullcontext()
+    def autocast(self, *args, **kwargs):
+        return torch.cuda.amp.autocast(self.amp, *args, **kwargs)
 
     def backward(self, loss):
         self.scaler.scale(loss).backward()
