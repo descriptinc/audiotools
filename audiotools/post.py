@@ -97,7 +97,9 @@ def upload_figure_to_discourse(
     return formatted, info
 
 
-def audio_table(audio_dict, first_column=None, format_fn=None, **kwargs):  # pragma: no cover
+def audio_table(
+    audio_dict, first_column=None, format_fn=None, **kwargs
+):  # pragma: no cover
     from audiotools import AudioSignal
 
     output = []

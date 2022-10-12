@@ -10,10 +10,10 @@ from flatten_dict import unflatten
 from numpy.random import RandomState
 from yaml import load
 
+from .. import ml
 from ..core import AudioSignal
 from ..core import util
 from .datasets import AudioLoader
-from .. import ml
 
 tt = torch.tensor
 
@@ -813,6 +813,7 @@ class FrequencyNoise(FrequencyMask):
         signal.phase = phase
         return signal
 
+
 class SpectralDenoising(Equalizer):
     def __init__(
         self,
@@ -820,17 +821,12 @@ class SpectralDenoising(Equalizer):
         denoise_amount: tuple = ("uniform", 0.8, 1.0),
         nz_volume: float = -40,
         n_bands: int = 6,
-        n_freq: int = 3, 
+        n_freq: int = 3,
         n_time: int = 5,
         name: str = None,
         prob: float = 1,
     ):
-        super().__init__(
-            eq_amount=eq_amount, 
-            n_bands=n_bands,
-            name=name, 
-            prob=prob
-        )
+        super().__init__(eq_amount=eq_amount, n_bands=n_bands, name=name, prob=prob)
 
         self.nz_volume = nz_volume
         self.denoise_amount = denoise_amount
@@ -844,8 +840,6 @@ class SpectralDenoising(Equalizer):
 
     def _instantiate(self, state: RandomState):
         kwargs = super()._instantiate(state)
-        kwargs["denoise_amount"] = util.sample_from_dist(
-            self.denoise_amount, state
-        )
+        kwargs["denoise_amount"] = util.sample_from_dist(self.denoise_amount, state)
         kwargs["nz"] = AudioSignal(state.randn(22050), 44100)
         return kwargs

@@ -1,8 +1,9 @@
 import torch
 import torch.nn.functional as F
+from torch import nn
+
 from audiotools import AudioSignal
 from audiotools import STFTParams
-from torch import nn
 from audiotools.core import util
 
 

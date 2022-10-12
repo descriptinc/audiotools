@@ -1,11 +1,11 @@
 import copy
+import functools
 import hashlib
 import math
 import pathlib
 import tempfile
 import warnings
 from collections import namedtuple
-import functools
 
 import julius
 import librosa
