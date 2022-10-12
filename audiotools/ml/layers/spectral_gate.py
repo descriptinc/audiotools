@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from audiotools import AudioSignal
 from audiotools import STFTParams
 from torch import nn
+from audiotools.core import util
 
 
 class SpectralGate(nn.Module):
@@ -70,8 +71,7 @@ class SpectralGate(nn.Module):
         audio_signal : AudioSignal
             Audio signal that noise will be removed from.
         nz_signal : AudioSignal, optional
-            Noise signal to compute noise statistics from, by default
-            uses the saved model noise.
+            Noise signal to compute noise statistics from.
         denoise_amount : float, optional
             Amount to denoise by, by default 1.0
         n_std : float, optional
@@ -116,7 +116,7 @@ class SpectralGate(nn.Module):
         )
         stft_mask = F.conv2d(stft_mask, self.smoothing_filter, padding=pad_tuple)
         stft_mask = stft_mask.reshape(*shape)
-        stft_mask *= denoise_amount
+        stft_mask *= util.ensure_tensor(denoise_amount, ndim=stft_mask.ndim)
         stft_mask = 1 - stft_mask
 
         audio_signal.stft_data *= stft_mask
