@@ -117,7 +117,9 @@ class SpectralGate(nn.Module):
         )
         stft_mask = F.conv2d(stft_mask, self.smoothing_filter, padding=pad_tuple)
         stft_mask = stft_mask.reshape(*shape)
-        stft_mask *= util.ensure_tensor(denoise_amount, ndim=stft_mask.ndim)
+        stft_mask *= util.ensure_tensor(denoise_amount, ndim=stft_mask.ndim).to(
+            audio_signal.device
+        )
         stft_mask = 1 - stft_mask
 
         audio_signal.stft_data *= stft_mask
