@@ -267,10 +267,10 @@ def format_figure(
     title: str = None,
     fig=None,
     format_axes: bool = True,
-    no_format: bool = False,
+    format: bool = True,
     font_color: str = "white",
 ):
-    if no_format:
+    if not format:
         return
     if fig is None:
         fig = plt.gcf()

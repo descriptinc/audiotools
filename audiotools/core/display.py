@@ -27,8 +27,6 @@ class DisplayMixin:
     @format_figure
     def specshow(
         self,
-        no_format=False,
-        title=None,
         batch_idx=0,
         preemphasis=True,
         x_axis="time",
