@@ -207,3 +207,10 @@ class DSPMixin:
         scale = util.ensure_tensor(scale, ndim=self.phase.ndim)
         self.phase = self.phase + scale * torch.randn_like(self.phase)
         return self
+
+    def preemphasis(self, coef: float = 0.85):
+        kernel = torch.tensor([1, -coef, 0]).view(1, 1, -1).to(self.device)
+        x = self.audio_data.reshape(-1, 1, self.signal_length)
+        x = torch.nn.functional.conv1d(x, kernel, padding=1)
+        self.audio_data = x.reshape(*self.audio_data.shape)
+        return self

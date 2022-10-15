@@ -16,7 +16,6 @@ from librosa.filters import mel as librosa_mel_fn
 from scipy import signal
 
 from . import util
-from ..post import DiscourseMixin
 from .display import DisplayMixin
 from .dsp import DSPMixin
 from .effects import EffectMixin
@@ -45,7 +44,6 @@ class AudioSignal(
     DSPMixin,
     DisplayMixin,
     FFMPEGMixin,
-    DiscourseMixin,
 ):
     def __init__(
         self,

@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchaudio
 from flatten_dict import flatten
 from flatten_dict import unflatten
+from librosa import util
 
 
 @dataclass
@@ -252,3 +254,84 @@ def collate(list_of_dicts):
                 # Borrow the default collate fn from torch.
                 batch[k] = torch.utils.data._utils.collate.default_collate(v)
     return unflatten(batch)
+
+
+BASE_SIZE = 864
+
+
+def format_figure(
+    fig_size: tuple = (12, 4),
+    title: str = None,
+    fig=None,
+    format_axes: bool = True,
+    no_format: bool = False,
+    font_color: str = "white",
+):
+    if no_format:
+        return
+    if fig is None:
+        fig = plt.gcf()
+    fig.set_size_inches(*fig_size)
+    axs = fig.axes
+
+    pixels = (fig.get_size_inches() * fig.dpi)[0]
+    font_scale = pixels / BASE_SIZE
+
+    if format_axes:
+        axs = fig.axes
+
+        for ax in axs:
+            ymin, _ = ax.get_ylim()
+            xmin, _ = ax.get_xlim()
+
+            ticks = ax.get_yticks()
+            print(ticks)
+            for t in ticks[2:-1]:
+                t = axs[0].annotate(
+                    f"{(t / 1000):2.1f}k",
+                    xy=(xmin, t),
+                    xycoords="data",
+                    xytext=(5, -5),
+                    textcoords="offset points",
+                    ha="left",
+                    va="top",
+                    color=font_color,
+                    fontsize=12 * font_scale,
+                    alpha=0.75,
+                )
+
+            ticks = ax.get_xticks()[2:]
+            for t in ticks[:-1]:
+                t = axs[0].annotate(
+                    f"{t:2.1f}s",
+                    xy=(t, ymin),
+                    xycoords="data",
+                    xytext=(5, 5),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    color=font_color,
+                    fontsize=12 * font_scale,
+                    alpha=0.75,
+                )
+
+            ax.margins(0, 0)
+            ax.set_axis_off()
+            ax.xaxis.set_major_locator(plt.NullLocator())
+            ax.yaxis.set_major_locator(plt.NullLocator())
+
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+
+    if title is not None:
+        t = axs[0].annotate(
+            title,
+            xy=(1, 1),
+            xycoords="axes fraction",
+            fontsize=20 * font_scale,
+            xytext=(-5, -5),
+            textcoords="offset points",
+            ha="right",
+            va="top",
+            color="white",
+        )
+        t.set_bbox(dict(facecolor="black", alpha=0.5, edgecolor="black"))

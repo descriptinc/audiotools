@@ -1,29 +1,5 @@
 # Transforms
 
-<!-- ## Running this notebook
-
-To run this notebook, ensure that `pandoc` and `codebraid` are installed:
-
-```
-# https://pandoc.org/installing.html#linux
-pip install codebraid
-```
-
-The notebook can be run and its output can be copy/pasted to Discourse via:
-
-```
-python -m audiotools.post --discourse notebooks/transforms.md > notebooks/transforms.exec.md
-```
-
-The contents of `transforms.exec.md` can then be copy-pasted to Discourse.
-You can also view the contents without uploading to Discourse by outputting to HTML:
-
-```
-python -m audiotools.post notebooks/transforms.md > notebooks/transforms.html
-```
-
-Which you can then open in a browser to view. -->
-
 This notebook explains the AudioTools transforms, how they work, how
 they can be combined, and how to implement your own. It also shows a
 full complete working example.

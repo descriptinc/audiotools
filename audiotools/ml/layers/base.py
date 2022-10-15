@@ -15,6 +15,8 @@ class BaseModel(nn.Module):
         "numpy.**",
         "julius.**",
         "torchaudio.**",
+        "scipy.**",
+        "einops",
     ]
     INTERN = []
 

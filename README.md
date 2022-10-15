@@ -31,22 +31,6 @@ If you need to run it on all files:
 
 # Feature tour
 
-This README can be run, and then copy-pasted into Discourse to hear all the audio output by installing [codebraid](https://github.com/gpoore/codebraid). To build the README as a standalone HTML:
-
-```
-python -m audiotools.post README.md > README.html
-```
-
-To build the README into something you can copy/paste
-into Discourse:
-
-```
-python -m audiotools.post --discourse README.md | pbcopy
-```
-
-And then you can paste the output to Discourse (already done [here](https://research.descript.com/t/audiotools-readme-with-audio-examples/562)).
-
-
 ```{.python .cb.nb jupyter_kernel=python3}
 import torch
 

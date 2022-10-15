@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 from . import templates
 from .util import _close_temp_files
+from .util import format_figure
 
 headers = pkg_resources.read_text(templates, "headers.html")
 widget = pkg_resources.read_text(templates, "widget.html")
@@ -40,7 +41,7 @@ def _check_imports():  # pragma: no cover
 
 
 class PlayMixin:
-    def embed(self, batch_idx=0, ext=".mp3", display=True, return_html=False):
+    def embed(self, batch_idx=0, ext=".wav", display=True, return_html=False):
         """
         Write a numpy array to a temporary mp3 file using ffmpy, then embeds the mp3
         into the notebook.
@@ -100,10 +101,9 @@ class PlayMixin:
         self,
         title=None,
         batch_idx=0,
-        ext=".mp3",
+        ext=".wav",
         add_headers=True,
         player_width="100%",
-        max_width="600px",
         margin="10px",
         plot_fn="specshow",
         fig_size=None,
@@ -144,19 +144,6 @@ class PlayMixin:
             HTML object.
         """
 
-        def _adjust_figure(fig, _fig_size):
-            fig.set_size_inches(*_fig_size)
-            plt.ioff()
-
-            axs = fig.axes
-            for ax in axs:
-                ax.margins(0, 0)
-                ax.set_axis_off()
-                ax.xaxis.set_major_locator(plt.NullLocator())
-                ax.yaxis.set_major_locator(plt.NullLocator())
-
-            plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
-
         def _save_fig_to_tag():
             buffer = io.BytesIO()
 
@@ -186,32 +173,17 @@ class PlayMixin:
         if isinstance(plot_fn, str):
             plot_fn = getattr(self, plot_fn)
             kwargs["batch_idx"] = batch_idx
+            kwargs["title"] = title
         plot_fn(**kwargs)
 
         fig = plt.gcf()
-        axs = fig.axes
-        _adjust_figure(fig, fig_size)
-
-        if title is not None:
-            t = axs[0].annotate(
-                title,
-                xy=(1, 1),
-                xycoords="axes fraction",
-                fontsize=25,
-                xytext=(-5, -5),
-                textcoords="offset points",
-                ha="right",
-                va="top",
-                color="white",
-            )
-            t.set_bbox(dict(facecolor="black", alpha=0.5, edgecolor="black"))
+        pixels = fig.get_size_inches() * fig.dpi
 
         tag = _save_fig_to_tag()
 
         # Make the source image for the levels
-        fig = plt.figure()
         self.specshow(batch_idx=batch_idx)
-        _adjust_figure(fig, (12, 1.5))
+        format_figure((12, 1.5))
         levels_tag = _save_fig_to_tag()
 
         player_id = "".join(random.choice(string.ascii_uppercase) for _ in range(10))
@@ -222,10 +194,9 @@ class PlayMixin:
         widget_html = widget_html.replace("LEVELS_SRC", levels_tag)
         widget_html = widget_html.replace("PLAYER_ID", player_id)
 
-        # Calculate height of figure based on figure size.
-        padding_amount = str(fig_size[1] * 9) + "%"
-        widget_html = widget_html.replace("PADDING_AMOUNT", padding_amount)
-        widget_html = widget_html.replace("MAX_WIDTH", str(max_width))
+        # Calculate width/height of figure based on figure size.
+        widget_html = widget_html.replace("PADDING_AMOUNT", f"{int(pixels[1])}px")
+        widget_html = widget_html.replace("MAX_WIDTH", f"{int(pixels[0])}px")
 
         IPython.display.display(IPython.display.HTML(widget_html))
 
