@@ -11,7 +11,7 @@ def test_specshow():
     AudioSignal(array, sample_rate=16000).specshow()
     AudioSignal(array, sample_rate=16000).specshow(preemphasis=True)
     AudioSignal(array, sample_rate=16000).specshow(title="test", preemphasis=True)
-    AudioSignal(array, sample_rate=16000).specshow(no_format=True, preemphasis=True)
+    AudioSignal(array, sample_rate=16000).specshow(format=False, preemphasis=True)
 
 
 def test_waveplot():
