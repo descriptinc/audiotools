@@ -27,7 +27,6 @@ class DisplayMixin:
     @format_figure
     def specshow(
         self,
-        batch_idx=0,
         preemphasis=True,
         x_axis="time",
         y_axis="linear",
@@ -45,7 +44,7 @@ class DisplayMixin:
 
         log_mag = librosa.amplitude_to_db(signal.magnitude.cpu().numpy(), ref=np.max)
         librosa.display.specshow(
-            log_mag[batch_idx].mean(axis=0),
+            log_mag[0].mean(axis=0),
             x_axis=x_axis,
             y_axis=y_axis,
             sr=signal.sample_rate,
@@ -53,11 +52,11 @@ class DisplayMixin:
         )
 
     @format_figure
-    def waveplot(self, title=None, batch_idx=0, x_axis="time", **kwargs):
+    def waveplot(self, title=None, x_axis="time", **kwargs):
         import librosa
         import librosa.display
 
-        audio_data = self.audio_data[batch_idx].mean(dim=0)
+        audio_data = self.audio_data[0].mean(dim=0)
         audio_data = audio_data.cpu().numpy()
 
         plot_fn = "waveshow" if hasattr(librosa.display, "waveshow") else "waveplot"
@@ -65,30 +64,28 @@ class DisplayMixin:
         wave_plot_fn(audio_data, x_axis=x_axis, sr=self.sample_rate, **kwargs)
 
     @format_figure
-    def wavespec(self, batch_idx=0, x_axis="time", **kwargs):
+    def wavespec(self, x_axis="time", **kwargs):
         gs = GridSpec(6, 1)
         plt.subplot(gs[0, :])
-        self.waveplot(batch_idx=batch_idx, x_axis=x_axis)
+        self.waveplot(x_axis=x_axis)
         plt.subplot(gs[1:, :])
-        self.specshow(batch_idx=batch_idx, x_axis=x_axis, **kwargs)
+        self.specshow(x_axis=x_axis, **kwargs)
 
     def write_audio_to_tb(
         self,
         tag,
         writer,
         step: int = None,
-        batch_idx: int = 0,
         plot_fn="specshow",
         **kwargs,
     ):
-        audio_data = self.audio_data[batch_idx, 0].detach().cpu()
+        audio_data = self.audio_data[0, 0].detach().cpu()
         sample_rate = self.sample_rate
         writer.add_audio(tag, audio_data, step, sample_rate)
 
         if plot_fn is not None:
             if isinstance(plot_fn, str):
                 plot_fn = getattr(self, plot_fn)
-                kwargs["batch_idx"] = batch_idx
             fig = plt.figure()
             plt.clf()
             plot_fn(**kwargs)

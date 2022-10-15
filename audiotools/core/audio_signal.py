@@ -222,10 +222,10 @@ class AudioSignal(
         self.sample_rate = sample_rate
         return self.to(device)
 
-    def write(self, audio_path, batch_idx=0):
-        if self.audio_data[batch_idx].abs().max() > 1:
+    def write(self, audio_path):
+        if self.audio_data[0].abs().max() > 1:
             warnings.warn("Audio amplitude > 1 clipped when saving")
-        torchaudio.save(audio_path, self.audio_data[batch_idx], self.sample_rate)
+        torchaudio.save(audio_path, self.audio_data[0], self.sample_rate)
         return self
 
     def deepcopy(self):
@@ -257,9 +257,9 @@ class AudioSignal(
         self.audio_data = self.audio_data.detach()
         return self
 
-    def hash(self, batch_idx=0):
+    def hash(self):
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-            self.write(f.name, batch_idx)
+            self.write(f.name)
             h = hashlib.sha256()
             b = bytearray(128 * 1024)
             mv = memoryview(b)

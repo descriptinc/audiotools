@@ -41,7 +41,7 @@ def _check_imports():  # pragma: no cover
 
 
 class PlayMixin:
-    def embed(self, batch_idx=0, ext=".wav", display=True, return_html=False):
+    def embed(self, ext=".wav", display=True, return_html=False):
         """
         Write a numpy array to a temporary mp3 file using ffmpy, then embeds the mp3
         into the notebook.
@@ -70,7 +70,7 @@ class PlayMixin:
         with _close_temp_files(tmpfiles):
             tmp_wav = NamedTemporaryFile(mode="w+", suffix=".wav", delete=False)
             tmpfiles.append(tmp_wav)
-            self.write(tmp_wav.name, batch_idx=batch_idx)
+            self.write(tmp_wav.name)
             if ext != ".wav" and ffmpy:
                 tmp_converted = NamedTemporaryFile(mode="w+", suffix=ext, delete=False)
                 tmpfiles.append(tmp_wav)
@@ -100,7 +100,6 @@ class PlayMixin:
     def widget(
         self,
         title=None,
-        batch_idx=0,
         ext=".wav",
         add_headers=True,
         player_width="100%",
@@ -115,8 +114,6 @@ class PlayMixin:
 
         Parameters
         ----------
-        batch_idx : int, optional
-            Which item in batch to display, by default 0
         ext : str, optional
             Extension for embedding, by default ".mp3"
         display : bool, optional
@@ -172,7 +169,6 @@ class PlayMixin:
 
         if isinstance(plot_fn, str):
             plot_fn = getattr(self, plot_fn)
-            kwargs["batch_idx"] = batch_idx
             kwargs["title"] = title
         plot_fn(**kwargs)
 
@@ -182,13 +178,13 @@ class PlayMixin:
         tag = _save_fig_to_tag()
 
         # Make the source image for the levels
-        self.specshow(batch_idx=batch_idx)
+        self.specshow()
         format_figure((12, 1.5))
         levels_tag = _save_fig_to_tag()
 
         player_id = "".join(random.choice(string.ascii_uppercase) for _ in range(10))
 
-        audio_elem = self.embed(batch_idx=batch_idx, ext=ext, display=False)
+        audio_elem = self.embed(ext=ext, display=False)
         widget_html = widget_html.replace("AUDIO_SRC", audio_elem.src_attr())
         widget_html = widget_html.replace("IMAGE_SRC", tag)
         widget_html = widget_html.replace("LEVELS_SRC", levels_tag)
@@ -205,7 +201,7 @@ class PlayMixin:
             html += widget_html
             return html
 
-    def play(self, batch_idx=0):
+    def play(self):
         """
         Plays an audio signal if ffplay from the ffmpeg suite of tools is installed.
         Otherwise, will fail. The audio signal is written to a temporary file
@@ -218,7 +214,7 @@ class PlayMixin:
         with _close_temp_files(tmpfiles):
             tmp_wav = NamedTemporaryFile(suffix=".wav", delete=False)
             tmpfiles.append(tmp_wav)
-            self.write(tmp_wav.name, batch_idx=batch_idx)
+            self.write(tmp_wav.name)
             print(self)
             subprocess.call(
                 [
