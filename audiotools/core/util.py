@@ -152,7 +152,10 @@ def _close_temp_files(tmpfiles):
     _close()
 
 
-def find_audio(folder: str, ext: List[str] = ["wav", "flac", "mp3"]):
+AUDIO_EXTENSIONS = ["wav", "flac", "mp3", "mp4"]
+
+
+def find_audio(folder: str, ext: List[str] = AUDIO_EXTENSIONS):
     """
     Finds all audio files in a directory
     recursively. Returns a list.
@@ -162,7 +165,7 @@ def find_audio(folder: str, ext: List[str] = ["wav", "flac", "mp3"]):
         Folder to look for audio files in, recursively.
     ext : List[str], optional
         Extensions to look for without the ., by default
-        ['wav', 'flac', 'mp3'].
+        ['wav', 'flac', 'mp3', 'mp4'].
     """
     folder = Path(folder)
     files = []
