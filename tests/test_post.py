@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from audiotools import AudioSignal
 from audiotools import post
 from audiotools import transforms
@@ -20,6 +22,7 @@ def test_audio_zip():
         output = tfm(x.clone(), **kwargs)
         audio_dict["outputs"].append(output)
 
+    Path("./scratch").mkdir(parents=True, exist_ok=True)
     post.audio_zip(audio_dict, "./scratch/samples.zip")
 
 
