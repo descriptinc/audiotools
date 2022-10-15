@@ -54,7 +54,7 @@ class FFMPEGMixin:
 
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
             for i in range(self.batch_size):
-                self.write(f.name, i)
+                self[i].write(f.name)
                 loudness_stats = r128stats(f.name, quiet=quiet)
                 loudness.append(loudness_stats["I"])
 
