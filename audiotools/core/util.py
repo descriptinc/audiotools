@@ -285,7 +285,6 @@ def format_figure(
             xmin, _ = ax.get_xlim()
 
             ticks = ax.get_yticks()
-            print(ticks)
             for t in ticks[2:-1]:
                 t = axs[0].annotate(
                     f"{(t / 1000):2.1f}k",
