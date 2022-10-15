@@ -1,7 +1,25 @@
+import tempfile
+import zipfile
+from pathlib import Path
+
 import markdown2 as md
 import matplotlib.pyplot as plt
 import torch
 from IPython.display import HTML
+
+
+def audio_zip(audio_dict, zip_path, **kwargs):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        with zipfile.ZipFile(zip_path, "w") as zip_file:
+            for k, signals in audio_dict.items():
+                for i, signal in enumerate(signals):
+                    with open(tmpdir / "out.wav", "w") as f:
+                        signal.write(f.name)
+                        zip_file.write(f.name, Path(k) / f"sample_{i}.wav")
+                    with open(tmpdir / "out.png", "w") as f:
+                        signal.save_image(f.name, **kwargs)
+                        zip_file.write(f.name, Path(k) / f"sample_{i}.png")
 
 
 def audio_table(
