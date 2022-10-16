@@ -1,7 +1,7 @@
 """
-These are optional utilities included in nussl that allow one to embed an AudioSignal
+These are utilities that allow one to embed an AudioSignal
 as a playable object in a Jupyter notebook, or to play audio from
-the terminal.
+the terminal, etc.
 """
 import base64
 import io
@@ -35,26 +35,25 @@ def _check_imports():  # pragma: no cover
 
 
 class PlayMixin:
-    def embed(self, ext=".wav", display=True, return_html=False):
-        """
-        Write a numpy array to a temporary mp3 file using ffmpy, then embeds the mp3
-        into the notebook.
+    def embed(self, ext: str = ".wav", display: bool = True, return_html: bool = False):
+        """Embeds audio as a playable audio embed in a notebook, or HTML
+        document, etc.
 
-        Args:
-            audio_signal (AudioSignal): AudioSignal object containing the data.
-            ext (str): What extension to use when embedding. '.mp3' is more lightweight
-            leading to smaller notebook sizes. Defaults to '.mp3'.
-            display (bool): Whether or not to display the object immediately, or to return
-            the html object for display later by the end user. Defaults to True.
+        Parameters
+        ----------
+        ext : str, optional
+            Extension to use when saving the audio, by default ".wav"
+        display : bool, optional
+            This controls whether or not to display the audio when called. This
+            is used when the embed is the last line in a Jupyter cell, to prevent
+            the audio from being embedded twice, by default True
+        return_html : bool, optional
+            Whether to return the data wrapped in an HTML audio element, by default False
 
-        Example:
-            >>> import nussl
-            >>> audio_file = nussl.efz_utils.download_audio_file('schoolboy_fascination_excerpt.wav')
-            >>> audio_signal = nussl.AudioSignal(audio_file)
-            >>> audio_signal.embed_audio()
-
-        This will show a little audio player where you can play the audio inline in
-        the notebook.
+        Returns
+        -------
+        str
+            Either the element for display, or the HTML string of it.
         """
         ext = f".{ext}" if not ext.startswith(".") else ext
         ffmpy, IPython = _check_imports()
@@ -93,13 +92,13 @@ class PlayMixin:
 
     def widget(
         self,
-        title=None,
-        ext=".wav",
-        add_headers=True,
-        player_width="100%",
-        margin="10px",
-        plot_fn="specshow",
-        return_html=False,
+        title: str = None,
+        ext: str = ".wav",
+        add_headers: bool = True,
+        player_width: str = "100%",
+        margin: str = "10px",
+        plot_fn: str = "specshow",
+        return_html: bool = False,
         **kwargs,
     ):
         """Creates a playable widget with spectrogram. Inspired (heavily) by
@@ -107,22 +106,20 @@ class PlayMixin:
 
         Parameters
         ----------
+        title : str, optional
+            Title of plot, placed in upper right of top-most axis.
         ext : str, optional
             Extension for embedding, by default ".mp3"
-        display : bool, optional
-            Whether or not to display the widget, by default True
         add_headers : bool, optional
             Whether or not to add headers (use for first embed, False for later embeds), by default True
         player_width : str, optional
             Width of the player, as a string in a CSS rule, by default "100%"
-        max_width : str, optional
-            Maximum width of player, by default "600px"
         margin : str, optional
             Margin on all sides of player, by default "10px"
         plot_fn : function, optional
             Plotting function to use (by default self.specshow).
-        title : str, optional
-            Title of plot, placed in upper right of top-most axis.
+        return_html : bool, optional
+            Whether to return the data wrapped in an HTML audio element, by default False
         kwargs : dict, optional
             Keyword arguments to plot_fn (by default self.specshow).
 
@@ -193,9 +190,6 @@ class PlayMixin:
         Plays an audio signal if ffplay from the ffmpeg suite of tools is installed.
         Otherwise, will fail. The audio signal is written to a temporary file
         and then played with ffplay.
-
-        Args:
-            audio_signal (AudioSignal): AudioSignal object to be played.
         """
         tmpfiles = []
         with _close_temp_files(tmpfiles):
