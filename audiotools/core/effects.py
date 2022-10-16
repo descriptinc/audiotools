@@ -1,3 +1,5 @@
+import typing
+
 import julius
 import numpy as np
 import torch
@@ -8,6 +10,7 @@ from . import util
 
 class EffectMixin:
     GAIN_FACTOR = np.log(10) / 20
+    """Gain factor for converting between amplitude and decibels."""
     CODEC_PRESETS = {
         "8-bit": {"format": "wav", "encoding": "ULAW", "bits_per_sample": 8},
         "GSM-FR": {"format": "gsm"},
@@ -19,12 +22,32 @@ class EffectMixin:
         },
         "Amr-nb": {"format": "amr-nb"},
     }
+    """Presets for applying codecs via torchaudio."""
 
-    def mix(self, other, snr=10, other_eq=None):
-        """
-        Mixes noise with signal at specified
+    def mix(
+        self,
+        other,
+        snr: typing.Union[torch.Tensor, np.ndarray, float] = 10,
+        other_eq: typing.Union[torch.Tensor, np.ndarray] = None,
+    ):
+        """Mixes noise with signal at specified
         signal-to-noise ratio. Optionally, the
         other signal can be equalized in-place.
+
+
+        Parameters
+        ----------
+        other : AudioSignal
+            AudioSignal object to mix with.
+        snr : typing.Union[torch.Tensor, np.ndarray, float], optional
+            Signal to noise ratio, by default 10
+        other_eq : typing.Union[torch.Tensor, np.ndarray], optional
+            EQ curve to apply to other signal, if any, by default None
+
+        Returns
+        -------
+        AudioSignal
+            In-place modification of AudioSignal.
         """
         snr = util.ensure_tensor(snr).to(self.device)
 
@@ -40,21 +63,22 @@ class EffectMixin:
         self.audio_data = self.audio_data + other.audio_data
         return self
 
-    def convolve(self, other, start_at_max=True):
-        """
-        Convolves signal one with signal two. There are three
-        cases:
-
-        1. s1 is multichannel and s2 is mono.
-        -> s1's channels will all be convolved with s2.
-        2. s1 is mono and s2 is multichannel.
-        -> s1 will be convolved with each channel of s2.
-        3. s1 and s2 are both multichannel.
-        -> each channel will be convolved with the matching
-            channel. If they don't have the same number of
-            channels, an error will be thrown.
-
+    def convolve(self, other, start_at_max: bool = True):
+        """Convolves self with other.
         This function uses FFTs to do the convolution.
+
+        Parameters
+        ----------
+        other : AudioSignal
+            Signal to convolve with.
+        start_at_max : bool, optional
+            Whether to start at the max value of other signal, to
+            avoid inducing delays, by default True
+
+        Returns
+        -------
+        AudioSignal
+            Convolved signal, in-place.
         """
         from . import AudioSignal
 
@@ -98,7 +122,36 @@ class EffectMixin:
 
         return self
 
-    def apply_ir(self, ir, drr=None, ir_eq=None, use_original_phase=False):
+    def apply_ir(
+        self,
+        ir,
+        drr: typing.Union[torch.Tensor, np.ndarray, float] = None,
+        ir_eq: typing.Union[torch.Tensor, np.ndarray] = None,
+        use_original_phase: bool = False,
+    ):
+        """Applies an impulse response to the signal. If ` is`ir_eq``
+        is specified, the impulse response is equalized before
+        it is applied, using the given curve.
+
+        Parameters
+        ----------
+        ir : AudioSignal
+            Impulse response to convolve with.
+        drr : typing.Union[torch.Tensor, np.ndarray, float], optional
+            Direct-to-reverberant ratio that impulse response will be
+            altered to, if specified, by default None
+        ir_eq : typing.Union[torch.Tensor, np.ndarray], optional
+            Equalization that will be applied to impulse response
+            if specified, by default None
+        use_original_phase : bool, optional
+            Whether to use the original phase, instead of the convolved
+            phase, by default False
+
+        Returns
+        -------
+        AudioSignal
+            Signal with impulse response applied to it
+        """
         if ir_eq is not None:
             ir = ir.equalizer(ir_eq)
         if drr is not None:
