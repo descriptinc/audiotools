@@ -76,9 +76,9 @@ class BaseTrainer:
     1. train_loop: The training loop.
     2. val_loop: The validation loop.
     3. checkpoint: What to checkpoint at the end of each epoch.
-       Use ``self.is_best(engine, metric_you_care_about)`` to figure out
+       Use ``self.is_best(engine, 'loss/val')`` to figure out
        if the model should be saved to latest or best. Or use
-       ``self.top_k(engine, metric_you_care_about, k)`` to see if the
+       ``self.top_k(engine, 'loss/val', k)`` to see if the
        model you're saving is in the Top K of all models so far.
 
     Note that if you're in PyCharm, you'll need to do this to
@@ -240,9 +240,18 @@ class BaseTrainer:
 
     @property
     def state(self):
+        """State of the Trainer engine."""
         return self.trainer.state
 
     def state_dict(self):
+        """State dictionary of both the validator and the
+        trainer engines.
+
+        Returns
+        -------
+        dict
+            Trainer and validator states.
+        """
         trainer_state_dict = self.trainer.state_dict()
 
         def _to_dict(x):
@@ -257,7 +266,15 @@ class BaseTrainer:
             "validator": validator_state_dict,
         }
 
-    def load_state_dict(self, state_dict):
+    def load_state_dict(self, state_dict: dict):
+        """Reload state from a dictionary containing ``trainer``
+        and ``validator`` keys.
+
+        Parameters
+        ----------
+        state_dict : dict
+            Dictionary to load state from.
+        """
         self.trainer.state.logs = state_dict["trainer"].pop("logs")
         self.trainer.load_state_dict(state_dict["trainer"])
 
@@ -266,13 +283,20 @@ class BaseTrainer:
             self.validator.load_state_dict(state_dict["validator"])
         return
 
-    def save(self, save_path, **kwargs):
+    def save(self, save_path: str, **kwargs):
+        """Save the state to a file.
+
+        Parameters
+        ----------
+        save_path : str
+            Where to save the state to.
+        """
         state = {"state_dict": self.state_dict()}
         state.update(kwargs)
         torch.save(state, save_path)
         return save_path
 
-    def wrapper(self, loop, engine, batch):
+    def _wrapper(self, loop, engine, batch):
         timer = SimpleTimer()
 
         time_outside_loop = 0.0
@@ -300,11 +324,11 @@ class BaseTrainer:
         return output
 
     def _train_loop(self, engine, batch):
-        output = self.wrapper(self.train_loop, engine, batch)
+        output = self._wrapper(self.train_loop, engine, batch)
         return output
 
     def _val_loop(self, engine, batch):
-        output = self.wrapper(self.val_loop, engine, batch)
+        output = self._wrapper(self.val_loop, engine, batch)
         return output
 
     def train_loop(
@@ -501,7 +525,19 @@ class BaseTrainer:
                 v["smoothed"].reset()
                 v["value"].reset()
 
-    def on_epoch_completed(self, engine):
+    def on_epoch_completed(self, engine: ignite.engine.Engine):
+        """Called by Ignite after every epoch, summarizes the values
+        in each engine's state in ``engine.state.logs["iter"]``, and logs them into
+        the ``engine.state.logs["epoch"]`` for both train and val
+        engines. These values can be gotten at later to save alongside
+        the model, plot, etc.
+
+        Parameters
+        ----------
+        engine : ignite.engine.Engine
+            Trainer engine.
+        """
+
         def _summarize_metrics(_engine):
             for k, v in _engine.state.output.items():
                 k_ = f"{k}/{_engine.state.prefix}"
@@ -534,7 +570,15 @@ class BaseTrainer:
             if self.val_data is not None:
                 self.pbar.reset(self.validator.state.pbar)
 
-    def collect_metrics(self, engine):
+    def collect_metrics(self, engine: ignite.engine.Engine):
+        """Collects metrics from every rank in DDP, if DDP is
+        enabled. This feature uses the torchmetrics library.
+
+        Parameters
+        ----------
+        engine : ignite.engine.Engine
+            Engine to collect data from across all metrics.
+        """
         output = engine.state.output
         prefix = engine.state.prefix
         metrics = self.metrics[prefix]
@@ -563,7 +607,15 @@ class BaseTrainer:
 
         engine.state.output = output
 
-    def log_metrics(self, engine):
+    def log_metrics(self, engine: ignite.engine.Engine):
+        """Logs metrics to Tensorboard. Called after every
+        iteration.
+
+        Parameters
+        ----------
+        engine : ignite.engine.Engine
+            Engine to log metrics from to tensorboard.
+        """
         iteration = engine.state.iteration
         output = engine.state.output
 
@@ -573,7 +625,15 @@ class BaseTrainer:
                     k_ = f"{k}/iter.{engine.state.prefix}"
                     self.writer.add_scalar(k_, v["value"], iteration)
 
-    def update_progress(self, engine):
+    def update_progress(self, engine: ignite.engine.Engine):
+        """Updates the table in the live view of rich, and updates
+        the progress bars. Called after every iteration.
+
+        Parameters
+        ----------
+        engine : ignite.engine.Engine
+           Engine to use to update the progress
+        """
         if self.quiet:
             return
 
@@ -587,7 +647,24 @@ class BaseTrainer:
         )
         self.live.update(updated_table)
 
-    def view(self, epoch_length, val_epoch_length, num_epochs):
+    def view(self, epoch_length: int, val_epoch_length: int, num_epochs: int):
+        """Context manager for updating all the progress bars and tables
+        shown during training.
+
+        Parameters
+        ----------
+        epoch_length : int
+            Length of epoch.
+        val_epoch_length : int
+            Length of validation epoch.
+        num_epochs : int
+            Number of epochs.
+
+        Returns
+        -------
+        contextmanager
+            Context manager for the view.
+        """
         if self.rank == 0:
             self.epoch_pbar = self.pbar.add_task(
                 "[white]Epoch",
@@ -609,13 +686,30 @@ class BaseTrainer:
 
     def run(
         self,
-        train_data,
-        val_data=None,
-        num_epochs=None,
-        epoch_length=None,
-        detect_anomaly=False,
+        train_data: torch.utils.data.DataLoader,
+        val_data: torch.utils.data.DataLoader = None,
+        num_epochs: int = None,
+        epoch_length: int = None,
+        detect_anomaly: bool = False,
         **kwargs,
     ):
+        """Run the trainer on the specified training data and
+        validation data.
+
+        Parameters
+        ----------
+        train_data : torch.utils.data.DataLoader
+            Training data
+        val_data : torch.utils.data.DataLoader, optional
+            Validation data, by default None
+        num_epochs : int, optional
+            Number of epochs, by default None
+        epoch_length : int, optional
+            Length of each epoch, by default None (the length of train_data)
+        detect_anomaly : bool, optional
+            Whether to detect anomalies in autograd, useful for
+            debugging, by default False
+        """
         self.train_data = train_data
         self.val_data = val_data
 
