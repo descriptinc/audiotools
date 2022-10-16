@@ -3,13 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to AudioTools's documentation!
+AudioTools
 ======================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: -1
    :caption: Contents:
 
+   readme.md
+   tutorials/tutorials
+   source/modules
 
 
 Indices and tables

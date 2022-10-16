@@ -20,12 +20,6 @@ from .util import format_figure
 headers = pkg_resources.read_text(templates, "headers.html")
 widget = pkg_resources.read_text(templates, "widget.html")
 
-DEFAULT_FIG_SIZES = {
-    "specshow": (12, 4),
-    "waveplot": (12, 2),
-    "wavespec": (12, 5),
-}
-
 
 def _check_imports():  # pragma: no cover
     try:
@@ -105,7 +99,6 @@ class PlayMixin:
         player_width="100%",
         margin="10px",
         plot_fn="specshow",
-        fig_size=None,
         return_html=False,
         **kwargs,
     ):
@@ -130,8 +123,6 @@ class PlayMixin:
             Plotting function to use (by default self.specshow).
         title : str, optional
             Title of plot, placed in upper right of top-most axis.
-        fig_size : tuple, optional
-            Size of figure.
         kwargs : dict, optional
             Keyword arguments to plot_fn (by default self.specshow).
 
@@ -163,10 +154,6 @@ class PlayMixin:
             IPython.display.display(IPython.display.HTML(header_html))
 
         widget_html = widget
-
-        if fig_size is None:
-            fig_size = DEFAULT_FIG_SIZES.get(plot_fn, (12, 4))
-
         if isinstance(plot_fn, str):
             plot_fn = getattr(self, plot_fn)
             kwargs["title"] = title

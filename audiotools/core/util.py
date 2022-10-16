@@ -260,16 +260,19 @@ def collate(list_of_dicts):
 
 
 BASE_SIZE = 864
+DEFAULT_FIG_SIZE = (9, 3)
 
 
 def format_figure(
-    fig_size: tuple = (12, 4),
+    fig_size: tuple = None,
     title: str = None,
     fig=None,
     format_axes: bool = True,
     format: bool = True,
     font_color: str = "white",
 ):
+    if fig_size is None:
+        fig_size = DEFAULT_FIG_SIZE
     if not format:
         return
     if fig is None:

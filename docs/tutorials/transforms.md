@@ -1,18 +1,28 @@
+---
+file_format: mystnb
+kernelspec:
+  name: python3
+---
+
 # Transforms
 
 This notebook explains the AudioTools transforms, how they work, how
 they can be combined, and how to implement your own. It also shows a
 full complete working example.
 
-```{.python .cb.nb show=code:none+rich_output+stdout:raw+stderr jupyter_kernel=python3}
+```{code-cell} ipython3
 from audiotools import AudioSignal
-from audiotools import post, util
+from audiotools import post, util, metrics
 from audiotools.data import preprocess
 from flatten_dict import flatten
 import torch
 import pprint
 from collections import defaultdict
 from audiotools import transforms as tfm
+import os
+
+util.DEFAULT_FIG_SIZE = (9, 3)
+os.environ["PATH_TO_DATA"] = os.path.abspath("../..")
 
 pp = pprint.PrettyPrinter()
 
@@ -37,66 +47,77 @@ def make_dict(signal_batch, output_batch, kwargs=None):
             try:
                 audio_dict[i][k] = v[i].item()
             except:
-                audio_dict[i][k] = v[i]
+                audio_dict[i][k] = v[i].float().mean()
 
     return audio_dict
 ```
 
-## Audio examples
+## Quick start
+
+Transforms are one of the biggest features in AudioTools, allowing for high-quality,
+fast, GPU-powered audio augmentations, that can create very realistic simulated conditions.
+Let's take an AudioSignal, and apply a sequence of transforms to it:
+
+```{code-cell} ipython3
+signal = AudioSignal("../../tests/audio/spk/f10_script4_produced.wav", offset=10, duration=5)
+t = tfm.Compose(
+    tfm.LowPass(),
+    tfm.ClippingDistortion(),
+    tfm.TimeMask(),
+)
+kwargs = t.instantiate(state=0, signal=signal) # Instantiate random parameters
+output = t(signal.clone(), **kwargs) # Apply transform
+
+signal.widget("Original")
+output.widget("Transformed")
+```
+
+## Audio examples of all transforms
 
 Below is a table demonstrating every transform we currently have implemented, with
 randomly chosen parameters.
 
-```{.python .cb.nb show=code:none+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 seed = 0
 
 transforms_to_demo = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Choose"]:
+        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
             transforms_to_demo.append(x)
 
 
-audio_path = "tests/audio/spk/f10_script4_produced.wav"
+audio_path = "../../tests/audio/spk/f10_script4_produced.wav"
 signal = AudioSignal(audio_path, offset=6, duration=5)
 signal.metadata["loudness"] = AudioSignal(audio_path).ffmpeg_loudness().item()
 
 audio_dict = {
-    "Original": {"audio": signal, "params": None},
+    "Original": {"audio": signal, "spectral_distance": f"{0.0:1.2f}"}
 }
+
+distance = metrics.spectral.MelSpectrogramLoss()
 
 for transform_name in transforms_to_demo:
     kwargs = {}
     if transform_name == "BackgroundNoise":
-        kwargs["csv_files"] = ["tests/audio/noises.csv"]
+        kwargs["csv_files"] = ["../../tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
-        kwargs["csv_files"] = ["tests/audio/irs.csv"]
+        kwargs["csv_files"] = ["../../tests/audio/irs.csv"]
+    if transform_name == "CrossTalk":
+        kwargs["csv_files"] = ["../../tests/audio/spk.csv"]
     if "Quantization" in transform_name:
         kwargs["channels"] = ("choice", [8, 16, 32])
     transform_cls = getattr(tfm, transform_name)
+
     t = transform_cls(prob=1.0, **kwargs)
-
     t_kwargs = t.instantiate(seed, signal)
-
-    t_str = ""
-    for k, v in t_kwargs[transform_name].items():
-        if k == "mask":
-            continue
-        if not isinstance(v, AudioSignal):
-            try:
-                v = f"{v.item():0.2f}"
-            except:
-                v = " ".join([f"{x:0.2f}" for x in v.tolist()])
-            t_str += f"{k}:{v}, "
-
     output = t(signal.clone(), **t_kwargs)
-
     audio_dict[t.name] = {
         "audio": output,
-        "params": f"{t_str}"
+        "spectral_distance": f"{distance(output, signal.clone()).item():1.2f}"
     }
 
-post.disp(audio_dict, first_column="Transform")
+post.disp(audio_dict, first_column="transform")
 ```
 
 ## Introduction
@@ -132,7 +153,7 @@ First, let's talk about the `_transform` function. It takes two arguments, the `
 
 Just above `_transform`, we have `_instantiate`, which actually returns a dictionary containing `cutoff` value, which is chosen randomly from a defined distribution. The distribution is defined when you initialize the class, like so:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 from audiotools import transforms as tfm
 
 transform = tfm.LowPass()
@@ -145,7 +166,7 @@ single value drawn from the
 defined distribution. That distribution chooses from the list `[4000, 8000, 16000]`. We could use a different distribution when we build
 our LowPass transform if we wanted:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 transform = tfm.LowPass(
     cutoff = ("uniform", 4000, 8000)
 )
@@ -158,7 +179,7 @@ a special distribution called `const`, which always returns the same value
 
 Under the hood, `util.sample_from_dist` just calls `state.uniform(4000, 8000)`. Speaking of states, note that it's also passed into `instantiate`. By passing the same seed, you can reliably get the same transform parameters. For example:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 transform = tfm.LowPass()
 seed = 0
 print(transform.instantiate(seed))
@@ -167,14 +188,14 @@ print(transform.instantiate(seed))
 We see that we got 4000 again for cutoff. Alright, let's apply
 our transform to a signal. First, we'll need to construct a signal:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
-audio_path = "tests/audio/spk/f10_script4_produced.wav"
+```{code-cell} ipython3
+audio_path = "../../tests/audio/spk/f10_script4_produced.wav"
 signal = AudioSignal(audio_path, offset=6, duration=5)
 ```
 
 Okay, let's apply the transform and listen to both:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 seed = 0
 transform = tfm.LowPass()
 kwargs = transform.instantiate(seed)
@@ -200,7 +221,7 @@ This is because **signals are changed in-place** by transforms. So you should `c
 
 Finally, the `keys` attribute of the transform tells you what arguments the transform expects when you run it. For our current transform it's:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 print(transform.keys)
 ```
 
@@ -227,7 +248,7 @@ def instantiate(
 
 Let's set `prob` to `0.5` for our transform, and listen to a few examples, showing the mask along the way:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 transform = tfm.LowPass(prob=0.5)
 audio_dict = defaultdict(lambda: {})
 audio_dict["original"] = {
@@ -257,8 +278,8 @@ original audio (shown in the top row). Where `mask` is `True`, the transform is 
 
 Let's make a batch of AudioSignals using the `AudioSignal.batch` function. We'll set the batch size to 4:
 
-```{.python .cb.nb}
-audio_path = "tests/audio/spk/f10_script4_produced.wav"
+```{code-cell} ipython3
+audio_path = "../../tests/audio/spk/f10_script4_produced.wav"
 batch_size = 4
 signal = AudioSignal(audio_path, offset=6, duration=5)
 signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
@@ -267,7 +288,7 @@ signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
 Now that we have a batch of signals, let's instantiate a batch of parameters
 for the transforms using the `batch_instantiate` function:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 transform = tfm.LowPass(prob=0.5)
 seeds = range(batch_size)
 kwargs = transform.batch_instantiate(seeds)
@@ -278,14 +299,14 @@ There are now 4 cutoffs, and 4 mask values in the dictionary, instead of just 1 
 
 Alright, let's augment the entire batch at once, instead of in a for loop:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 transform = tfm.LowPass(prob=0.5)
 seeds = range(batch_size)
 kwargs = transform.batch_instantiate(seeds)
 output_batch = transform(signal_batch.clone(), **kwargs)
 ```
 
-```{.python .cb.nb show=none+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 audio_dict = {}
 
 for i in range(batch_size):
@@ -313,7 +334,7 @@ The most common way to combine transforms is to use the `Compose` transform.
 the first positional argument. `Compose` transforms can be nested as well,
 which we'll see later when we start grouping transforms. We'll use another transform (`MuLawQuantization`) to start playing around with `Compose`. Let's build a `Compose` transform that low-passes, then quantizes, and instantiate it:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 seed = 0
 transform = tfm.Compose(
     [
@@ -327,7 +348,7 @@ pp.pprint(kwargs)
 
 So, `Compose` instantiated every transform in its list, and put them into the kwargs dictionary. Something else to note: `Compose` also gets a `mask`, just like the other transforms. `Compose` can deal with two transforms of the same type because it just numbers every transform according to their position in the list:
 
-```{.python .cb.nb}
+```{code-cell} ipython3
 seed = 0
 transform = tfm.Compose(
     [
@@ -341,7 +362,7 @@ pp.pprint(kwargs)
 
 There are two keys in this dictionary: `0.LowPass`, and `1.LowPass`. Transforms in `Compose` always get a number prefix which corresponds to their position in the sequence of transforms that get applied. The behavior of `Compose` is similar to that of `torch.nn.Sequential`:
 
-```{.python .cb.nb }
+```{code-cell} ipython3
 net = torch.nn.Sequential(
     torch.nn.Linear(1, 1),
     torch.nn.Linear(1, 1),
@@ -352,7 +373,7 @@ pp.pprint(net.state_dict())
 Okay, let's apply the `Compose` transform, just like how we applied the previous
 transform:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 transform = tfm.Compose(
     [
         tfm.MuLawQuantization(),
@@ -364,7 +385,7 @@ kwargs = transform.batch_instantiate(seeds)
 output_batch = transform(signal_batch.clone(), **kwargs)
 ```
 
-```{.python .cb.nb show=none+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 audio_dict = make_dict(signal_batch, output_batch, kwargs)
 post.disp(audio_dict, first_column="batch_idx")
 ```
@@ -390,7 +411,7 @@ The masks will get applied in sequence, winnowing down what gets applied.
 To make things a bit easier to handle, we can also explicitly name transforms, group transforms via nesting `Compose` transforms, and filter the application
 of transforms by the specified names. Here's an example:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 group_a = tfm.Compose(
     [
         tfm.MuLawQuantization(),
@@ -413,7 +434,7 @@ kwargs = transform.batch_instantiate(seeds)
 
 The following applies both sets of transforms in sequence:
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 output_batch = transform(signal_batch.clone(), **kwargs)
 ```
 
@@ -421,7 +442,7 @@ But we can also filter for the two specific groups like so:
 
 #### Just first transform
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 with transform.filter("first"):
     output_batch = transform(signal_batch.clone(), **kwargs)
 
@@ -433,7 +454,7 @@ These outputs are low-passed and quantized.
 
 #### Just second transform
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 with transform.filter("second"):
     output_batch = transform(signal_batch.clone(), **kwargs)
 
@@ -449,7 +470,7 @@ There is also the `Choose` transform which instead of applying all the
 transforms in sequence, it instead chooses just one of the transforms
 to apply. The following will *either* high-pass or low-pass the entire batch.
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 transform = tfm.Choose(
     [
         tfm.HighPass(),
@@ -466,7 +487,7 @@ post.disp(audio_dict, first_column="batch_idx")
 
 All the audio is low-passed. We can flip the order, keeping the same seeds and get the high-pass path.
 
-```{.python .cb.nb show=code:none+rich_output+stdout:raw+stderr}
+```{code-cell} ipython3
 transform = tfm.Choose(
     [
         tfm.LowPass(),
@@ -538,8 +559,10 @@ sample rate, the same number of channels, and (in the case of `BackgroundNoise`)
 Finally, here's a complete example of an entire transform pipeline, which
 implements a thorough room simulator.
 
-```{.python .cb.nb show=code+rich_output+stdout:raw+stderr}
-audio_path = "tests/audio/spk/f10_script4_produced.wav"
+```{code-cell} ipython3
+:tags: ["output_scroll"]
+from pathlib import Path
+audio_path = "../../tests/audio/spk/f10_script4_produced.wav"
 signal = AudioSignal(audio_path, offset=6, duration=5)
 batch_size = 10
 
@@ -547,8 +570,9 @@ batch_size = 10
 signal = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
 
 # Prepare csv files for BackgroundNoise and RoomImpulseResponse
-preprocess.create_csv(util.find_audio("tests/audio/nz"), "/tmp/noises.csv")
-preprocess.create_csv(util.find_audio("tests/audio/ir"), "/tmp/irs.csv")
+_path = Path("../../tests/audio/").absolute()
+preprocess.create_csv(util.find_audio(_path / "nz"), "/tmp/noises.csv")
+preprocess.create_csv(util.find_audio(_path / "ir"), "/tmp/irs.csv")
 
 # Create each group of transforms
 preprocess = tfm.VolumeChange(name="pre")

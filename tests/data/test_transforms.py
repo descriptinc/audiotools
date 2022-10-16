@@ -14,7 +14,7 @@ non_deterministic_transforms = ["TimeNoise", "FrequencyNoise"]
 transforms_to_test = []
 for x in dir(tfm):
     if hasattr(getattr(tfm, x), "transform"):
-        if x not in ["Compose", "Mix", "Choose", "Repeat", "RepeatUpTo"]:
+        if x not in ["Compose", "Choose", "Repeat", "RepeatUpTo"]:
             transforms_to_test.append(x)
 
 
@@ -42,8 +42,6 @@ def test_transform(transform_name):
         kwargs["csv_files"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
         kwargs["csv_files"] = ["tests/audio/irs.csv"]
-    if transform_name == "AudioSource":
-        kwargs["csv_files"] = ["tests/audio/spk.csv"]
     if transform_name == "CrossTalk":
         kwargs["csv_files"] = ["tests/audio/spk.csv"]
 

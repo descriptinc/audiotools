@@ -1,4 +1,9 @@
-# AudioTools
+---
+file_format: mystnb
+kernelspec:
+  name: python3
+---
+# Introduction
 
 Object-oriented handling of audio signals, with fast augmentation routines, batching, padding, and more.
 
@@ -21,13 +26,9 @@ Upon `git commit`, the pre-commit hooks will be run automatically on the stage f
 
 **N.B. By default, pre-commit checks only run on staged files**
 
-If you need to run it on all files:
+# Features
 
-    pre-commit run --all-files
-
-# Feature tour
-
-```{.python .cb.nb jupyter_kernel=python3}
+```{code-cell} ipython3
 import torch
 
 import audiotools
@@ -35,37 +36,41 @@ from audiotools import AudioSignal
 from audiotools import post
 import rich
 import matplotlib.pyplot as plt
+import markdown2 as md
+from IPython.display import HTML
 
 state = audiotools.util.random_state(0)
 
-spk = AudioSignal("tests/audio/spk/f10_script4_produced.wav", offset=5, duration=5)
-ir = AudioSignal("tests/audio/ir/h179_Bar_1txts.wav")
-nz = AudioSignal("tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav")
+spk = AudioSignal("../tests/audio/spk/f10_script4_produced.wav", offset=5, duration=5)
+ir = AudioSignal("../tests/audio/ir/h179_Bar_1txts.wav")
+nz = AudioSignal("../tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav")
 ```
 
-## Mixing
-Let's first listen to the clean file (and also upload it to Discourse, a feature we'll be using throughout this post):
+## Playback and visualization
+Let's first listen to the clean file, and visualize it:
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-post.disp(spk)
-```
-
-Let's also visualize it:
-
-```{.python .cb.nb show=code:verbatim+rich_output+stdout:raw+stderr}
-fig = plt.figure(figsize=(12, 4))
+```{code-cell} ipython3
 spk.specshow()
-post.disp(fig)
+plt.show()
+spk.embed(display=False)
 ```
+
+We can also combine the above into a single widget, like so:
+
+```{code-cell} ipython3
+spk.widget()
+```
+
+## Mixing signals
 
 Let's mix the speaker with noise at varying SNRs. We'll make a deep copy
 before each mix, to preserve the original signal in `spk`, as the `mix` function
 is applied in-place.
 
-```{.python .cb.nb show=code:verbatim+rich_output+stdout:raw}
+```{code-cell} ipython3
 outputs = {}
 for snr in [0, 10, 20]:
-    output = spk.deepcopy().mix(nz, snr=snr)
+    output = spk.clone().mix(nz, snr=snr)
     outputs[f"snr={snr}"] = output
 post.disp(outputs)
 ```
@@ -75,18 +80,18 @@ post.disp(outputs)
 We can collate a batch together at random offsets from one file, with
 the same duration:
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 batch_size = 16
 spk_batch = AudioSignal.batch([
-    AudioSignal.excerpt('tests/audio/spk/f10_script4_produced.wav', duration=2, state=state)
+    AudioSignal.excerpt('../tests/audio/spk/f10_script4_produced.wav', duration=2, state=state)
     for _ in range(batch_size)
 ])
-print(spk_batch.markdown())
+HTML(md.markdown(spk_batch.markdown(), extras=["tables"]))
 ```
 
 We can listen to different items in the batch:
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 outputs = {}
 for idx in [0, 2, 5]:
     output = spk_batch[idx]
@@ -96,14 +101,14 @@ post.disp(outputs)
 
 We can mix each item in the batch at a different SNR:
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 tgt_snr = torch.linspace(-10, 10, batch_size)
-spk_plus_nz_batch = spk_batch.deepcopy().mix(nz, snr=tgt_snr)
+spk_plus_nz_batch = spk_batch.clone().mix(nz, snr=tgt_snr)
 ```
 
 Let's listen to the first and last item in the output:
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 outputs = {}
 for idx in [0, -1]:
     output = spk_plus_nz_batch[idx]
@@ -120,20 +125,20 @@ LUFS algorithm used in FFMPEG. This implementation is fully
 differentiable, and so can be computed on the GPU. Let's see
 the loudness of each item in our batch.
 
-```{.python .cb.nb show=code:verbatim+stdout:verbatim}
+```{code-cell} ipython3
 print(spk_batch.loudness())
 ```
 
 Now, let's auto-level each item in the batch to -24 dB LUFS.
 
-```{.python .cb.nb show=code:verbatim+stdout:verbatim}
-output = spk_batch.deepcopy().normalize(-24)
+```{code-cell} ipython3
+output = spk_batch.clone().normalize(-24)
 print(output.loudness())
 ```
 
 Let's make sure the SNR based mixing we did before was actually correct.
 
-```{.python .cb.nb show=code:verbatim+stdout:verbatim}
+```{code-cell} ipython3
 print(spk_batch.loudness() - nz.loudness())
 print(tgt_snr)
 ```
@@ -144,35 +149,35 @@ Fairly close.
 
 Next, let's convolve our speaker with an impulse response, to make it sound like they're in a room.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-convolved = spk.deepcopy().convolve(ir)
+```{code-cell} ipython3
+convolved = spk.clone().convolve(ir)
 ```
 
-```{.python .cb.nb show=code:none+stdout:raw}
+```{code-cell} ipython3
 post.disp(convolved)
 ```
 
 We can convolve every item in the batch with this impulse response.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-spk_batch.deepcopy().convolve(ir)
+```{code-cell} ipython3
+spk_batch.clone().convolve(ir)
 ```
 
 Or if we have a batch of impulse responses, we can convolve a batch of speech signals
 with the batch of impulse responses.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 ir_batch = AudioSignal.batch([
-    AudioSignal('tests/audio/ir/h179_Bar_1txts.wav')
+    AudioSignal('../tests/audio/ir/h179_Bar_1txts.wav')
     for _ in range(batch_size)
 ])
-spk_batch.deepcopy().convolve(ir_batch)
+spk_batch.clone().convolve(ir_batch)
 ```
 
 There's also some syntactic sugar for applying convolution.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-spk_batch.deepcopy() @ ir_batch # Same as above.
+```{code-cell} ipython3
+spk_batch.clone() @ ir_batch # Same as above.
 ```
 
 ## Equalization
@@ -181,41 +186,41 @@ responses.
 
 First, we need to figure out the number of bands in the EQ.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 n_bands = 6
 ```
 
 Then, let's make a random EQ curve.
 The curve is in dB.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 curve = -2.5 + 1 * torch.rand(n_bands)
 ```
 
 Now, apply it to the impulse response.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-eq_ir = ir.deepcopy().equalizer(curve)
+```{code-cell} ipython3
+eq_ir = ir.clone().equalizer(curve)
 ```
 
 Then convolve with the signal.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-output = spk.deepcopy().convolve(eq_ir)
+```{code-cell} ipython3
+output = spk.clone().convolve(eq_ir)
 ```
 
-```{.python .cb.nb show=code:none+stdout:raw}
+```{code-cell} ipython3
 post.disp(output)
 ```
 
 ## Pitch shifting and time stretching
 Pitch shifting and time stretching can be applied to signals
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 outputs = {
     "original": spk,
-    "pitch_shifted": spk.deepcopy().pitch_shift(2),
-    "time_stretched": spk.deepcopy().time_stretch(0.8),
+    "pitch_shifted": spk.clone().pitch_shift(2),
+    "time_stretched": spk.clone().time_stretch(0.8),
 }
 post.disp(outputs)
 ```
@@ -223,9 +228,9 @@ post.disp(outputs)
 Like other transformations, they also get applied
 across an entire batch.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-spk_batch.deepcopy().pitch_shift(2)
-spk_batch.deepcopy().time_stretch(0.8)
+```{code-cell} ipython3
+spk_batch.clone().pitch_shift(2)
+spk_batch.clone().time_stretch(0.8)
 ```
 
 ## Codec transformations
@@ -233,11 +238,11 @@ This one is a bit wonky, but you can take audio, and convert it into a
 a highly compressed format, and then get the samples back out. This
 creates a sort of "Zoom-y" effect.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
-output = spk.deepcopy().apply_codec("Ogg")
+```{code-cell} ipython3
+output = spk.clone().apply_codec("Ogg")
 ```
 
-```{.python .cb.nb show=code:none+stdout:raw}
+```{code-cell} ipython3
 post.disp(output)
 ```
 
@@ -247,18 +252,18 @@ Let's augment an entire batch by chaining these effects together.
 We'll start from scratch, loading the batch fresh each time to
 avoid overwriting anything inside the augmentation pipeline.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 def load_batch(batch_size, state=None):
     spk_batch = AudioSignal.batch([
-        AudioSignal.salient_excerpt('tests/audio/spk/f10_script4_produced.wav', duration=5, state=state)
+        AudioSignal.salient_excerpt('../tests/audio/spk/f10_script4_produced.wav', duration=5, state=state)
         for _ in range(batch_size)
     ])
     nz_batch = AudioSignal.batch([
-        AudioSignal.excerpt('tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav', duration=5, state=state)
+        AudioSignal.excerpt('../tests/audio/nz/f5_script2_ipad_balcony1_room_tone.wav', duration=5, state=state)
         for _ in range(batch_size)
     ])
     ir_batch = AudioSignal.batch([
-        AudioSignal('tests/audio/ir/h179_Bar_1txts.wav')
+        AudioSignal('../tests/audio/ir/h179_Bar_1txts.wav')
         for _ in range(batch_size)
     ])
     return spk_batch, nz_batch, ir_batch
@@ -272,7 +277,7 @@ We'll apply the following pipeline, randomly getting parameters for each effect.
 5. Convolve speech with impulse response.
 6. Mix speech and noise at some random SNR.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 batch_size = 4
 
 # Seed is given to function for reproducibility.
@@ -285,7 +290,7 @@ def augment(seed):
     snr = state.uniform(10, 40, batch_size)
 
     # Make a copy so we have it later for training targets.
-    clean_spk = spk_batch.deepcopy()
+    clean_spk = spk_batch.clone()
 
     spk_batch = (
         spk_batch
@@ -315,7 +320,7 @@ def augment(seed):
 
 Let's augment and then listen to each item in the batch.
 
-```{.python .cb.nb show=code:verbatim+stdout:raw}
+```{code-cell} ipython3
 clean_spk, noisy_spk = augment(0)
 sr = clean_spk.sample_rate
 outputs = {}
