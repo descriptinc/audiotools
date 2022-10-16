@@ -178,14 +178,39 @@ class EffectMixin:
 
         return self
 
-    def ensure_max_of_audio(self, max=1.0):
+    def ensure_max_of_audio(self, max: float = 1.0):
+        """Ensures that ``abs(audio_data) <= max``.
+
+        Parameters
+        ----------
+        max : float, optional
+            Max absolute value of signal, by default 1.0
+
+        Returns
+        -------
+        AudioSignal
+            Signal with values scaled between -max and max.
+        """
         peak = self.audio_data.abs().max(dim=-1, keepdims=True)[0]
         peak_gain = torch.ones_like(peak)
         peak_gain[peak > max] = max / peak[peak > max]
         self.audio_data = self.audio_data * peak_gain
         return self
 
-    def normalize(self, db=-24.0):
+    def normalize(self, db: typing.Union[torch.Tensor, np.ndarray, float] = -24.0):
+        """Normalizes the signal's volume to the specified db, in LUFS.
+        This is GPU-compatible, making for very fast loudness normalization.
+
+        Parameters
+        ----------
+        db : typing.Union[torch.Tensor, np.ndarray, float], optional
+            Loudness to normalize to, by default -24.0
+
+        Returns
+        -------
+        AudioSignal
+            Normalized audio signal.
+        """
         db = util.ensure_tensor(db).to(self.device)
         ref_db = self.loudness()
         gain = db - ref_db
@@ -194,7 +219,19 @@ class EffectMixin:
         self.audio_data = self.audio_data * gain[:, None, None]
         return self
 
-    def volume_change(self, db):
+    def volume_change(self, db: typing.Union[torch.Tensor, np.ndarray, float]):
+        """Change volume of signal by some amount, in dB.
+
+        Parameters
+        ----------
+        db : typing.Union[torch.Tensor, np.ndarray, float]
+            Amount to change volume by.
+
+        Returns
+        -------
+        AudioSignal
+            Signal at new volume.
+        """
         db = util.ensure_tensor(db, ndim=1).to(self.device)
         gain = torch.exp(db * self.GAIN_FACTOR)
         self.audio_data = self.audio_data * gain[:, None, None]
@@ -207,7 +244,22 @@ class EffectMixin:
     def _to_3d(self, waveform):
         return waveform.reshape(self.batch_size, self.num_channels, -1)
 
-    def pitch_shift(self, n_semitones, quick=True):
+    def pitch_shift(self, n_semitones: int, quick: bool = True):
+        """Pitch shift the signal. All items in the batch
+        get the same pitch shift.
+
+        Parameters
+        ----------
+        n_semitones : int
+            How many semitones to shift the signal by.
+        quick : bool, optional
+            Using quick pitch shifting, by default True
+
+        Returns
+        -------
+        AudioSignal
+            Pitch shifted audio signal.
+        """
         device = self.device
         effects = [
             ["pitch", str(n_semitones * 100)],
@@ -224,7 +276,22 @@ class EffectMixin:
         self.audio_data = self._to_3d(waveform)
         return self.to(device)
 
-    def time_stretch(self, factor, quick=True):
+    def time_stretch(self, factor: float, quick: bool = True):
+        """Time stretch the audio signal.
+
+        Parameters
+        ----------
+        factor : float
+            Factor by which to stretch the AudioSignal. Typically
+            between 0.8 and 1.2.
+        quick : bool, optional
+            Whether to use quick time stretching, by default True
+
+        Returns
+        -------
+        AudioSignal
+            Time-stretched AudioSignal.
+        """
         device = self.device
         effects = [
             ["tempo", str(factor)],
@@ -243,12 +310,38 @@ class EffectMixin:
 
     def apply_codec(
         self,
-        preset=None,
-        format="wav",
-        encoding=None,
-        bits_per_sample=None,
-        compression=None,
+        preset: str = None,
+        format: str = "wav",
+        encoding: str = None,
+        bits_per_sample: int = None,
+        compression: int = None,
     ):  # pragma: no cover
+        """Applies an audio codec to the signal.
+
+        Parameters
+        ----------
+        preset : str, optional
+            One of the keys in ``self.CODEC_PRESETS``, by default None
+        format : str, optional
+            Format for audio codec, by default "wav"
+        encoding : str, optional
+            Encoding to use, by default None
+        bits_per_sample : int, optional
+            How many bits per sample, by default None
+        compression : int, optional
+            Compression amount of codec, by default None
+
+        Returns
+        -------
+        AudioSignal
+            AudioSignal with codec applied.
+
+        Raises
+        ------
+        ValueError
+            If preset is not in ``self.CODEC_PRESETS``, an error
+            is thrown.
+        """
         torchaudio_version_070 = "0.7" in torchaudio.__version__
         if torchaudio_version_070:
             return self
@@ -290,14 +383,38 @@ class EffectMixin:
         self.audio_data = augmented
         return self
 
-    def mel_filterbank(self, n_bands):
+    def mel_filterbank(self, n_bands: int):
+        """Breaks signal into mel bands.
+
+        Parameters
+        ----------
+        n_bands : int
+            Number of mel bands to use.
+
+        Returns
+        -------
+        torch.Tensor
+            Mel-filtered bands, with last axis being the band index.
+        """
         filterbank = (
             julius.SplitBands(self.sample_rate, n_bands).float().to(self.device)
         )
         filtered = filterbank(self.audio_data)
         return filtered.permute(1, 2, 3, 0)
 
-    def equalizer(self, db):
+    def equalizer(self, db: typing.Union[torch.Tensor, np.ndarray]):
+        """Applies a mel-spaced equalizer to the audio signal.
+
+        Parameters
+        ----------
+        db : typing.Union[torch.Tensor, np.ndarray]
+            EQ curve to apply.
+
+        Returns
+        -------
+        AudioSignal
+            AudioSignal with equalization applied.
+        """
         db = util.ensure_tensor(db)
         n_bands = db.shape[-1]
         fbank = self.mel_filterbank(n_bands)
@@ -315,13 +432,15 @@ class EffectMixin:
         self.audio_data = eq_audio_data
         return self
 
-    def clip_distortion(self, clip_percentile):
+    def clip_distortion(
+        self, clip_percentile: typing.Union[torch.Tensor, np.ndarray, float]
+    ):
         """Clips the signal at a given percentile. The higher it is,
         the lower the threshold for clipping.
 
         Parameters
         ----------
-        clip_percentile : float
+        clip_percentile : typing.Union[torch.Tensor, np.ndarray, float]
             Values are between 0.0 to 1.0. Typical values are 0.1 or below.
 
         Returns
@@ -341,7 +460,22 @@ class EffectMixin:
 
         return self
 
-    def quantization(self, quantization_channels: int):
+    def quantization(
+        self, quantization_channels: typing.Union[torch.Tensor, np.ndarray, int]
+    ):
+        """Applies quantization to the input waveform.
+
+        Parameters
+        ----------
+        quantization_channels : typing.Union[torch.Tensor, np.ndarray, int]
+            Number of evenly spaced quantization channels to quantize
+            to.
+
+        Returns
+        -------
+        AudioSignal
+            Quantized AudioSignal.
+        """
         quantization_channels = util.ensure_tensor(quantization_channels, ndim=3)
 
         x = self.audio_data
@@ -355,7 +489,22 @@ class EffectMixin:
         self.audio_data = self.audio_data - residual
         return self
 
-    def mulaw_quantization(self, quantization_channels: int):
+    def mulaw_quantization(
+        self, quantization_channels: typing.Union[torch.Tensor, np.ndarray, int]
+    ):
+        """Applies mu-law quantization to the input waveform.
+
+        Parameters
+        ----------
+        quantization_channels : typing.Union[torch.Tensor, np.ndarray, int]
+            Number of mu-law spaced quantization channels to quantize
+            to.
+
+        Returns
+        -------
+        AudioSignal
+            Quantized AudioSignal.
+        """
         mu = quantization_channels - 1.0
         mu = util.ensure_tensor(mu, ndim=3)
 
@@ -378,7 +527,14 @@ class EffectMixin:
 
 
 class ImpulseResponseMixin:
+    """These functions are generally only used with AudioSignals that are derived
+    from impulse responses, not other sources like music or speech.
+    """
+
     def decompose_ir(self):
+        """Decomposes an impulse response into early and late
+        field responses.
+        """
         # Equations 1 and 2
         # -----------------
         # Breaking up into early
@@ -412,6 +568,14 @@ class ImpulseResponseMixin:
         return early_response, late_field, window
 
     def measure_drr(self):
+        """Measures the direct-to-reverberant ratio of the impulse
+        response.
+
+        Returns
+        -------
+        float
+            Direct-to-reverberant ratio
+        """
         early_response, late_field, _ = self.decompose_ir()
         num = (early_response**2).sum(dim=-1)
         den = (late_field**2).sum(dim=-1)
@@ -420,6 +584,9 @@ class ImpulseResponseMixin:
 
     @staticmethod
     def solve_alpha(early_response, late_field, wd, target_drr):
+        """Used to solve for the alpha value, which is used
+        to alter the drr.
+        """
         # Equation 5
         # ----------
         # Apply the good ol' quadratic formula.
@@ -441,7 +608,20 @@ class ImpulseResponseMixin:
         )
         return alpha
 
-    def alter_drr(self, drr):
+    def alter_drr(self, drr: typing.Union[torch.Tensor, np.ndarray, float]):
+        """Alters the direct-to-reverberant ratio of the impulse response.
+
+        Parameters
+        ----------
+        drr : typing.Union[torch.Tensor, np.ndarray, float]
+            Direct-to-reverberant ratio that impulse response will be
+            altered to, if specified, by default None
+
+        Returns
+        -------
+        AudioSignal
+            Altered impulse response.
+        """
         drr = util.ensure_tensor(drr, 2, self.batch_size).to(self.device)
 
         early_response, late_field, window = self.decompose_ir()
