@@ -1,4 +1,5 @@
 import inspect
+import typing
 from functools import wraps
 
 import matplotlib.pyplot as plt
@@ -9,6 +10,16 @@ from . import util
 
 
 def format_figure(func):
+    """Decorator for formatting figures produced by the code below.
+    See :py:func:`audiotools.core.util.format_figure` for more.
+
+    Parameters
+    ----------
+    func : Callable
+        Plotting function that is decorated by this function.
+
+    """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         f_keys = inspect.signature(util.format_figure).parameters.keys()
@@ -27,11 +38,25 @@ class DisplayMixin:
     @format_figure
     def specshow(
         self,
-        preemphasis=True,
-        x_axis="time",
-        y_axis="linear",
+        preemphasis: bool = True,
+        x_axis: str = "time",
+        y_axis: str = "linear",
         **kwargs,
     ):
+        """Displays a spectrogram, using ``librosa.display.specshow``.
+
+        Parameters
+        ----------
+        preemphasis : bool, optional
+            Whether or not to apply preemphasis, which makes high
+            frequency detail easier to see, by default True
+        x_axis : str, optional
+            How to label the x axis, by default "time"
+        y_axis : str, optional
+            How to label the y axis, by default "linear"
+        kwargs : dict, optional
+            Keyword arguments to :py:func:`audiotools.core.util.format_figure`.
+        """
         import librosa
         import librosa.display
 
@@ -52,7 +77,16 @@ class DisplayMixin:
         )
 
     @format_figure
-    def waveplot(self, title=None, x_axis="time", **kwargs):
+    def waveplot(self, x_axis: str = "time", **kwargs):
+        """Displays a waveform plot, using ``librosa.display.waveshow``.
+
+        Parameters
+        ----------
+        x_axis : str, optional
+            How to label the x axis, by default "time"
+        kwargs : dict, optional
+            Keyword arguments to :py:func:`audiotools.core.util.format_figure`.
+        """
         import librosa
         import librosa.display
 
@@ -64,7 +98,16 @@ class DisplayMixin:
         wave_plot_fn(audio_data, x_axis=x_axis, sr=self.sample_rate, **kwargs)
 
     @format_figure
-    def wavespec(self, x_axis="time", **kwargs):
+    def wavespec(self, x_axis: str = "time", **kwargs):
+        """Displays a waveform plot, using ``librosa.display.waveshow``.
+
+        Parameters
+        ----------
+        x_axis : str, optional
+            How to label the x axis, by default "time"
+        kwargs : dict, optional
+            Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow`.
+        """
         gs = GridSpec(6, 1)
         plt.subplot(gs[0, :])
         self.waveplot(x_axis=x_axis)
@@ -73,12 +116,30 @@ class DisplayMixin:
 
     def write_audio_to_tb(
         self,
-        tag,
+        tag: str,
         writer,
         step: int = None,
-        plot_fn="specshow",
+        plot_fn: typing.Union[typing.Callable, str] = "specshow",
         **kwargs,
     ):
+        """Writes a signal and its spectrogram to Tensorboard. Will show up
+        under the Audio and Images tab in Tensorboard.
+
+        Parameters
+        ----------
+        tag : str
+            Tag to write signal to (e.g. ``clean/sample_0.wav``). The image will be
+            written to the corresponding ``.png`` file (e.g. ``clean/sample_0.png``).
+        writer : SummaryWriter
+            A SummaryWriter object from PyTorch library.
+        step : int, optional
+            The step to write the signal to, by default None
+        plot_fn : typing.Union[typing.Callable, str], optional
+            How to create the image. Set to ``None`` to avoid plotting, by default "specshow"
+        kwargs : dict, optional
+            Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow` or
+            whatever ``plot_fn`` is set to.
+        """
         audio_data = self.audio_data[0, 0].detach().cpu()
         sample_rate = self.sample_rate
         writer.add_audio(tag, audio_data, step, sample_rate)
@@ -91,7 +152,25 @@ class DisplayMixin:
             plot_fn(**kwargs)
             writer.add_figure(tag.replace("wav", "png"), fig, step)
 
-    def save_image(self, image_path: str, plot_fn="specshow", **kwargs):
+    def save_image(
+        self,
+        image_path: str,
+        plot_fn: typing.Union[typing.Callable, str] = "specshow",
+        **kwargs,
+    ):
+        """Save AudioSignal spectrogram (or whatever ``plot_fn`` is set to) to
+        a specified file.
+
+        Parameters
+        ----------
+        image_path : str
+            Where to save the file to.
+        plot_fn : typing.Union[typing.Callable, str], optional
+            How to create the image. Set to ``None`` to avoid plotting, by default "specshow"
+        kwargs : dict, optional
+            Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow` or
+            whatever ``plot_fn`` is set to.
+        """
         if isinstance(plot_fn, str):
             plot_fn = getattr(self, plot_fn)
 
