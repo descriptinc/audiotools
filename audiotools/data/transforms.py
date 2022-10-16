@@ -16,6 +16,7 @@ from ..core import util
 from .datasets import AudioLoader
 
 tt = torch.tensor
+"""Shorthand for converting things to torch.tensor."""
 
 
 class BaseTransform:
@@ -542,6 +543,22 @@ class Silence(BaseTransform):
 
 
 class LowPass(BaseTransform):
+    """Applies a LowPass filter.
+
+    Parameters
+    ----------
+    cutoff : tuple, optional
+        Cutoff frequency distribution,
+        by default ``("choice", [4000, 8000, 16000])``
+    zeros : int, optional
+        Number of zero-crossings in filter, argument to
+        ``julius.LowPassFilters``, by default 51
+    name : str, optional
+        Name of the transform, by default None
+    prob : float, optional
+        Probability transform is applied, by default 1
+    """
+
     def __init__(
         self,
         cutoff: tuple = ("choice", [4000, 8000, 16000]),
@@ -549,21 +566,6 @@ class LowPass(BaseTransform):
         name: str = None,
         prob: float = 1,
     ):
-        """Applies a LowPass filter.
-
-        Parameters
-        ----------
-        cutoff : tuple, optional
-            Cutoff frequency distribution,
-            by default ("choice", [4000, 8000, 16000])
-        zeros : int, optional
-            Number of zero-crossings in filter, argument to
-            julius.LowPassFilters, by default 51
-        name : str, optional
-            Name of the transform, by default None
-        prob : float, optional
-            Probability transform is applied, by default 1
-        """
         super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff
@@ -577,6 +579,22 @@ class LowPass(BaseTransform):
 
 
 class HighPass(BaseTransform):
+    """Applies a HighPass filter.
+
+    Parameters
+    ----------
+    cutoff : tuple, optional
+        Cutoff frequency distribution,
+        by default ``("choice", [50, 100, 250, 500, 1000])``
+    zeros : int, optional
+        Number of zero-crossings in filter, argument to
+        ``julius.LowPassFilters``, by default 51
+    name : str, optional
+        Name of the transform, by default None
+    prob : float, optional
+        Probability transform is applied, by default 1
+    """
+
     def __init__(
         self,
         cutoff: tuple = ("choice", [50, 100, 250, 500, 1000]),
@@ -584,21 +602,6 @@ class HighPass(BaseTransform):
         name: str = None,
         prob: float = 1,
     ):
-        """Applies a HighPass filter.
-
-        Parameters
-        ----------
-        cutoff : tuple, optional
-            Cutoff frequency distribution,
-            by default ("choice", [50, 100, 250, 500, 1000])
-        zeros : int, optional
-            Number of zero-crossings in filter, argument to
-            julius.LowPassFilters, by default 51
-        name : str, optional
-            Name of the transform, by default None
-        prob : float, optional
-            Probability transform is applied, by default 1
-        """
         super().__init__(name=name, prob=prob)
 
         self.cutoff = cutoff

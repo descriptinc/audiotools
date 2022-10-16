@@ -9,15 +9,11 @@ from torch import nn
 
 
 class BaseModel(nn.Module):
-    """
-    This is a class that adds useful save/load functionality to a
+    """This is a class that adds useful save/load functionality to a
     ``torch.nn.Module`` object. ``BaseModel`` objects can be saved
     as ``torch.package`` easily, making them super easy to port between
     machines without requiring a ton of dependencies. Files can also be
     saved as just weights, in the standard way.
-
-    Usage
-    -----
 
     >>> class Model(ml.BaseModel):
     >>>     def __init__(self, arg1: float = 1.0):
@@ -248,12 +244,8 @@ class BaseModel(nn.Module):
         ``extra_data``. ``extra_data`` is a dictionary of other
         pickleable files, with the keys being the paths
         to save them in. The model is saved under a subfolder
-        specified by the name of the class
-        (e.g. ``folder/generator/[package, weights].pth`` if the
-        model name was ``Generator``).
-
-        Usage
-        -----
+        specified by the name of the class (e.g. ``folder/generator/[package, weights].pth``
+        if the model name was ``Generator``).
 
         >>> with tempfile.TemporaryDirectory() as d:
         >>>     extra_data = {
