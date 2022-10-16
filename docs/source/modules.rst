@@ -1,4 +1,4 @@
-audiotools
+API Documentation
 ==========
 
 .. toctree::
