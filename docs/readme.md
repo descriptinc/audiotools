@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import markdown2 as md
 from IPython.display import HTML
 
+audiotools.core.playback.DEFAULT_EXTENSION = ".mp3"
 state = audiotools.util.random_state(0)
 
 spk = AudioSignal("../tests/audio/spk/f10_script4_produced.wav", offset=5, duration=5)

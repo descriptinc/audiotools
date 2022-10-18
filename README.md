@@ -4,7 +4,7 @@ Object-oriented handling of audio signals, with fast augmentation routines, batc
 
 ## Documentation
 
-For documentation, see [the docs](docs/readme.md).
+For documentation, see [the docs](https://descriptinc.github.io/lyrebird-audiotools/).
 
 ### Deploying documentation
 
@@ -13,6 +13,14 @@ To build the documentation, do:
 ```bash
 cd docs/
 make html
+open _build/html/index.html
+```
+
+Once you're satisfied with your docs, push them to the gh-pages branch via
+
+```bash
+cd docs
+bash publish_docs.sh
 ```
 
 ## Quickstart

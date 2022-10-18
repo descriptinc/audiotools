@@ -22,7 +22,7 @@ setup(
     description="Utilities for handling audio.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Prem Seetharaman",
+    author="Prem Seetharaman, Lucas Gestin",
     author_email="prem@descript.com",
     license="MIT",
     packages=find_packages(),

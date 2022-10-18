@@ -20,6 +20,8 @@ from .util import format_figure
 headers = pkg_resources.read_text(templates, "headers.html")
 widget = pkg_resources.read_text(templates, "widget.html")
 
+DEFAULT_EXTENSION = ".wav"
+
 
 def _check_imports():  # pragma: no cover
     try:
@@ -35,7 +37,7 @@ def _check_imports():  # pragma: no cover
 
 
 class PlayMixin:
-    def embed(self, ext: str = ".wav", display: bool = True, return_html: bool = False):
+    def embed(self, ext: str = None, display: bool = True, return_html: bool = False):
         """Embeds audio as a playable audio embed in a notebook, or HTML
         document, etc.
 
@@ -55,6 +57,8 @@ class PlayMixin:
         str
             Either the element for display, or the HTML string of it.
         """
+        if ext is None:
+            ext = DEFAULT_EXTENSION
         ext = f".{ext}" if not ext.startswith(".") else ext
         ffmpy, IPython = _check_imports()
         sr = self.sample_rate

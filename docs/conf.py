@@ -13,8 +13,8 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "AudioTools"
-copyright = "2022, Prem Seetharaman"
-author = "Prem Seetharaman"
+copyright = "2022, Prem Seetharaman, Lucas Gestin"
+author = "Prem Seetharaman, Lucas Gestin"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

@@ -11,6 +11,7 @@ they can be combined, and how to implement your own. It also shows a
 full complete working example.
 
 ```{code-cell} ipython3
+import audiotools
 from audiotools import AudioSignal
 from audiotools import post, util, metrics
 from audiotools.data import preprocess
@@ -21,6 +22,7 @@ from collections import defaultdict
 from audiotools import transforms as tfm
 import os
 
+audiotools.core.playback.DEFAULT_EXTENSION = ".mp3"
 util.DEFAULT_FIG_SIZE = (9, 3)
 os.environ["PATH_TO_DATA"] = os.path.abspath("../..")
 
