@@ -6,11 +6,9 @@ from setuptools import setup
 with open("README.md") as f:
     long_description = f.read()
 
-version = "0.4.5"
-
 setup(
     name="audiotools",
-    version=version,
+    version="0.4.5",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
