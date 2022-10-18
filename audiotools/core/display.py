@@ -110,7 +110,8 @@ class DisplayMixin:
 
     @format_figure
     def wavespec(self, x_axis: str = "time", **kwargs):
-        """Displays a waveform plot, using ``librosa.display.waveshow``.
+        """Displays a waveform plot + a spectrogram plot,
+        using ``librosa.display.waveshow`` and ``librosa.display.specshow``.
 
         Parameters
         ----------

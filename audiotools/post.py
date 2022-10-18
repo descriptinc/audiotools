@@ -80,7 +80,7 @@ def audio_table(
     >>>         "input": signal_batch[i],
     >>>         "output": output_batch[i]
     >>>     }
-    >>> audiotools.post.audio_zip(audio_dict)
+    >>> audiotools.post.audio_table(audio_dict)
 
     """
     from audiotools import AudioSignal
