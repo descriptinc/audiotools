@@ -105,8 +105,8 @@ class PlayMixin:
         return_html: bool = False,
         **kwargs,
     ):
-        """Creates a playable widget with spectrogram. Inspired (heavily) by
-        https://sjvasquez.github.io/blog/melnet/.
+        """Creates a playable widget with spectrogram plot.
+        Inspired (heavily) by https://sjvasquez.github.io/blog/melnet/.
 
         Parameters
         ----------
