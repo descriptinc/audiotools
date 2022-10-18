@@ -1,10 +1,7 @@
-audiotools.ml.layers package
+Layers
 ============================
 
-Submodules
-----------
-
-audiotools.ml.layers.base module
+Base layers
 --------------------------------
 
 .. automodule:: audiotools.ml.layers.base
@@ -12,18 +9,10 @@ audiotools.ml.layers.base module
    :undoc-members:
    :show-inheritance:
 
-audiotools.ml.layers.spectral\_gate module
+Spectral gate
 ------------------------------------------
 
 .. automodule:: audiotools.ml.layers.spectral_gate
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: audiotools.ml.layers
    :members:
    :undoc-members:
    :show-inheritance:

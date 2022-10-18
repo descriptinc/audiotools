@@ -1,10 +1,7 @@
-audiotools.metrics package
-==========================
+Metrics for audio similarity
+==================================
 
-Submodules
-----------
-
-audiotools.metrics.distance module
+Distances
 ----------------------------------
 
 .. automodule:: audiotools.metrics.distance
@@ -12,7 +9,7 @@ audiotools.metrics.distance module
    :undoc-members:
    :show-inheritance:
 
-audiotools.metrics.quality module
+Quality metrics
 ---------------------------------
 
 .. automodule:: audiotools.metrics.quality
@@ -20,18 +17,10 @@ audiotools.metrics.quality module
    :undoc-members:
    :show-inheritance:
 
-audiotools.metrics.spectral module
+Spectral distance metrics
 ----------------------------------
 
 .. automodule:: audiotools.metrics.spectral
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: audiotools.metrics
    :members:
    :undoc-members:
    :show-inheritance:

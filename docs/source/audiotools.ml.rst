@@ -1,18 +1,12 @@
-audiotools.ml package
+Machine Learning
 =====================
-
-Subpackages
------------
 
 .. toctree::
    :maxdepth: 4
 
    audiotools.ml.layers
 
-Submodules
-----------
-
-audiotools.ml.accelerator module
+ML Accelerator
 --------------------------------
 
 .. automodule:: audiotools.ml.accelerator
@@ -20,7 +14,7 @@ audiotools.ml.accelerator module
    :undoc-members:
    :show-inheritance:
 
-audiotools.ml.experiment module
+Experiment tracking/saving
 -------------------------------
 
 .. automodule:: audiotools.ml.experiment
@@ -28,7 +22,7 @@ audiotools.ml.experiment module
    :undoc-members:
    :show-inheritance:
 
-audiotools.ml.trainer module
+Trainer
 ----------------------------
 
 .. automodule:: audiotools.ml.trainer
@@ -36,18 +30,10 @@ audiotools.ml.trainer module
    :undoc-members:
    :show-inheritance:
 
-audiotools.ml.tricks module
+ML tricks
 ---------------------------
 
 .. automodule:: audiotools.ml.tricks
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: audiotools.ml
    :members:
    :undoc-members:
    :show-inheritance:

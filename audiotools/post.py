@@ -1,4 +1,5 @@
 import tempfile
+import typing
 import zipfile
 from pathlib import Path
 
@@ -8,7 +9,32 @@ import torch
 from IPython.display import HTML
 
 
-def audio_zip(audio_dict, zip_path, **kwargs):
+def audio_zip(audio_dict: dict, zip_path: str, **kwargs):
+    """Creates a zip file based on a dictionary of audio signals
+    with both waveforms and spectrogram images in it. The dictionary
+    can be constructed (for example) like this:
+
+    >>> audio_dict = defaultdict(lambda: [])
+    >>> audio_signals = ... # some list of audio signals
+    >>> models = ... # some list of models
+    >>> for signal in audio_signals:
+    >>>     audio_dict["input"].append(signal.clone())
+    >>>     for i, model in enumerate(models):
+    >>>         output = model(signal)
+    >>>         audio_dict[f"model_{i}"].append(output.clone())
+    >>> audiotools.post.audio_zip(audio_dict, "samples.zip")
+
+    Then, the zip file can be easily shared.
+
+    Parameters
+    ----------
+    audio_dict : dict
+        Dictionary containing keys which will be folders in the zip file,
+        and lists of AudioSignals which will be written to the folders
+        in the zip file.
+    zip_path : str
+        Path to place the zip file.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         with zipfile.ZipFile(zip_path, "w") as zip_file:
@@ -23,8 +49,40 @@ def audio_zip(audio_dict, zip_path, **kwargs):
 
 
 def audio_table(
-    audio_dict, first_column=None, format_fn=None, **kwargs
+    audio_dict: dict,
+    first_column: str = None,
+    format_fn: typing.Callable = None,
+    **kwargs,
 ):  # pragma: no cover
+    """Embeds an audio table into HTML, or as the output cell
+    in a notebook.
+
+    Parameters
+    ----------
+    audio_dict : dict
+        Dictionary of data to embed.
+    first_column : str, optional
+        The label for the first column of the table, by default None
+    format_fn : typing.Callable, optional
+        How to format the data, by default None
+
+    Returns
+    -------
+    str
+        Table as a string
+
+    Examples
+    --------
+
+    >>> audio_dict = {}
+    >>> for i in range(signal_batch.batch_size):
+    >>>     audio_dict[i] = {
+    >>>         "input": signal_batch[i],
+    >>>         "output": output_batch[i]
+    >>>     }
+    >>> audiotools.post.audio_zip(audio_dict)
+
+    """
     from audiotools import AudioSignal
 
     output = []
@@ -73,6 +131,13 @@ def audio_table(
 
 
 def in_notebook():  # pragma: no cover
+    """Determines if code is running in a notebook.
+
+    Returns
+    -------
+    bool
+        Whether or not this is running in a notebook.
+    """
     try:
         from IPython import get_ipython
 
@@ -86,6 +151,15 @@ def in_notebook():  # pragma: no cover
 
 
 def disp(obj, **kwargs):  # pragma: no cover
+    """Displays an object, depending on if its in a notebook
+    or not.
+
+    Parameters
+    ----------
+    obj : typing.Any
+        Any object to display.
+
+    """
     from audiotools import AudioSignal
 
     IN_NOTEBOOK = in_notebook()

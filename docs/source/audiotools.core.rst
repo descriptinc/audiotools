@@ -1,7 +1,7 @@
-audiotools.core package
-=======================
+AudioSignal
+===========
 
-audiotools.core.audio\_signal module
+Base functionality
 ------------------------------------
 
 .. automodule:: audiotools.core.audio_signal
@@ -9,7 +9,7 @@ audiotools.core.audio\_signal module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.display module
+Displaying and visualizing
 ------------------------------
 
 .. automodule:: audiotools.core.display
@@ -17,7 +17,7 @@ audiotools.core.display module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.dsp module
+Digital signal processing
 --------------------------
 
 .. automodule:: audiotools.core.dsp
@@ -25,7 +25,7 @@ audiotools.core.dsp module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.effects module
+Audio effects
 ------------------------------
 
 .. automodule:: audiotools.core.effects
@@ -33,7 +33,7 @@ audiotools.core.effects module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.ffmpeg module
+FFMPEG routines
 -----------------------------
 
 .. automodule:: audiotools.core.ffmpeg
@@ -41,7 +41,7 @@ audiotools.core.ffmpeg module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.loudness module
+Perceptual loudness
 -------------------------------
 
 .. automodule:: audiotools.core.loudness
@@ -49,7 +49,7 @@ audiotools.core.loudness module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.playback module
+Listening to AudioSignals
 -------------------------------
 
 .. automodule:: audiotools.core.playback
@@ -57,18 +57,10 @@ audiotools.core.playback module
    :undoc-members:
    :show-inheritance:
 
-audiotools.core.util module
+Utilities
 ---------------------------
 
 .. automodule:: audiotools.core.util
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: audiotools.core
    :members:
    :undoc-members:
    :show-inheritance:

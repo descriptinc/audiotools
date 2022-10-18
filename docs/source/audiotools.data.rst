@@ -1,10 +1,7 @@
-audiotools.data package
+Data processing
 =======================
 
-Submodules
-----------
-
-audiotools.data.datasets module
+Datasets
 -------------------------------
 
 .. automodule:: audiotools.data.datasets
@@ -12,7 +9,7 @@ audiotools.data.datasets module
    :undoc-members:
    :show-inheritance:
 
-audiotools.data.preprocess module
+Preprocessing data
 ---------------------------------
 
 .. automodule:: audiotools.data.preprocess
@@ -20,18 +17,10 @@ audiotools.data.preprocess module
    :undoc-members:
    :show-inheritance:
 
-audiotools.data.transforms module
+Transforms for data augmentation
 ---------------------------------
 
 .. automodule:: audiotools.data.transforms
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: audiotools.data
    :members:
    :undoc-members:
    :show-inheritance:

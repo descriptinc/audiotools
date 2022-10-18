@@ -12,7 +12,7 @@ AudioTools
 
    readme.md
    tutorials/tutorials
-   source/modules
+   source/audiotools
 
 
 Indices and tables
