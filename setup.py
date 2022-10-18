@@ -6,7 +6,7 @@ from setuptools import setup
 with open("README.md") as f:
     long_description = f.read()
 
-version = imp.load_source("audiotools.version", "audiotools/version.py")
+version = "0.4.5"
 
 setup(
     name="audiotools",
