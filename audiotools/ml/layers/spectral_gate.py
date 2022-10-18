@@ -2,40 +2,40 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from audiotools import AudioSignal
-from audiotools import STFTParams
-from audiotools.core import util
+from ...core import AudioSignal
+from ...core import STFTParams
+from ...core import util
 
 
 class SpectralGate(nn.Module):
+    """Spectral gating algorithm for noise reduction,
+    as in Audacity/Ocenaudio. The steps are as follows:
+
+    1.  An FFT is calculated over the noise audio clip
+    2.  Statistics are calculated over FFT of the the noise
+        (in frequency)
+    3.  A threshold is calculated based upon the statistics
+        of the noise (and the desired sensitivity of the algorithm)
+    4.  An FFT is calculated over the signal
+    5.  A mask is determined by comparing the signal FFT to the
+        threshold
+    6.  The mask is smoothed with a filter over frequency and time
+    7.  The mask is appled to the FFT of the signal, and is inverted
+
+    Implementation inspired by Tim Sainburg's noisereduce:
+
+    https://timsainburg.com/noise-reduction-python.html
+
+    Parameters
+    ----------
+    n_freq : int, optional
+        Number of frequency bins to smooth by, by default 3
+    n_time : int, optional
+        Number of time bins to smooth by, by default 5
+    """
+
     def __init__(self, n_freq: int = 3, n_time: int = 5):
-        """Spectral gating algorithm for noise reduction,
-        as in Audacity/Ocenaudio. The steps are as follows:
 
-        1. An FFT is calculated over the noise audio clip
-        2. Statistics are calculated over FFT of the the noise
-           (in frequency)
-        3. A threshold is calculated based upon the statistics
-           of the noise (and the desired sensitivity of the algorithm)
-        4. An FFT is calculated over the signal
-        5. A mask is determined by comparing the signal FFT to the
-           threshold
-        6. The mask is smoothed with a filter over frequency and time
-        7. The mask is appled to the FFT of the signal, and is inverted
-
-        Implementation inspired by Tim Sainburg's noisereduce:
-
-        https://timsainburg.com/noise-reduction-python.html
-
-        Parameters
-        ----------
-        model : wav2wav.modules.BaseModel
-            The model to generate line noise from.
-        n_freq : int, optional
-            Number of frequency bins to smooth by, by default 3
-        n_time : int, optional
-            Number of time bins to smooth by, by default 5
-        """
         super().__init__()
 
         smoothing_filter = torch.outer(
@@ -117,7 +117,9 @@ class SpectralGate(nn.Module):
         )
         stft_mask = F.conv2d(stft_mask, self.smoothing_filter, padding=pad_tuple)
         stft_mask = stft_mask.reshape(*shape)
-        stft_mask *= util.ensure_tensor(denoise_amount, ndim=stft_mask.ndim)
+        stft_mask *= util.ensure_tensor(denoise_amount, ndim=stft_mask.ndim).to(
+            audio_signal.device
+        )
         stft_mask = 1 - stft_mask
 
         audio_signal.stft_data *= stft_mask

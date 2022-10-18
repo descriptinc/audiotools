@@ -7,9 +7,22 @@ import numpy as np
 import torch
 
 
-def r128stats(filepath, quiet):
-    """takes a path to an audio file, returns a dict with the loudness
-    stats computed by the ffmpeg ebur128 filter. Taken lovingly from Scaper."""
+def r128stats(filepath: str, quiet: bool):
+    """Takes a path to an audio file, returns a dict with the loudness
+    stats computed by the ffmpeg ebur128 filter.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to compute loudness stats on.
+    quiet : bool
+        Whether to show FFMPEG output during computation.
+
+    Returns
+    -------
+    dict
+        Dictionary containing loudness stats.
+    """
     ffargs = [
         "ffmpeg",
         "-nostats",
@@ -49,19 +62,49 @@ def r128stats(filepath, quiet):
 class FFMPEGMixin:
     _loudness = None
 
-    def ffmpeg_loudness(self, quiet=True):
+    def ffmpeg_loudness(self, quiet: bool = True):
+        """Computes loudness of audio file using FFMPEG.
+
+        Parameters
+        ----------
+        quiet : bool, optional
+            Whether to show FFMPEG output during computation,
+            by default True
+
+        Returns
+        -------
+        torch.Tensor
+            Loudness of every item in the batch, computed via
+            FFMPEG.
+        """
         loudness = []
 
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
             for i in range(self.batch_size):
-                self.write(f.name, i)
+                self[i].write(f.name)
                 loudness_stats = r128stats(f.name, quiet=quiet)
                 loudness.append(loudness_stats["I"])
 
         self._loudness = torch.from_numpy(np.array(loudness)).float()
         return self.loudness()
 
-    def ffmpeg_resample(self, sample_rate, quiet=True):
+    def ffmpeg_resample(self, sample_rate: int, quiet: bool = True):
+        """Resamples AudioSignal using FFMPEG. More memory-efficient
+        than using julius.resample for long audio files.
+
+        Parameters
+        ----------
+        sample_rate : int
+            Sample rate to resample to.
+        quiet : bool, optional
+            Whether to show FFMPEG output during computation,
+            by default True
+
+        Returns
+        -------
+        AudioSignal
+            Resampled AudioSignal.
+        """
         from audiotools import AudioSignal
 
         if sample_rate == self.sample_rate:
@@ -78,7 +121,24 @@ class FFMPEGMixin:
         return resampled
 
     @classmethod
-    def load_from_file_with_ffmpeg(cls, audio_path, quiet=True, **kwargs):
+    def load_from_file_with_ffmpeg(cls, audio_path: str, quiet: bool = True, **kwargs):
+        """Loads AudioSignal object after decoding it to a wav file using FFMPEG.
+        Useful for loading audio that isn't covered by librosa's loading mechanism. Also
+        useful for loading mp3 files, without any offset.
+
+        Parameters
+        ----------
+        audio_path : str
+            Path to load AudioSignal from.
+        quiet : bool, optional
+            Whether to show FFMPEG output during computation,
+            by default True
+
+        Returns
+        -------
+        AudioSignal
+            AudioSignal loaded from file with FFMPEG.
+        """
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
             global_options = "-y"
             if quiet:

@@ -1,3 +1,4 @@
+import typing
 from typing import List
 
 import numpy as np
@@ -8,15 +9,37 @@ from .. import STFTParams
 
 
 class MultiScaleSTFTLoss(nn.Module):
-    """
-    Computes the multi-scale STFT loss from [1].
-    [1] Differentiable Digital Signal Processing
+    """Computes the multi-scale STFT loss from [1].
+
+    Parameters
+    ----------
+    window_lengths : List[int], optional
+        Length of each window of each STFT, by default [2048, 512]
+    loss_fn : typing.Callable, optional
+        How to compare each loss, by default nn.L1Loss()
+    clamp_eps : float, optional
+        Clamp on the log magnitude, below, by default 1e-5
+    mag_weight : float, optional
+        Weight of raw magnitude portion of loss, by default 1.0
+    log_weight : float, optional
+        Weight of log magnitude portion of loss, by default 1.0
+    weight : float, optional
+        Weight of this loss, by default 1.0
+    match_stride : bool, optional
+        Whether to match the stride of convolutional layers, by default False
+
+    References
+    ----------
+
+    1.  Engel, Jesse, Chenjie Gu, and Adam Roberts.
+        "DDSP: Differentiable Digital Signal Processing."
+        International Conference on Learning Representations. 2019.
     """
 
     def __init__(
         self,
         window_lengths: List[int] = [2048, 512],
-        loss_fn=nn.L1Loss(),
+        loss_fn: typing.Callable = nn.L1Loss(),
         clamp_eps: float = 1e-5,
         mag_weight: float = 1.0,
         log_weight: float = 1.0,
@@ -35,6 +58,21 @@ class MultiScaleSTFTLoss(nn.Module):
         self.weight = weight
 
     def forward(self, x: AudioSignal, y: AudioSignal):
+        """Computes multi-scale STFT between an estimate and a reference
+        signal.
+
+        Parameters
+        ----------
+        x : AudioSignal
+            Estimate signal
+        y : AudioSignal
+            Reference signal
+
+        Returns
+        -------
+        torch.Tensor
+            Multi-scale STFT loss.
+        """
         loss = 0.0
         for s in self.stft_params:
             x.stft(s.window_length, s.hop_length, s.window_type)
@@ -48,13 +86,34 @@ class MultiScaleSTFTLoss(nn.Module):
 
 
 class MelSpectrogramLoss(nn.Module):
-    """Compute distance between mel spectrograms."""
+    """Compute distance between mel spectrograms. Can be used
+    in a multi-scale way.
+
+    Parameters
+    ----------
+    n_mels : List[int]
+        Number of mels per STFT, by default [150, 80],
+    window_lengths : List[int], optional
+        Length of each window of each STFT, by default [2048, 512]
+    loss_fn : typing.Callable, optional
+        How to compare each loss, by default nn.L1Loss()
+    clamp_eps : float, optional
+        Clamp on the log magnitude, below, by default 1e-5
+    mag_weight : float, optional
+        Weight of raw magnitude portion of loss, by default 1.0
+    log_weight : float, optional
+        Weight of log magnitude portion of loss, by default 1.0
+    weight : float, optional
+        Weight of this loss, by default 1.0
+    match_stride : bool, optional
+        Whether to match the stride of convolutional layers, by default False
+    """
 
     def __init__(
         self,
         n_mels: List[int] = [150, 80],
         window_lengths: List[int] = [2048, 512],
-        loss_fn=nn.L1Loss(),
+        loss_fn: typing.Callable = nn.L1Loss(),
         clamp_eps: float = 1e-5,
         mag_weight: float = 1.0,
         log_weight: float = 1.0,
@@ -74,6 +133,21 @@ class MelSpectrogramLoss(nn.Module):
         self.weight = weight
 
     def forward(self, x: AudioSignal, y: AudioSignal):
+        """Computes mel loss between an estimate and a reference
+        signal.
+
+        Parameters
+        ----------
+        x : AudioSignal
+            Estimate signal
+        y : AudioSignal
+            Reference signal
+
+        Returns
+        -------
+        torch.Tensor
+            Mel loss.
+        """
         loss = 0.0
         for n_mels, s in zip(self.n_mels, self.stft_params):
             kwargs = {
@@ -93,6 +167,18 @@ class MelSpectrogramLoss(nn.Module):
 
 
 class PhaseLoss(nn.Module):
+    """Difference between phase spectrograms.
+
+    Parameters
+    ----------
+    window_length : int, optional
+        Length of STFT window, by default 2048
+    hop_length : int, optional
+        Hop length of STFT window, by default 512
+    weight : float, optional
+        Weight of loss, by default 1.0
+    """
+
     def __init__(
         self, window_length: int = 2048, hop_length: int = 512, weight: float = 1.0
     ):
@@ -102,6 +188,21 @@ class PhaseLoss(nn.Module):
         self.stft_params = STFTParams(window_length, hop_length)
 
     def forward(self, x: AudioSignal, y: AudioSignal):
+        """Computes phase loss between an estimate and a reference
+        signal.
+
+        Parameters
+        ----------
+        x : AudioSignal
+            Estimate signal
+        y : AudioSignal
+            Reference signal
+
+        Returns
+        -------
+        torch.Tensor
+            Phase loss.
+        """
         s = self.stft_params
         x.stft(s.window_length, s.hop_length, s.window_type)
         y.stft(s.window_length, s.hop_length, s.window_type)

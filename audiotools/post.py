@@ -1,105 +1,88 @@
-"""Helper script for creating audio-enriched HTML/Discourse posts.
-"""
-import json
-import os
-import shlex
-import subprocess
 import tempfile
+import typing
+import zipfile
 from pathlib import Path
 
-import argbind
 import markdown2 as md
 import matplotlib.pyplot as plt
 import torch
 from IPython.display import HTML
 
 
-def upload_file_to_discourse(
-    path, api_username=None, api_key=None, discourse_server=None
-):  # pragma: no cover
-    if api_username is None:
-        api_username = os.environ.get("DISCOURSE_API_USERNAME", None)
-    if api_key is None:
-        api_key = os.environ.get("DISCOURSE_API_KEY", None)
-    if discourse_server is None:
-        discourse_server = os.environ.get("DISCOURSE_SERVER", None)
+def audio_zip(audio_dict: dict, zip_path: str, **kwargs):
+    """Creates a zip file based on a dictionary of audio signals
+    with both waveforms and spectrogram images in it. The dictionary
+    can be constructed (for example) like this:
 
-    if discourse_server is None or api_key is None or api_username is None:
-        raise RuntimeError(
-            "DISCOURSE_API_KEY, DISCOURSE_SERVER, DISCOURSE_API_USERNAME must be set in your environment!"
-        )
+    >>> audio_dict = defaultdict(lambda: [])
+    >>> audio_signals = ... # some list of audio signals
+    >>> models = ... # some list of models
+    >>> for signal in audio_signals:
+    >>>     audio_dict["input"].append(signal.clone())
+    >>>     for i, model in enumerate(models):
+    >>>         output = model(signal)
+    >>>         audio_dict[f"model_{i}"].append(output.clone())
+    >>> audiotools.post.audio_zip(audio_dict, "samples.zip")
 
-    command = (
-        f"curl -s -X POST {discourse_server}/uploads.json "
-        f"-H 'content-type: multipart/form-data;' "
-        f"-H 'Api-Key: {api_key}' "
-        f"-H 'Api-Username: {api_username}' "
-        f"-F 'type=composer' "
-        f"-F 'files[]=@{path}' "
-    )
-    return json.loads(subprocess.check_output(shlex.split(command)))
+    Then, the zip file can be easily shared.
 
-
-class DiscourseMixin:
-    def upload_to_discourse(
-        self,
-        label=None,
-        api_username=None,
-        api_key=None,
-        batch_idx=0,
-        discourse_server=None,
-        ext=".wav",
-    ):  # pragma: no cover
-        with tempfile.NamedTemporaryFile(suffix=ext) as f:
-            self.write(f.name, batch_idx=batch_idx)
-
-            info = upload_file_to_discourse(
-                f.name,
-                api_username=api_username,
-                api_key=api_key,
-                discourse_server=discourse_server,
-            )
-
-            label = self.path_to_input_file if label is None else label
-            if label is None:
-                label = "unknown"
-
-            formatted = f"![{label}|audio]({info['short_path']})"
-            return formatted, info
-
-
-def upload_figure_to_discourse(
-    label=None,
-    fig=None,
-    bbox_inches="tight",
-    pad_inches=0,
-    api_username=None,
-    api_key=None,
-    discourse_server=None,
-    **kwargs,
-):  # pragma: no cover
-    if fig is None:
-        fig = plt.gcf()
-
-    with tempfile.NamedTemporaryFile(suffix=".png") as f:
-        plt.savefig(f.name, bbox_inches=bbox_inches, pad_inches=pad_inches, **kwargs)
-
-        info = upload_file_to_discourse(
-            f.name,
-            api_username=api_username,
-            api_key=api_key,
-            discourse_server=discourse_server,
-        )
-
-    if label is None:
-        label = "unknown"
-        formatted = f"![{label}|image]({info['short_path']})"
-    return formatted, info
+    Parameters
+    ----------
+    audio_dict : dict
+        Dictionary containing keys which will be folders in the zip file,
+        and lists of AudioSignals which will be written to the folders
+        in the zip file.
+    zip_path : str
+        Path to place the zip file.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        with zipfile.ZipFile(zip_path, "w") as zip_file:
+            for k, signals in audio_dict.items():
+                for i, signal in enumerate(signals):
+                    with open(tmpdir / "out.wav", "w") as f:
+                        signal.write(f.name)
+                        zip_file.write(f.name, Path(k) / f"sample_{i}.wav")
+                    with open(tmpdir / "out.png", "w") as f:
+                        signal.save_image(f.name, **kwargs)
+                        zip_file.write(f.name, Path(k) / f"sample_{i}.png")
 
 
 def audio_table(
-    audio_dict, first_column=None, format_fn=None, **kwargs
+    audio_dict: dict,
+    first_column: str = None,
+    format_fn: typing.Callable = None,
+    **kwargs,
 ):  # pragma: no cover
+    """Embeds an audio table into HTML, or as the output cell
+    in a notebook.
+
+    Parameters
+    ----------
+    audio_dict : dict
+        Dictionary of data to embed.
+    first_column : str, optional
+        The label for the first column of the table, by default None
+    format_fn : typing.Callable, optional
+        How to format the data, by default None
+
+    Returns
+    -------
+    str
+        Table as a string
+
+    Examples
+    --------
+
+    >>> audio_dict = {}
+    >>> for i in range(signal_batch.batch_size):
+    >>>     audio_dict[i] = {
+    >>>         "input": signal_batch[i],
+    >>>         "output": output_batch[i]
+    >>>     }
+    >>> audiotools.post.audio_zip(audio_dict)
+
+    """
     from audiotools import AudioSignal
 
     output = []
@@ -147,39 +130,14 @@ def audio_table(
     return output
 
 
-def discourse_audio_table(audio_dict, first_column=None, **kwargs):  # pragma: no cover
-    """Creates a Markdown table out of a dictionary of
-    AudioSignal objects.
-
-    Parameters
-    ----------
-    audio_dict : dict[str, dict]
-        Dictionary of strings mapped to dictionaries of AudioSignal objects.
-    """
-    from audiotools import AudioSignal
-
-    uploads = []
-
-    def format_fn(label, x):
-        if torch.is_tensor(x):
-            x = x.tolist()
-            x = ["{:.2f}".format(_x) for _x in x]
-
-        if x is None:
-            return "."
-        elif isinstance(x, AudioSignal):
-            upload = x.upload_to_discourse(label, **kwargs)
-            formatted_audio = upload[0].replace("|", "\|")
-            uploads.append(upload)
-            return formatted_audio
-        else:
-            return str(x)
-
-    output = audio_table(audio_dict, first_column=first_column, format_fn=format_fn)
-    return output, uploads
-
-
 def in_notebook():  # pragma: no cover
+    """Determines if code is running in a notebook.
+
+    Returns
+    -------
+    bool
+        Whether or not this is running in a notebook.
+    """
     try:
         from IPython import get_ipython
 
@@ -192,73 +150,31 @@ def in_notebook():  # pragma: no cover
     return True
 
 
-def disp(obj, label=None, upload_to_discourse=False, **kwargs):  # pragma: no cover
+def disp(obj, **kwargs):  # pragma: no cover
+    """Displays an object, depending on if its in a notebook
+    or not.
+
+    Parameters
+    ----------
+    obj : typing.Any
+        Any object to display.
+
+    """
     from audiotools import AudioSignal
 
-    DISCOURSE = bool(os.environ.get("UPLOAD_TO_DISCOURSE", upload_to_discourse))
     IN_NOTEBOOK = in_notebook()
 
     if isinstance(obj, AudioSignal):
-        if DISCOURSE:
-            info = obj.upload_to_discourse(label=label, **kwargs)
-            print(info[0])
+        audio_elem = obj.embed(display=False, return_html=True)
+        if IN_NOTEBOOK:
+            return HTML(audio_elem)
         else:
-            audio_elem = obj.embed(display=False, return_html=True)
-            if IN_NOTEBOOK:
-                return HTML(audio_elem)
-            else:
-                print(audio_elem)
+            print(audio_elem)
     if isinstance(obj, dict):
-        if DISCOURSE:
-            table = discourse_audio_table(obj, **kwargs)[0]
+        table = audio_table(obj, **kwargs)
+        if IN_NOTEBOOK:
+            return HTML(md.markdown(table, extras=["tables"]))
+        else:
             print(table)
-        else:
-            table = audio_table(obj, **kwargs)
-            if IN_NOTEBOOK:
-                return HTML(md.markdown(table, extras=["tables"]))
-            else:
-                print(table)
     if isinstance(obj, plt.Figure):
-        if DISCOURSE:
-            info = upload_figure_to_discourse(**kwargs)
-            print(info[0])
-        else:
-            plt.show()
-
-
-def create_post(
-    in_file: str,
-    discourse: bool = False,
-    use_cache: bool = False,
-):  # pragma: no cover
-    env = os.environ.copy()
-
-    import audiotools
-
-    css = Path(audiotools.__file__).parent / "core" / "templates" / "pandoc.css"
-
-    if not discourse:
-        command = (
-            f"codebraid pandoc --from markdown --to html "
-            f"--css '{str(css)}' --standalone --wrap=none "
-            f"--self-contained "
-        )
-    else:
-        env["UPLOAD_TO_DISCOURSE"] = str(int(discourse))
-        command = (
-            f"codebraid pandoc " f"--from markdown --to markdown " f"--wrap=none -t gfm"
-        )
-
-    if not use_cache:
-        command += " --no-cache"
-
-    command += f" {in_file}"
-    output = subprocess.check_output(shlex.split(command), env=env)
-    print(output.decode(encoding="UTF-8"))
-
-
-if __name__ == "__main__":  # pragma: no cover
-    create_post = argbind.bind(create_post, without_prefix=True, positional=True)
-    args = argbind.parse_args()
-    with argbind.scope(args):
-        create_post()
+        plt.show()

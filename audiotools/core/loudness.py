@@ -10,15 +10,35 @@ import torchaudio
 
 
 class Meter(torch.nn.Module, pyloudnorm.Meter):
-    """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors."""
+    """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.
+
+    Parameters
+    ----------
+    rate : int
+        Sample rate of audio.
+    filter_class : str, optional
+        Class of weighting filter used.
+        K-weighting' (default), 'Fenton/Lee 1'
+        'Fenton/Lee 2', 'Dash et al.'
+        by default "K-weighting"
+    block_size : float, optional
+        Gating block size in seconds, by default 0.400
+    zeros : int, optional
+         Number of zeros to use in FIR approximation of
+         IIR filters, by default 512
+    use_fir : bool, optional
+        Whether to use FIR approximation or exact IIR formulation.
+        If computing on GPU, ``use_fir=True`` will be used, as its
+        much faster, by default False
+    """
 
     def __init__(
         self,
-        rate,
-        filter_class="K-weighting",
-        block_size=0.400,
-        zeros=512,
-        use_fir=False,
+        rate: int,
+        filter_class: str = "K-weighting",
+        block_size: float = 0.400,
+        zeros: int = 512,
+        use_fir: bool = False,
     ):
         super().__init__()
 
@@ -47,7 +67,19 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
         self.register_buffer("firs", firs)
         self.register_buffer("passband_gain", passband_gain)
 
-    def apply_filter_gpu(self, data):
+    def apply_filter_gpu(self, data: torch.Tensor):
+        """Performs FIR approximation of loudness computation.
+
+        Parameters
+        ----------
+        data : torch.Tensor
+            Audio data of shape (nb, nch, nt).
+
+        Returns
+        -------
+        torch.Tensor
+            Filtered audio data.
+        """
         # Data is of shape (nb, nch, nt)
         # Reshape to (nb*nch, 1, nt)
         nb, nt, nch = data.shape
@@ -68,7 +100,19 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
         data = data[:, :nt, :]
         return data
 
-    def apply_filter_cpu(self, data):
+    def apply_filter_cpu(self, data: torch.Tensor):
+        """Performs IIR formulation of loudness computation.
+
+        Parameters
+        ----------
+        data : torch.Tensor
+            Audio data of shape (nb, nch, nt).
+
+        Returns
+        -------
+        torch.Tensor
+            Filtered audio data.
+        """
         for _, filter_stage in self._filters.items():
             passband_gain = filter_stage.passband_gain
 
@@ -82,17 +126,43 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
             data = passband_gain * filtered.permute(0, 2, 1)
         return data
 
-    def apply_filter(self, data):
+    def apply_filter(self, data: torch.Tensor):
+        """Applies filter on either CPU or GPU, depending
+        on if the audio is on GPU or is on CPU, or if
+        ``self.use_fir`` is True.
+
+        Parameters
+        ----------
+        data : torch.Tensor
+            Audio data of shape (nb, nch, nt).
+
+        Returns
+        -------
+        torch.Tensor
+            Filtered audio data.
+        """
         if data.is_cuda or self.use_fir:
             data = self.apply_filter_gpu(data)
         else:
             data = self.apply_filter_cpu(data)
         return data
 
-    def forward(self, data):
+    def forward(self, data: torch.Tensor):
+        """Computes integrated loudness of data.
+
+        Parameters
+        ----------
+        data : torch.Tensor
+            Audio data of shape (nb, nch, nt).
+
+        Returns
+        -------
+        torch.Tensor
+            Filtered audio data.
+        """
         return self.integrated_loudness(data)
 
-    def unfold(self, input_data):
+    def _unfold(self, input_data):
         T_g = self.block_size
         overlap = 0.75  # overlap of 75% of the block duration
         step = 1.0 - overlap  # step size by percentage
@@ -104,7 +174,19 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
 
         return unfolded
 
-    def integrated_loudness(self, data):
+    def integrated_loudness(self, data: torch.Tensor):
+        """Computes integrated loudness of data.
+
+        Parameters
+        ----------
+        data : torch.Tensor
+            Audio data of shape (nb, nch, nt).
+
+        Returns
+        -------
+        torch.Tensor
+            Filtered audio data.
+        """
         if not torch.is_tensor(data):
             data = torch.from_numpy(data).float()
         else:
@@ -128,7 +210,7 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
         T_g = self.block_size  # 400 ms gating block standard
         Gamma_a = -70.0  # -70 LKFS = absolute loudness threshold
 
-        unfolded = self.unfold(input_data)
+        unfolded = self._unfold(input_data)
 
         z = (1.0 / (T_g * self.rate)) * unfolded.square().sum(2)
         l = -0.691 + 10.0 * torch.log10((G[None, :nch, None] * z).sum(1, keepdim=True))
@@ -169,32 +251,39 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
 class LoudnessMixin:
     _loudness = None
     MIN_LOUDNESS = -70
+    """Minimum loudness possible."""
 
-    def loudness(self, filter_class="K-weighting", block_size=0.400, **kwargs):
-        """
-        Uses pyloudnorm to calculate loudness.
-        Implementation of ITU-R BS.1770-4.
+    def loudness(
+        self, filter_class: str = "K-weighting", block_size: float = 0.400, **kwargs
+    ):
+        """Calculates loudness using an implementation of ITU-R BS.1770-4.
         Allows control over gating block size and frequency weighting filters for
-        additional control.
-        Measure the integrated gated loudness of a signal.
+        additional control. Measure the integrated gated loudness of a signal.
+
+        API is derived from PyLoudnorm, but this implementation is ported to PyTorch
+        and is tensorized across batches. When on GPU, an FIR approximation of the IIR
+        filters is used to compute loudness for speed.
 
         Uses the weighting filters and block size defined by the meter
         the integrated loudness is measured based upon the gating algorithm
         defined in the ITU-R BS.1770-4 specification.
-        Supports up to 5 channels and follows the channel ordering:
-        [Left, Right, Center, Left surround, Right surround]
-        Args:
-            filter_class (str):
-              Class of weighting filter used.
-              - 'K-weighting' (default)
-              - 'Fenton/Lee 1'
-              - 'Fenton/Lee 2'
-              - 'Dash et al.'
-            block_size (float):
-              Gating block size in seconds. Defaults to 0.400.
-        Returns:
-            float: LUFS, Integrated gated loudness of the input
-              measured in dB LUFS.
+
+        Parameters
+        ----------
+        filter_class : str, optional
+            Class of weighting filter used.
+            K-weighting' (default), 'Fenton/Lee 1'
+            'Fenton/Lee 2', 'Dash et al.'
+            by default "K-weighting"
+        block_size : float, optional
+            Gating block size in seconds, by default 0.400
+        kwargs : dict, optional
+            Keyword arguments to :py:func:`audiotools.core.loudness.Meter`.
+
+        Returns
+        -------
+        torch.Tensor
+            Loudness of audio data.
         """
         if self._loudness is not None:
             return self._loudness.to(self.device)

@@ -5,14 +5,40 @@ from .. import AudioSignal
 
 
 class L1Loss(nn.L1Loss):
-    def __init__(self, weight: float = 1.0, **kwargs):
+    """L1 Loss between AudioSignals. Defaults
+    to comparing ``audio_data``, but any
+    attribute of an AudioSignal can be used.
+
+    Parameters
+    ----------
+    attribute : str, optional
+        Attribute of signal to compare, defaults to ``audio_data``.
+    weight : float, optional
+        Weight of this loss, defaults to 1.0.
+    """
+
+    def __init__(self, attribute: str = "audio_data", weight: float = 1.0, **kwargs):
+        self.attribute = attribute
         self.weight = weight
         super().__init__(**kwargs)
 
-    def forward(self, x, y):
+    def forward(self, x: AudioSignal, y: AudioSignal):
+        """
+        Parameters
+        ----------
+        x : AudioSignal
+            Estimate AudioSignal
+        y : AudioSignal
+            Reference AudioSignal
+
+        Returns
+        -------
+        torch.Tensor
+            L1 loss between AudioSignal attributes.
+        """
         if isinstance(x, AudioSignal):
-            x = x.audio_data
-            y = y.audio_data
+            x = getattr(x, self.attribute)
+            y = getattr(y, self.attribute)
         return super().forward(x, y)
 
 
@@ -35,6 +61,8 @@ class SISDRLoss(nn.Module):
     clip_min : int, optional
         The minimum possible loss value. Helps network
         to not focus on making already good examples better, by default None
+    weight : float, optional
+        Weight of this loss, defaults to 1.0.
     """
 
     def __init__(

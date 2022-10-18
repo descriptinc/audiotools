@@ -1,6 +1,7 @@
 import inspect
 import shutil
 import tempfile
+import typing
 from pathlib import Path
 
 import torch
@@ -8,6 +9,43 @@ from torch import nn
 
 
 class BaseModel(nn.Module):
+    """This is a class that adds useful save/load functionality to a
+    ``torch.nn.Module`` object. ``BaseModel`` objects can be saved
+    as ``torch.package`` easily, making them super easy to port between
+    machines without requiring a ton of dependencies. Files can also be
+    saved as just weights, in the standard way.
+
+    >>> class Model(ml.BaseModel):
+    >>>     def __init__(self, arg1: float = 1.0):
+    >>>         super().__init__()
+    >>>         self.arg1 = arg1
+    >>>         self.linear = nn.Linear(1, 1)
+    >>>
+    >>>     def forward(self, x):
+    >>>         return self.linear(x)
+    >>>
+    >>> model1 = Model()
+    >>>
+    >>> with tempfile.NamedTemporaryFile(suffix=".pth") as f:
+    >>>     model1.save(
+    >>>         f.name,
+    >>>     )
+    >>>     model2 = Model.load(f.name)
+    >>>     out2 = seed_and_run(model2, x)
+    >>>     assert torch.allclose(out1, out2)
+    >>>
+    >>>     model1.save(f.name, package=True)
+    >>>     model2 = Model.load(f.name)
+    >>>     model2.save(f.name, package=False)
+    >>>     model3 = Model.load(f.name)
+    >>>     out3 = seed_and_run(model3, x)
+    >>>
+    >>> with tempfile.TemporaryDirectory() as d:
+    >>>     model1.save_to_folder(d, {"data": 1.0})
+    >>>     Model.load_from_folder(d)
+
+    """
+
     EXTERN = [
         "audiotools.**",
         "tqdm",
@@ -15,10 +53,53 @@ class BaseModel(nn.Module):
         "numpy.**",
         "julius.**",
         "torchaudio.**",
+        "scipy.**",
+        "einops",
     ]
+    """Names of libraries that are external to the torch.package saving mechanism.
+    Source code from these libraries will not be packaged into the model. This can
+    be edited by the user of this class by editing ``model.EXTERN``."""
     INTERN = []
+    """Names of libraries that are internal to the torch.package saving mechanism.
+    Source code from these libraries will be saved alongside the model."""
 
-    def save(self, path, metadata=None, package=True, intern=[], extern=[], mock=[]):
+    def save(
+        self,
+        path: str,
+        metadata: dict = None,
+        package: bool = True,
+        intern: list = [],
+        extern: list = [],
+        mock: list = [],
+    ):
+        """Saves the model, either as a torch package, or just as
+        weights, alongside some specified metadata.
+
+        Parameters
+        ----------
+        path : str
+            Path to save model to.
+        metadata : dict, optional
+            Any metadata to save alongside the model,
+            by default None
+        package : bool, optional
+            Whether to use ``torch.package`` to save the model in
+            a format that is portable, by default True
+        intern : list, optional
+            List of additional libraries that are internal
+            to the model, used with torch.package, by default []
+        extern : list, optional
+            List of additional libraries that are external to
+            the model, used with torch.package, by default []
+        mock : list, optional
+            List of libraries to mock, used with torch.package,
+            by default []
+
+        Returns
+        -------
+        str
+            Path to saved model.
+        """
         sig = inspect.signature(self.__class__)
         args = {}
 
@@ -49,10 +130,42 @@ class BaseModel(nn.Module):
 
     @property
     def device(self):
+        """Gets the device the model is on by looking at the device of
+        the first parameter. May not be valid if model is split across
+        multiple devices.
+        """
         return list(self.parameters())[0].device
 
     @classmethod
-    def load(cls, location, *args, package_name=None, strict=False, **kwargs):
+    def load(
+        cls,
+        location: str,
+        *args,
+        package_name: str = None,
+        strict: bool = False,
+        **kwargs,
+    ):
+        """Load model from a path. Tries first to load as a package, and if
+        that fails, tries to load as weights. The arguments to the class are
+        specified inside the model weights file.
+
+        Parameters
+        ----------
+        location : str
+            Path to file.
+        package_name : str, optional
+            Name of package, by default ``cls.__name__``.
+        strict : bool, optional
+            Ignore unmatched keys, by default False
+        kwargs : dict
+            Additional keyword arguments to the model instantiation, if
+            not loading from package.
+
+        Returns
+        -------
+        BaseModel
+            A model that inherits from BaseModel.
+        """
         try:
             model = cls._load_package(location, package_name=package_name)
         except:
@@ -123,9 +236,36 @@ class BaseModel(nn.Module):
 
     def save_to_folder(
         self,
-        folder: str,
+        folder: typing.Union[str, Path],
         extra_data: dict = None,
     ):
+        """Dumps a model into a folder, as both a package
+        and as weights, as well as anything specified in
+        ``extra_data``. ``extra_data`` is a dictionary of other
+        pickleable files, with the keys being the paths
+        to save them in. The model is saved under a subfolder
+        specified by the name of the class (e.g. ``folder/generator/[package, weights].pth``
+        if the model name was ``Generator``).
+
+        >>> with tempfile.TemporaryDirectory() as d:
+        >>>     extra_data = {
+        >>>         "optimizer.pth": optimizer.state_dict()
+        >>>     }
+        >>>     model.save_to_folder(d, extra_data)
+        >>>     Model.load_from_folder(d)
+
+        Parameters
+        ----------
+        folder : typing.Union[str, Path]
+            _description_
+        extra_data : dict, optional
+            _description_, by default None
+
+        Returns
+        -------
+        str
+            Path to folder
+        """
         extra_data = {} if extra_data is None else extra_data
         model_name = type(self).__name__.lower()
         target_base = Path(f"{folder}/{model_name}/")
@@ -145,11 +285,33 @@ class BaseModel(nn.Module):
     @classmethod
     def load_from_folder(
         cls,
-        folder: Path,
+        folder: typing.Union[str, Path],
         package: bool = True,
         strict: bool = False,
         **kwargs,
     ):
+        """Loads the model from a folder generated by
+        :py:func:`audiotools.ml.layers.base.BaseModel.save_to_folder`.
+        Like that function, this one looks for a subfolder that has
+        the name of the class (e.g. ``folder/generator/[package, weights].pth`` if the
+        model name was ``Generator``).
+
+        Parameters
+        ----------
+        folder : typing.Union[str, Path]
+            _description_
+        package : bool, optional
+            Whether to use ``torch.package`` to load the model,
+            loading the model from ``package.pth``.
+        strict : bool, optional
+            Ignore unmatched keys, by default False
+
+        Returns
+        -------
+        tuple
+            tuple of model and extra data as saved by
+            :py:func:`audiotools.ml.layers.base.BaseModel.save_to_folder`.
+        """
         folder = Path(folder) / cls.__name__.lower()
         model_pth = "package.pth" if package else "weights.pth"
         model_pth = folder / model_pth

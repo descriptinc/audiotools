@@ -171,3 +171,14 @@ def test_corrupt_phase():
 
     assert (sine_wave2.phase - shifted_sine_wave.phase).abs().mean() > 0.0
     assert ((sine_wave2.phase - shifted_sine_wave.phase).std() / np.pi) < 1.0
+
+
+def test_preemphasis():
+    x = AudioSignal.excerpt("tests/audio/spk/f10_script4_produced.wav", duration=5)
+    import matplotlib.pyplot as plt
+
+    x.specshow(preemphasis=False)
+
+    x.specshow(preemphasis=True)
+
+    x.preemphasis()

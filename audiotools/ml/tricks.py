@@ -5,7 +5,23 @@ import torch
 from torch import nn
 
 
-def compute_grad_norm(model, mask_nan=False):
+def compute_grad_norm(model, mask_nan: bool = False):
+    """Computes the gradient norm of a model after a
+    backwards pass.
+
+    Parameters
+    ----------
+    model : nn.Module
+        Model to compute gradient norm of.
+    mask_nan : bool, optional
+        Whether to mask away NaNs, useful if using
+        automatic mixed-precision, by default False
+
+    Returns
+    -------
+    float
+        Gradient norm of model.
+    """
     all_norms = []
     for p in model.parameters():
         if p.grad is None:
@@ -23,25 +39,26 @@ def compute_grad_norm(model, mask_nan=False):
 
 
 class AutoClip:
+    """
+    Adds AutoClip during training.
+    The gradient is clipped to the percentile'th percentile of
+    gradients seen during training. Proposed in [1].
+
+    1.  Prem Seetharaman, Gordon Wichern, Bryan Pardo,
+        Jonathan Le Roux. "AutoClip: Adaptive Gradient
+        Clipping for Source Separation Networks." 2020
+        IEEE 30th International Workshop on Machine
+        Learning for Signal Processing (MLSP). IEEE, 2020.
+
+    Parameters
+    ----------
+    percentile : float, optional
+        Percentile to clip gradients to, by default 10
+    frequency : int, optional
+        How often to re-compute the clipping value.
+    """
+
     def __init__(self, percentile: float = 10, frequency: int = 1, mask_nan: int = 0):
-        """
-        Adds AutoClip during training.
-        The gradient is clipped to the percentile'th percentile of
-        gradients seen during training. Proposed in [1].
-
-        [1] Prem Seetharaman, Gordon Wichern, Bryan Pardo,
-            Jonathan Le Roux. "AutoClip: Adaptive Gradient
-            Clipping for Source Separation Networks." 2020
-            IEEE 30th International Workshop on Machine
-            Learning for Signal Processing (MLSP). IEEE, 2020.
-
-        Parameters
-        ----------
-        percentile : float, optional
-            Percentile to clip gradients to, by default 10
-        frequency : int, optional
-            How often to re-compute the clipping value.
-        """
         self.grad_history = []
         self.percentile = percentile
         self.frequency = frequency
@@ -76,13 +93,13 @@ class AutoClip:
 
 
 class AutoBalance(nn.Module):
+    """Auto-balances losses with each other by solving a system of
+    equations.
+    """
+
     def __init__(
         self, ratios: List[float] = [1], frequency: int = 1, max_iters: int = None
     ):
-        """
-        Auto-balances losses with each other by solving a system of
-        equations.
-        """
         super().__init__()
 
         self.frequency = frequency

@@ -1,12 +1,16 @@
+import imp
+
 from setuptools import find_packages
 from setuptools import setup
 
 with open("README.md") as f:
     long_description = f.read()
 
+version = "0.4.5"
+
 setup(
     name="audiotools",
-    version="0.4.4",
+    version=version,
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -22,7 +26,7 @@ setup(
     description="Utilities for handling audio.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Prem Seetharaman",
+    author="Prem Seetharaman, Lucas Gestin",
     author_email="prem@descript.com",
     license="MIT",
     packages=find_packages(),
@@ -67,6 +71,13 @@ setup(
             "line_profiler",
             "tqdm",
             "pesq",
+        ],
+        "docs": [
+            "sphinx",
+            "sphinx-rtd-theme",
+            "myst-parser",
+            "myst-nb",
+            "sphinx-multiversion",
         ],
     },
 )
