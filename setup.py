@@ -1,12 +1,16 @@
+import imp
+
 from setuptools import find_packages
 from setuptools import setup
 
 with open("README.md") as f:
     long_description = f.read()
 
+version = imp.load_source("audiotools.version", "audiotools/version.py")
+
 setup(
     name="audiotools",
-    version="0.4.5",
+    version=version,
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -73,6 +77,7 @@ setup(
             "sphinx-rtd-theme",
             "myst-parser",
             "myst-nb",
+            "sphinx-multiversion",
         ],
     },
 )
