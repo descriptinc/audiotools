@@ -528,7 +528,13 @@ class EffectMixin:
 
 class ImpulseResponseMixin:
     """These functions are generally only used with AudioSignals that are derived
-    from impulse responses, not other sources like music or speech.
+    from impulse responses, not other sources like music or speech. These methods
+    are used to replicate the data augmentation described in [1].
+
+    1.  Bryan, Nicholas J. "Impulse response data augmentation and deep
+        neural networks for blind room acoustic parameter estimation."
+        ICASSP 2020-2020 IEEE International Conference on Acoustics,
+        Speech and Signal Processing (ICASSP). IEEE, 2020.
     """
 
     def decompose_ir(self):
