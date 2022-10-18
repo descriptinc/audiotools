@@ -38,9 +38,10 @@ class DisplayMixin:
     @format_figure
     def specshow(
         self,
-        preemphasis: bool = True,
+        preemphasis: bool = False,
         x_axis: str = "time",
         y_axis: str = "linear",
+        n_mels: int = 128,
         **kwargs,
     ):
         """Displays a spectrogram, using ``librosa.display.specshow``.
@@ -49,11 +50,14 @@ class DisplayMixin:
         ----------
         preemphasis : bool, optional
             Whether or not to apply preemphasis, which makes high
-            frequency detail easier to see, by default True
+            frequency detail easier to see, by default False
         x_axis : str, optional
             How to label the x axis, by default "time"
         y_axis : str, optional
             How to label the y axis, by default "linear"
+        n_mels : int, optional
+            If displaying a mel spectrogram with ``y_axis = "mel"``,
+            this controls the number of mels, by default 128.
         kwargs : dict, optional
             Keyword arguments to :py:func:`audiotools.core.util.format_figure`.
         """
@@ -64,12 +68,19 @@ class DisplayMixin:
         # it changed.
         signal = self.clone()
         signal.stft_data = None
+
         if preemphasis:
             signal.preemphasis()
 
-        log_mag = librosa.amplitude_to_db(signal.magnitude.cpu().numpy(), ref=np.max)
+        ref = signal.magnitude.max()
+        log_mag = signal.log_magnitude(ref_value=ref)
+
+        if y_axis == "mel":
+            log_mag = 10 * signal.mel_spectrogram(n_mels).pow(2).clamp(1e-5).log10()
+            log_mag -= log_mag.max()
+
         librosa.display.specshow(
-            log_mag[0].mean(axis=0),
+            log_mag.numpy()[0].mean(axis=0),
             x_axis=x_axis,
             y_axis=y_axis,
             sr=signal.sample_rate,

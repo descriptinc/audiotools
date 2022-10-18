@@ -7,12 +7,26 @@ AudioTools
 ======================================
 
 .. toctree::
-   :maxdepth: -1
-   :caption: Contents:
+    :caption: Getting started
+    :maxdepth: 1
 
-   readme.md
-   tutorials/tutorials
-   source/audiotools
+    readme.md
+
+.. toctree::
+    :caption: Tutorials
+    :maxdepth: 1
+
+    tutorials/transforms.md
+
+.. toctree::
+    :caption: API Documentation
+    :maxdepth: 1
+
+    source/audiotools.core
+    source/audiotools.data
+    source/audiotools.metrics
+    source/audiotools.ml
+    source/audiotools.post
 
 
 Indices and tables
