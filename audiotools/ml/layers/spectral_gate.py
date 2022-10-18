@@ -2,9 +2,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from audiotools import AudioSignal
-from audiotools import STFTParams
-from audiotools.core import util
+from ...core import AudioSignal
+from ...core import STFTParams
+from ...core import util
 
 
 class SpectralGate(nn.Module):
