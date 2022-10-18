@@ -68,5 +68,11 @@ setup(
             "tqdm",
             "pesq",
         ],
+        "docs": [
+            "sphinx",
+            "sphinx-rtd-theme",
+            "myst-parser",
+            "myst-nb",
+        ],
     },
 )

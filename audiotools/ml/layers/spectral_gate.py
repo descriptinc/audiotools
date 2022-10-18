@@ -28,8 +28,6 @@ class SpectralGate(nn.Module):
 
     Parameters
     ----------
-    model : wav2wav.modules.BaseModel
-        The model to generate line noise from.
     n_freq : int, optional
         Number of frequency bins to smooth by, by default 3
     n_time : int, optional

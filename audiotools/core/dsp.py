@@ -265,7 +265,7 @@ class DSPMixin:
         tmax_s: typing.Union[torch.Tensor, np.ndarray, float],
         val: float = 0.0,
     ):
-        """Masks teimsteps between ``tmin_s`` and ``tmax_s``, and fills them
+        """Masks timesteps between ``tmin_s`` and ``tmax_s``, and fills them
         with the value specified by ``val``. Useful for implementing SpecAug.
         The min and max can be different for every item in the batch.
 
