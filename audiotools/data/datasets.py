@@ -1,8 +1,14 @@
 import copy
 import typing
 from multiprocessing import Manager
+from pathlib import Path
+from typing import Callable
+from typing import Dict
 from typing import List
+from typing import Optional
+from typing import Union
 
+from numpy.random import RandomState
 from torch.utils.data import BatchSampler as _BatchSampler
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -138,6 +144,36 @@ class BaseDataset(SharedMixin):
         return util.collate(list_of_dicts)
 
 
+def load_signal(
+    path: str,
+    sample_rate: int,
+    num_channels: int = 1,
+    state: Optional[Union[RandomState, int]] = None,
+    offset: Optional[int] = None,
+    duration: Optional[float] = None,
+    loudness_cutoff: Optional[float] = None,
+):
+    if offset is None:
+        signal = AudioSignal.salient_excerpt(
+            path,
+            duration=duration,
+            state=state,
+            loudness_cutoff=loudness_cutoff,
+        )
+    else:
+        signal = AudioSignal(
+            path,
+            offset=offset,
+            duration=duration,
+        )
+
+    if num_channels == 1:
+        signal = signal.to_mono()
+    signal = signal.resample(sample_rate)
+
+    return signal
+
+
 class AudioLoader:
     """Loads audio endlessly from a list of CSV files
     containing paths to audio files.
@@ -171,26 +207,167 @@ class AudioLoader:
             state, self.audio_lists, p=self.csv_weights
         )
 
-        if offset is None:
-            signal = AudioSignal.salient_excerpt(
-                audio_info["path"],
-                duration=duration,
-                state=state,
-                loudness_cutoff=loudness_cutoff,
-            )
-        else:
-            signal = AudioSignal(
-                audio_info["path"],
-                offset=offset,
-                duration=duration,
-            )
+        signal = load_signal(
+            path=audio_info["path"],
+            sample_rate=sample_rate,
+            num_channels=num_channels,
+            state=state,
+            offset=offset,
+            duration=duration,
+            loudness_cutoff=loudness_cutoff,
+        )
+
         for k, v in audio_info.items():
             signal.metadata[k] = v
 
-        if num_channels == 1:
-            signal = signal.to_mono()
-        signal = signal.resample(sample_rate)
         return signal, csv_idx
+
+
+class MultiTrackAudioLoader:
+    """
+    This loader behaves similarly to AudioLoader, but
+    it loads multiple tracks in a group, and returns a dictionary
+    of AudioSignals, one for each track.
+
+    For example, one may call this loader like this:
+    ```
+    loader = MultiTrackAudioLoader2(
+        csv_groups = [
+            {
+                "vocals": "datset1/vocals.csv",
+                "drums": "dataset1/drums.csv",
+                "bass": "dataset1/bass.csv",
+            },
+            {
+                "vocals": "datset2/vocals.csv",
+                "drums": "dataset2/drums.csv",
+                "bass": "dataset2/bass.csv",
+                "guitar": "dataset2/guitar.csv",
+            },
+        ]
+    )
+    ```
+
+    NOTE: If no offset is provided to the loader, then the loader will
+    choose a salient excerpt as dictated by the signal associated with ``primary_key``.
+    This may fail if all of the signals in a given row are not of equal duration.
+
+    Parameters
+    ----------
+    csv_groups: List[Dict[str, str]], optional
+        List of dictionaries containing CSV files and their associated keys.
+    csv_weights : List[float], optional
+        Weights to sample audio files from each dictionary of CSVs, by default None
+    primary_keys : List[str], optional
+        If provided, will load a salient excerpt from the audio file specified by the primary key.
+        If not provided, will pick the first column for each csv as the primary key.
+        NOTE: one primary key must be provided for each dict of csv files.
+    """
+
+    def __init__(
+        self,
+        csv_groups: List[Dict[str, str]] = None,
+        csv_weights: List[float] = None,
+        primary_keys: List[str] = None,
+    ):
+        self.audio_lists = []
+        for csv_dict in csv_groups:
+            self.audio_lists.append(
+                {k: util.read_csv([v])[0] for k, v in csv_dict.items()}
+            )
+
+        self.csv_groups = csv_groups
+        self.csv_weights = csv_weights
+        self.primary_keys = primary_keys
+
+        # find the set of audio columns
+        # (i.e. the union of all keys across all csv groups)
+        # this way, we can add zero signals for any missing tracks
+        # which let's us batch different csv groups together
+        self.audio_columns = set(
+            [key for csv_dict in csv_groups for key in csv_dict.keys()]
+        )
+
+        # default to the first column of each csv as the primary key
+        if self.primary_keys is None:
+            self.primary_keys = [list(csv_dict.keys())[0] for csv_dict in csv_groups]
+
+        for key, csv_group in zip(self.primary_keys, self.csv_groups):
+            if key not in csv_group.keys():
+                raise ValueError(
+                    f"Primary key {key} not found in csv keys {csv_group.keys()}"
+                )
+
+    def __call__(
+        self,
+        state,
+        sample_rate: int,
+        duration: float,
+        loudness_cutoff: float = -40,
+        num_channels: int = 1,
+        offset: float = None,
+    ):
+        # pick a group of csvs
+        csv_group_idx = state.choice(len(self.audio_lists), p=self.csv_weights)
+
+        # grab the group of csvs and primary key for this group
+        csv_group = self.audio_lists[csv_group_idx]
+        primary_key = self.primary_keys[csv_group_idx]
+
+        # pick a row from the primary csv
+        csv_idx = state.choice(len(csv_group[primary_key]))
+        p_audio_info = csv_group[primary_key][csv_idx]
+
+        # load the primary signal first,
+        # and use it to determine the offset and duration
+        primary_signal = load_signal(
+            path=p_audio_info["path"],
+            sample_rate=sample_rate,
+            num_channels=num_channels,
+            state=state,
+            offset=offset,
+            duration=duration,
+            loudness_cutoff=loudness_cutoff,
+        )
+        for k, v in p_audio_info.items():
+            primary_signal.metadata[k] = v
+
+        # update the offset and duration according to the primary signal
+        offset = primary_signal.metadata["offset"]
+        duration = primary_signal.metadata["duration"]
+
+        # load the rest of the signals
+        signals = {}
+        for audio_key, audio_list in csv_group.items():
+            if audio_key == primary_key:
+                signals[audio_key] = primary_signal
+                continue
+
+            audio_info = audio_list[csv_idx]
+            signal = load_signal(
+                path=audio_info["path"],
+                sample_rate=sample_rate,
+                num_channels=num_channels,
+                state=state,
+                offset=offset,
+                duration=duration,
+                loudness_cutoff=loudness_cutoff,
+            )
+            for k, v in audio_info.items():
+                signal.metadata[k] = v
+
+            signals[audio_key] = signal
+
+        # add zero signals for any missing tracks
+        for k in self.audio_columns:
+            if k not in signals:
+                signals[k] = AudioSignal.zeros(
+                    duration=duration,
+                    num_channels=num_channels,
+                    sample_rate=sample_rate,
+                )
+
+        return signals, csv_group_idx
 
 
 class CSVDataset(BaseDataset):
@@ -302,6 +479,163 @@ class CSVDataset(BaseDataset):
         }
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
+        return item
+
+
+class CSVMultiTrackDataset(BaseDataset):
+    """
+    A dataset for loading coherent multitrack data for source separation.
+
+    This dataset behaves similarly to CSV dataset, but instead of
+    passing a list of single CSV files, you must pass a list of
+    dictionaries of CSV files, where each dictionary represents
+    a group of multitrack files that should be loaded together.
+
+    NOTE: Within a dictionary, each CSV file must have the same
+    number of rows, since it is expected that each row represents
+    a single track in a multitrack recording.
+
+    For example, our list of CSV groups might look like this:
+
+    ```
+    csv_groups = [
+        {
+            "vocals": "datset1/vocals.csv",
+            "drums": "dataset1/drums.csv",
+            "bass": "dataset1/bass.csv",
+        },
+        {
+            "vocals": "datset2/vocals.csv",
+            "drums": "dataset2/drums.csv",
+            "bass": "dataset2/bass.csv",
+            "guitar": "dataset2/guitar.csv",
+        },
+    ]
+    ```
+
+    Parameters
+    ----------
+    sample_rate : int
+        Sample rate of audio.
+    csv_groups: List[Dict[str, str]], optional
+        List of dictionaries containing CSV files and their associated keys.
+    primary_keys : List[str], optional
+        If provided, will load a salient excerpt from the audio file specified by the primary key.
+        If not provided, will pick the first column for each csv as the primary key.
+        NOTE: one primary key must be provided for each dict of csv files.
+    csv_weights : List[float], optional
+        List of weights of CSV files, by default None
+    n_examples : int, optional
+        Number of examples, by default 1000
+    duration : float, optional
+        Duration of excerpts, in seconds, by default 0.5
+    num_channels : int, optional
+        Number of channels, by default 1
+    transforms : Dict[str, typing.Callable], optional
+        Dict of transforms, one for each source.
+
+    Usage
+    -----
+    ```python
+    dataset = CSVMultiTrackDataset(
+        sample_rate=44100,
+        n_examples=20,
+        csv_groups=[{
+            "drums": "tests/audio/musdb-7s/drums.csv",
+            "bass": "tests/audio/musdb-7s/bass.csv",
+            "vocals": "tests/audio/musdb-7s/vocals.csv",
+        }, {
+            "drums": "tests/audio/musdb-7s/drums.csv",
+            "bass": "tests/audio/musdb-7s/bass.csv",
+        }],
+        primary_keys=primary_keys,
+        transform=source_transforms,
+    )
+
+    assert set(dataset.source_names) == set(["bass", "drums", "vocals"])
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=16,
+        num_workers=0,
+        collate_fn=dataset.collate,
+    )
+
+    for batch in dataloader:
+        kwargs = batch["transform_args"]
+        signals = batch["signals"]
+
+        tfmed = {
+            k: dataset.transform[k](sig.clone(), **kwargs[k])
+            for k, sig in signals.items()
+        }
+        mix = sum(tfmed.values())
+    ```
+    """
+
+    def __init__(
+        self,
+        sample_rate: int,
+        n_examples: int = 1000,
+        duration: float = 0.5,
+        csv_groups: List[Dict[str, str]] = None,
+        csv_weights: List[float] = None,
+        primary_keys: List[str] = None,
+        loudness_cutoff: float = -40,
+        num_channels: int = 1,
+        transform: Dict[str, Callable] = None,
+    ):
+        self.loader = MultiTrackAudioLoader(csv_groups, csv_weights, primary_keys)
+
+        self.num_channels = num_channels
+        self.loudness_cutoff = loudness_cutoff
+
+        if transform is None:
+            transform = {}
+
+        assert isinstance(
+            transform, dict
+        ), "transform for CSVMultiTrackDataset must be a dict"
+        for key in self.loader.audio_columns:
+            if key not in transform:
+                from .transforms import Identity
+
+                transform[key] = Identity()
+
+        super().__init__(
+            n_examples, duration=duration, transform=transform, sample_rate=sample_rate
+        )
+
+    @property
+    def source_names(self):
+        return list(self.loader.audio_columns)
+
+    @property
+    def primary_keys(self):
+        return self.loader.primary_keys
+
+    def __getitem__(self, idx):
+        state = util.random_state(idx)
+
+        signals, csv_idx = self.loader(
+            state,
+            self.sample_rate,
+            duration=self.duration,
+            loudness_cutoff=self.loudness_cutoff,
+            num_channels=self.num_channels,
+        )
+
+        # Instantiate the transform.
+        transform_kwargs = {
+            k: self.transform[k].instantiate(state, signal=signals[k]) for k in signals
+        }
+
+        item = {
+            "idx": idx,
+            "signals": signals,
+            "label": csv_idx,
+            "transform_args": transform_kwargs,
+        }
         return item
 
 

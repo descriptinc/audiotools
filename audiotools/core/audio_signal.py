@@ -159,7 +159,10 @@ class AudioSignal(
         self.window = None
         self.stft_params = stft_params
 
-        self.metadata = {}
+        self.metadata = {
+            "offset": offset,
+            "duration": duration,
+        }
 
     @classmethod
     def excerpt(

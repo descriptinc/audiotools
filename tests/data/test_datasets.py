@@ -1,9 +1,9 @@
 import numpy as np
+import pytest
 import torch
 
 import audiotools
-from audiotools import AudioSignal
-from audiotools import data
+from audiotools.core import util
 from audiotools.data import transforms as tfm
 
 
@@ -186,6 +186,74 @@ def test_csv_dataset():
 
         assert torch.allclose(signal[mask].audio_data, zeros_)
         assert torch.allclose(signal[~mask].audio_data, original_)
+
+
+@pytest.mark.parametrize(
+    "source_transforms",
+    [
+        None,
+        {
+            "bass": tfm.Compose([tfm.VolumeNorm(), tfm.Silence(prob=0.5)]),
+            "vocals": tfm.VolumeNorm(),
+            "drums": tfm.VolumeNorm(),
+            "other": tfm.VolumeNorm(),
+        },
+        {"bass": tfm.VolumeNorm(), "vocals": tfm.VolumeNorm()},
+    ],
+)
+@pytest.mark.parametrize("primary_keys", [["bass", "drums"], None])
+def test_multitrack_dataset(source_transforms, primary_keys):
+    from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
+
+    # wrong primary key
+    with pytest.raises(ValueError):
+        MultiTrackAudioLoader(
+            [
+                {
+                    "bass": "tests/audio/irs.csv",
+                }
+            ],
+            primary_keys=["vocals"],
+        )
+
+    dataset = CSVMultiTrackDataset(
+        sample_rate=44100,
+        n_examples=20,
+        csv_groups=[
+            {
+                "drums": "tests/audio/musdb-7s/drums.csv",
+                "bass": "tests/audio/musdb-7s/bass.csv",
+                "vocals": "tests/audio/musdb-7s/vocals.csv",
+            },
+            {
+                "drums": "tests/audio/musdb-7s/drums.csv",
+                "bass": "tests/audio/musdb-7s/bass.csv",
+            },
+        ],
+        primary_keys=primary_keys,
+        transform=source_transforms,
+    )
+
+    assert set(dataset.source_names) == set(["bass", "drums", "vocals"])
+    if primary_keys is not None:
+        assert dataset.primary_keys == primary_keys
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=16,
+        num_workers=0,
+        collate_fn=dataset.collate,
+    )
+
+    for batch in dataloader:
+        kwargs = batch["transform_args"]
+        signals = batch["signals"]
+
+        tfmed = {
+            k: dataset.transform[k](sig.clone(), **kwargs[k])
+            for k, sig in signals.items()
+        }
+        mix = sum(tfmed.values())
 
 
 def test_dataset_pipeline():
