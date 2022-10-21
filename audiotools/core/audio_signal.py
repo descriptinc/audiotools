@@ -434,6 +434,10 @@ class AudioSignal(
             mono=False,
         )
         data = util.ensure_tensor(data)
+        if data.shape[-1] == 0:
+            raise RuntimeError(
+                f"Audio file {audio_path} with offset {offset} and duration {duration} is empty!"
+            )
 
         if data.ndim < 2:
             data = data.unsqueeze(0)
