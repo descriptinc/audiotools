@@ -6,6 +6,7 @@ import typing
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict
 from typing import List
 
 import numpy as np
@@ -22,6 +23,10 @@ class Info:
     sample_rate: float
     num_frames: int
 
+    @property
+    def duration(self) -> float:
+        return self.num_frames / self.sample_rate
+
 
 def info(audio_path: str):
     """Shim for torchaudio.info to make 0.7.2 API match 0.8.0.
@@ -35,6 +40,9 @@ def info(audio_path: str):
     if isinstance(info, tuple):  # pragma: no cover
         signal_info = info[0]
         info = Info(sample_rate=signal_info.rate, num_frames=signal_info.length)
+    else:
+        info = Info(sample_rate=info.sample_rate, num_frames=info.num_frames)
+
     return info
 
 

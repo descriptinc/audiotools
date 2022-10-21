@@ -196,7 +196,7 @@ class AudioSignal(
         >>> signal = AudioSignal.excerpt("path/to/audio", duration=5)
         """
         info = util.info(audio_path)
-        total_duration = info.num_frames / info.sample_rate
+        total_duration = info.duration
 
         state = util.random_state(state)
         lower_bound = 0 if offset is None else offset
