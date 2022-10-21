@@ -67,6 +67,9 @@ def test_io():
         AudioSignal(audio_path).hash() != AudioSignal(audio_path).normalize(-20).hash()
     )
 
+    with pytest.raises(RuntimeError):
+        AudioSignal(audio_path, offset=100000, duration=3)
+
 
 def test_copy_and_clone():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
