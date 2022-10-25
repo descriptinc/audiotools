@@ -72,3 +72,45 @@ def test_ffmpeg_load():
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(out_path)
 
         assert og_signal.signal_length == signal_from_ffmpeg.signal_length
+
+
+def test_ffmpeg_audio_offset():
+    with tempfile.TemporaryDirectory() as d:
+        video_path = Path(d) / "test.mp4"
+        delayed_video = Path(d) / "test_delayed.mp4"
+
+        # Create a test video
+        subprocess.run(
+            shlex.split(
+                f"ffmpeg -y -f lavfi "
+                f"-i testsrc=d=5:s=120x120:r=24,format=yuv420p "
+                f"-f lavfi -i sine=f=440:b=4 "
+                f"-shortest {video_path} -loglevel error"
+            )
+        )
+
+        # Create a video with the audio offset by 1 second
+        subprocess.run(
+            shlex.split(
+                f"ffmpeg -y -i {video_path} "
+                f"-itsoffset 1.0 -i {video_path} "
+                f"-map 0:v -map 1:a "
+                f"-c copy {delayed_video} -loglevel error "
+            )
+        )
+
+        # Get the duration of the video
+        duration = subprocess.check_output(
+            shlex.split(
+                f"ffprobe -v error -show_entries "
+                f"format=duration -of "
+                f"default=noprint_wrappers=1:nokey=1 "
+                f"{delayed_video}"
+            )
+        )
+        duration = float(duration)
+
+        # assert the length of a signal loaded from the
+        # video and the audio are the same
+        signal = AudioSignal.load_from_file_with_ffmpeg(delayed_video)
+        assert np.allclose(signal.signal_duration, duration)

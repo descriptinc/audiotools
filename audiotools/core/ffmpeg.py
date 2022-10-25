@@ -59,6 +59,15 @@ def r128stats(filepath: str, quiet: bool):
     return stats_dict
 
 
+def ffprobe_duration(path):
+    ff = ffmpy.FFprobe(
+        inputs={path: None},
+        global_options="-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1",
+    )
+    duration = float(ff.run(stdout=subprocess.PIPE)[0])
+    return duration
+
+
 class FFMPEGMixin:
     _loudness = None
 
@@ -151,4 +160,11 @@ class FFMPEGMixin:
             )
             ff.run()
             signal = cls(f.name, **kwargs)
+
+            # Check duration if original file and zero-pad if
+            # audio duration doesn't match video duration
+            duration = ffprobe_duration(audio_path)
+            if duration > signal.signal_duration:
+                signal.zero_pad_to(int(duration * signal.sample_rate))
+
         return signal
