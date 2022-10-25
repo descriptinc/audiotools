@@ -148,6 +148,7 @@ class FFMPEGMixin:
         AudioSignal
             AudioSignal loaded from file with FFMPEG.
         """
+        audio_path = str(audio_path)
         with tempfile.NamedTemporaryFile(suffix=".wav") as f:
             global_options = "-y"
             if quiet:
