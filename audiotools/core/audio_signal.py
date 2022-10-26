@@ -10,12 +10,9 @@ from collections import namedtuple
 from pathlib import Path
 
 import julius
-import librosa
 import numpy as np
 import torch
 import torchaudio
-from librosa.filters import mel as librosa_mel_fn
-from scipy import signal
 
 from . import util
 from .display import DisplayMixin
@@ -421,6 +418,8 @@ class AudioSignal(
         AudioSignal
             AudioSignal loaded from file
         """
+        import librosa
+
         data, sample_rate = librosa.load(
             audio_path,
             offset=offset,
@@ -934,6 +933,8 @@ class AudioSignal(
         torch.Tensor
             Window returned by scipy.signal.get_window, as a tensor.
         """
+        from scipy import signal
+
         if window_type == "average":
             window = np.ones(window_length) / window_length
         elif window_type == "sqrt_hann":
@@ -1225,6 +1226,8 @@ class AudioSignal(
         np.ndarray [shape=(n_mels, 1 + n_fft/2)]
             Mel transform matrix
         """
+        from librosa.filters import mel as librosa_mel_fn
+
         return librosa_mel_fn(
             sr=sr,
             n_fft=n_fft,

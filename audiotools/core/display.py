@@ -2,10 +2,6 @@ import inspect
 import typing
 from functools import wraps
 
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.gridspec import GridSpec
-
 from . import util
 
 
@@ -119,6 +115,9 @@ class DisplayMixin:
         kwargs : dict, optional
             Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow`.
         """
+        import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
+
         gs = GridSpec(6, 1)
         plt.subplot(gs[0, :])
         self.waveplot(x_axis=x_axis)
@@ -151,6 +150,8 @@ class DisplayMixin:
             Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow` or
             whatever ``plot_fn`` is set to.
         """
+        import matplotlib.pyplot as plt
+
         audio_data = self.audio_data[0, 0].detach().cpu()
         sample_rate = self.sample_rate
         writer.add_audio(tag, audio_data, step, sample_rate)
@@ -182,6 +183,8 @@ class DisplayMixin:
             Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow` or
             whatever ``plot_fn`` is set to.
         """
+        import matplotlib.pyplot as plt
+
         if isinstance(plot_fn, str):
             plot_fn = getattr(self, plot_fn)
 

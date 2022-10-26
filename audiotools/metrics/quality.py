@@ -1,5 +1,4 @@
 import numpy as np
-import pystoi
 import torch
 
 from .. import AudioSignal
@@ -43,6 +42,8 @@ def stoi(
         Intelligibility of Speech Masked by Modulated Noise Maskers',
         IEEE Transactions on Audio, Speech and Language Processing, 2016.
     """
+    import pystoi
+
     estimates = estimates.clone().to_mono()
     references = references.clone().to_mono()
 

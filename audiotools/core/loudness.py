@@ -2,14 +2,13 @@ import copy
 
 import julius
 import numpy as np
-import pyloudnorm
 import scipy
 import torch
 import torch.nn.functional as F
 import torchaudio
 
 
-class Meter(torch.nn.Module, pyloudnorm.Meter):
+class Meter(torch.nn.Module):
     """Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.
 
     Parameters
@@ -246,6 +245,19 @@ class Meter(torch.nn.Module, pyloudnorm.Meter):
 
         LUFS = -0.691 + 10.0 * torch.log10((G[None, :nch] * z_avg_gated).sum(1))
         return LUFS.float()
+
+    @property
+    def filter_class(self):
+        return self._filter_class
+
+    @filter_class.setter
+    def filter_class(self, value):
+        from pyloudnorm import Meter
+
+        meter = Meter(self.rate)
+        meter.filter_class = value
+        self._filter_class = value
+        self._filters = meter._filters
 
 
 class LoudnessMixin:
