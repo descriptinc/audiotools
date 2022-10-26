@@ -11,6 +11,19 @@ import torch
 from audiotools import AudioSignal
 
 
+def get_actual_duration(path):
+    duration = subprocess.check_output(
+        shlex.split(
+            f"ffprobe -v error -show_entries "
+            f"format=duration -of "
+            f"default=noprint_wrappers=1:nokey=1 "
+            f"{path}"
+        )
+    )
+    duration = float(duration)
+    return duration
+
+
 @pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])
 def test_ffmpeg_resample(sample_rate):
     array = np.random.randn(4, 2, 16000)
@@ -55,7 +68,8 @@ def test_ffmpeg_load():
         subprocess.check_call(shlex.split(command))
 
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(f.name)
-        assert og_signal.signal_length == signal_from_ffmpeg.signal_length
+        target_duration = get_actual_duration(f.name)
+        assert np.allclose(target_duration, signal_from_ffmpeg.signal_duration)
 
     # test spaces in title
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -100,15 +114,7 @@ def test_ffmpeg_audio_offset():
         )
 
         # Get the duration of the video
-        duration = subprocess.check_output(
-            shlex.split(
-                f"ffprobe -v error -show_entries "
-                f"format=duration -of "
-                f"default=noprint_wrappers=1:nokey=1 "
-                f"{delayed_video}"
-            )
-        )
-        duration = float(duration)
+        duration = get_actual_duration(delayed_video)
 
         # assert the length of a signal loaded from the
         # video and the audio are the same
