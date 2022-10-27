@@ -219,39 +219,41 @@ class AudioSignal(
         **kwargs,
     ):
         """Similar to AudioSignal.excerpt, except it extracts excerpts only
-        if they are above a specified loudness threshold, which is computed via
-        a fast LUFS routine.
+                if they are above a specified loudness threshold, which is computed via
+                a fast LUFS routine.
 
-        Parameters
-        ----------
-        audio_path : typing.Union[str, Path]
-            Path to audio file to grab excerpt from.
-        loudness_cutoff : float, optional
-            Loudness threshold in dB. Typical values are -40, -60,
-            etc, by default None
-        num_tries : int, optional
-            Number of tries to grab an excerpt above the threshold
-            before giving up, by default 8.
-            NOTE: if set to None, will try forever, which can
+                Parameters
+                ----------
+                audio_path : typing.Union[str, Path]
+                    Path to audio file to grab excerpt from.
+                loudness_cutoff : float, optional
+                    Loudness threshold in dB. Typical values are -40, -60,
+                    etc, by default None
+                num_tries : int, optional
+                    Number of tries to grab an excerpt above the threshold
+                    before giving up, by default 8.
+                state : typing.Union[np.random.RandomState, int], optional
+                    RandomState or seed of random state, by default None
+                kwargs : dict
+                    Keyword arguments to AudioSignal.excerpt
+
+                Returns
+                -------
+                AudioSignal
+                    AudioSignal containing excerpt.
+
+        .. warning::
+            if `num_tries` is set to None, `salient_excerpt` will try forever, which can
             result in an infinite loop if `audio_path` does not have
             any loud enough excerpts.
-        state : typing.Union[np.random.RandomState, int], optional
-            RandomState or seed of random state, by default None
-        kwargs : dict
-            Keyword arguments to AudioSignal.excerpt
 
-        Returns
-        -------
-        AudioSignal
-            AudioSignal containing excerpt.
-
-        Examples
-        --------
-        >>> signal = AudioSignal.salient_excerpt(
-                "path/to/audio",
-                loudness_cutoff=-40,
-                duration=5
-            )
+                Examples
+                --------
+                >>> signal = AudioSignal.salient_excerpt(
+                        "path/to/audio",
+                        loudness_cutoff=-40,
+                        duration=5
+                    )
         """
         state = util.random_state(state)
         if loudness_cutoff is None:
@@ -264,12 +266,6 @@ class AudioSignal(
                 loudness = excerpt.loudness()
                 num_try += 1
                 if num_tries is not None and num_try >= num_tries:
-                    warnings.warn(
-                        f"Exceeded the number of tries ({num_tries}) "
-                        "to find an excerpt above the "
-                        f"loudness cutoff ({loudness_cutoff})! "
-                        "Will return the last excerpt examined."
-                    )
                     break
         return excerpt
 
