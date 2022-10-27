@@ -243,7 +243,7 @@ class AudioSignal(
                     AudioSignal containing excerpt.
 
         .. warning::
-            if `num_tries` is set to None, `salient_excerpt` will try forever, which can
+            if `num_tries` is set to None, `salient_excerpt` may try forever, which can
             result in an infinite loop if `audio_path` does not have
             any loud enough excerpts.
 
