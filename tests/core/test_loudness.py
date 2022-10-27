@@ -18,7 +18,6 @@ def test_loudness_against_pyln():
     meter = pyloudnorm.Meter(
         signal.sample_rate, filter_class="K-weighting", block_size=0.4
     )
-    meter.filter_class  # access property for code-cov
     py_loudness = meter.integrated_loudness(signal.numpy()[0].T)
     assert np.allclose(signal_loudness, py_loudness)
 
@@ -41,6 +40,7 @@ def test_batch_loudness():
     py_loudness = [meter.integrated_loudness(array[i].T) for i in range(array.shape[0])]
 
     meter = Meter(16000)
+    meter.filter_class
     at_loudness_iso = [
         meter.integrated_loudness(array[i].T).item() for i in range(array.shape[0])
     ]
