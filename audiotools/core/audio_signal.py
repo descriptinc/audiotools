@@ -844,6 +844,9 @@ class AudioSignal(
         self._loudness = None
         return
 
+    # alias for audio_data
+    samples = audio_data
+
     @property
     def stft_data(self):
         """Returns the STFT data inside the signal. Shape is
@@ -908,6 +911,9 @@ class AudioSignal(
             Length of signal in seconds.
         """
         return self.signal_length / self.sample_rate
+
+    # alias for signal_duration
+    duration = signal_duration
 
     @property
     def num_channels(self):
