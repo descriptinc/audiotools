@@ -118,7 +118,7 @@ def test_salient_excerpt(loudness_cutoff):
 
         signal.write(f.name)
         signal = AudioSignal.salient_excerpt(
-            f.name, loudness_cutoff=loudness_cutoff, duration=1
+            f.name, loudness_cutoff=loudness_cutoff, duration=1, num_tries=None
         )
 
         assert "offset" in signal.metadata

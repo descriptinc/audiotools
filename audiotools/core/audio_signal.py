@@ -214,7 +214,7 @@ class AudioSignal(
         cls,
         audio_path: typing.Union[str, Path],
         loudness_cutoff: float = None,
-        num_tries: int = None,
+        num_tries: int = 8,
         state: typing.Union[np.random.RandomState, int] = None,
         **kwargs,
     ):
@@ -231,7 +231,10 @@ class AudioSignal(
             etc, by default None
         num_tries : int, optional
             Number of tries to grab an excerpt above the threshold
-            before giving up, by default None
+            before giving up, by default 8.
+            NOTE: if set to None, will try forever, which can
+            result in an infinite loop if `audio_path` does not have
+            any loud enough excerpts.
         state : typing.Union[np.random.RandomState, int], optional
             RandomState or seed of random state, by default None
         kwargs : dict
@@ -261,6 +264,12 @@ class AudioSignal(
                 loudness = excerpt.loudness()
                 num_try += 1
                 if num_tries is not None and num_try >= num_tries:
+                    warnings.warn(
+                        f"Exceeded the number of tries ({num_tries}) "
+                        "to find an excerpt above the "
+                        f"loudness cutoff ({loudness_cutoff})! "
+                        "Will return the last excerpt examined."
+                    )
                     break
         return excerpt
 

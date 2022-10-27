@@ -1,5 +1,7 @@
 import tempfile
 import timeit
+from ast import Str
+from unittest.util import strclass
 
 import librosa
 import torch
@@ -59,6 +61,20 @@ class TorchSignal(AudioSignal):
         return self.to(device)
 
 
+def profile_salient_excerpt(filename: str, duration: float, num_tries: int):
+    def func():
+        signal = AudioSignal.salient_excerpt(
+            filename, num_tries=num_tries, duration=duration, loudness_cutoff=-40
+        )
+
+    print(f"-------------------")
+    print(f"Profiling salient excerpt from {filename} with {num_tries} tries")
+    time = timeit.timeit(func, number=10)
+    print(f"Total time: {time}")
+    print(f"Time per try: {time / num_tries}")
+    print()
+
+
 # Load 2 second excerpt from a 2 hour file
 with tempfile.NamedTemporaryFile(suffix=".wav") as f:
     signal = AudioSignal(torch.randn(44100 * 60 * 60), 44100)
@@ -78,3 +94,11 @@ with tempfile.NamedTemporaryFile(suffix=".wav") as f:
     print(f"Torch loading took {torch_time}")
 
     print(f"Librosa is {torch_time / librosa_time}x faster than Torch")
+
+    signal = AudioSignal.zeros(2 * 60 * 60, 48000)
+    signal.write(f.name)
+
+    profile_salient_excerpt(f.name, 5.0, 4)
+    profile_salient_excerpt(f.name, 5.0, 8)
+    profile_salient_excerpt(f.name, 5.0, 10)
+    profile_salient_excerpt(f.name, 5.0, 12)
