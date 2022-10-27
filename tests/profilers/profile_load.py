@@ -18,6 +18,8 @@ class LibrosaSignal(AudioSignal):
             sr=None,
         )
         data = torch.from_numpy(data)
+        while data.ndim < 3:
+            data = data.unsqueeze(0)
 
         self.audio_data = data
         self.original_signal_length = self.signal_length
@@ -46,6 +48,8 @@ class TorchSignal(AudioSignal):
         }
 
         data, sample_rate = torchaudio.load(audio_path, **kwargs)
+        while data.ndim < 3:
+            data = data.unsqueeze(0)
 
         self.audio_data = data
         self.original_signal_length = self.signal_length
