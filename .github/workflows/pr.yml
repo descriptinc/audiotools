@@ -33,7 +33,6 @@ jobs:
             ${{ runner.os }}-${{ matrix.python-version }}-pip-
       - name: Checkout LFS objects
         run: git lfs checkout
-      steps:
       - name: Install binaries
         run: |
           sudo apt-get update
