@@ -1,6 +1,7 @@
 import shlex
 import subprocess
 import tempfile
+from pathlib import Path
 
 import ffmpy
 import numpy as np
@@ -149,23 +150,31 @@ class FFMPEGMixin:
             AudioSignal loaded from file with FFMPEG.
         """
         audio_path = str(audio_path)
-        with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+        with tempfile.TemporaryDirectory() as d:
+            wav_file = str(Path(d) / "extracted.wav")
+            padded_wav = str(Path(d) / "padded.wav")
+
             global_options = "-y"
             if quiet:
                 global_options += " -loglevel error"
 
             ff = ffmpy.FFmpeg(
                 inputs={audio_path: None},
-                outputs={f.name: None},
+                outputs={wav_file: None},
                 global_options=global_options,
             )
             ff.run()
-            signal = cls(f.name, **kwargs)
 
-            # Check duration of original file and zero-pad if
-            # audio duration doesn't match video duration
-            duration = ffprobe_duration(audio_path)
-            if duration > signal.signal_duration:
-                signal.zero_pad_to(int(duration * signal.sample_rate), "before")
+            wav_duration = ffprobe_duration(wav_file)
+            in_duration = ffprobe_duration(audio_path)
+
+            pad = max(in_duration - wav_duration, 0)
+            ff = ffmpy.FFmpeg(
+                inputs={wav_file: None},
+                outputs={padded_wav: f"-af 'adelay={pad}s:all=true'"},
+                global_options=global_options,
+            )
+            ff.run()
+            signal = cls(padded_wav, **kwargs)
 
         return signal

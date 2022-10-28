@@ -125,5 +125,5 @@ def test_ffmpeg_audio_offset():
         # is the encoded delay)
         idx_a = signal.audio_data[0, 0].nonzero()[0]
         idx_b = remuxed.audio_data[0, 0].nonzero()[0]
-        # Error of less than 20 samples
-        assert abs(idx_a - idx_b) < 20
+        # Error of less than 50 samples
+        assert abs(idx_a - idx_b) < 50
