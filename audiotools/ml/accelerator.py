@@ -6,8 +6,8 @@ import torch.distributed as dist
 from torch.nn.parallel import DataParallel
 from torch.nn.parallel import DistributedDataParallel
 
-from audiotools.data.datasets import ResumableDistributedSampler as DistributedSampler
-from audiotools.data.datasets import ResumableSequentialSampler as SequentialSampler
+from ..data.datasets import ResumableDistributedSampler as DistributedSampler
+from ..data.datasets import ResumableSequentialSampler as SequentialSampler
 
 
 class Accelerator:  # pragma: no cover
@@ -156,6 +156,7 @@ class Accelerator:  # pragma: no cover
         _type_
             _description_
         """
+
         if self.use_ddp:
             sampler = DistributedSampler(
                 dataset,

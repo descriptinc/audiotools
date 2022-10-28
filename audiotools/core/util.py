@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchaudio
@@ -422,7 +420,7 @@ DEFAULT_FIG_SIZE = (9, 3)
 def format_figure(
     fig_size: tuple = None,
     title: str = None,
-    fig: matplotlib.figure.Figure = None,
+    fig=None,
     format_axes: bool = True,
     format: bool = True,
     font_color: str = "white",
@@ -452,6 +450,9 @@ def format_figure(
     font_color : str, optional
         Color of font of axes, by default "white"
     """
+    import matplotlib
+    import matplotlib.pyplot as plt
+
     if fig_size is None:
         fig_size = DEFAULT_FIG_SIZE
     if not format:

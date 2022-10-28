@@ -30,6 +30,8 @@ def test_io():
         audio_path.replace("wav", "mp3"), offset=5, duration=5
     )
     assert mp3_signal.signal_duration == 5.0
+    assert mp3_signal.duration == 5.0
+    assert mp3_signal.length == mp3_signal.signal_length
 
     rich.print(signal)
 
@@ -46,15 +48,18 @@ def test_io():
 
     signal = AudioSignal(audio_path, offset=10, duration=10)
     assert np.allclose(signal.signal_duration, 10.0)
+    assert np.allclose(signal.duration, 10.0)
 
     signal = AudioSignal.excerpt(audio_path, offset=5, duration=5)
     assert signal.signal_duration == 5.0
+    assert signal.duration == 5.0
 
     assert "offset" in signal.metadata
     assert "duration" in signal.metadata
 
     signal = AudioSignal(torch.randn(1000), 44100)
     assert signal.audio_data.ndim == 3
+    assert torch.all(signal.samples == signal.audio_data)
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     assert AudioSignal(audio_path).hash() == AudioSignal(audio_path).hash()
@@ -118,7 +123,7 @@ def test_salient_excerpt(loudness_cutoff):
 
         signal.write(f.name)
         signal = AudioSignal.salient_excerpt(
-            f.name, loudness_cutoff=loudness_cutoff, duration=1
+            f.name, loudness_cutoff=loudness_cutoff, duration=1, num_tries=None
         )
 
         assert "offset" in signal.metadata
@@ -282,6 +287,7 @@ def test_indexing():
 def test_zeros():
     x = AudioSignal.zeros(0.5, 44100)
     assert x.signal_duration == 0.5
+    assert x.duration == 0.5
     assert x.sample_rate == 44100
 
 

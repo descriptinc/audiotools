@@ -11,7 +11,6 @@ from datetime import timedelta
 
 import ignite
 import torch
-import torchmetrics
 from ignite.engine.events import Events
 from ignite.handlers import TerminateOnNan
 from ignite.handlers import Timer as IgniteTimer
@@ -24,10 +23,13 @@ from rich.progress import SpinnerColumn
 from rich.progress import TimeElapsedColumn
 from rich.progress import TimeRemainingColumn
 from rich.table import Table
-from torch.utils.tensorboard import SummaryWriter
 
 
-def _iter_summary(output, width=None) -> Table:
+class BaseTrainer:
+    pass
+
+
+def _iter_summary(output, width=None):
     """Make a table summarizing each iteration."""
     table = Table(expand=True, width=width)
     table.add_column("Key", style="cyan")
@@ -39,7 +41,7 @@ def _iter_summary(output, width=None) -> Table:
     return table
 
 
-def _epoch_summary(epoch, output, width=None) -> Table:
+def _epoch_summary(epoch, output, width=None):
     """Make a table summarizing each epoch."""
     expand = width is not None
     table = Table(title=f"Summary for Epoch {epoch}", expand=expand, width=width)
@@ -146,7 +148,7 @@ class BaseTrainer:
 
     def __init__(
         self,
-        writer: SummaryWriter = None,
+        writer=None,
         width: int = 87,
         refresh_rate: float = 1.0,
         rank: int = 0,
@@ -200,6 +202,8 @@ class BaseTrainer:
 
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+        import torchmetrics
 
         f = lambda: {
             "smoothed": torchmetrics.MeanMetric(),

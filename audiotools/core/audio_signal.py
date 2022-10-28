@@ -10,12 +10,9 @@ from collections import namedtuple
 from pathlib import Path
 
 import julius
-import librosa
 import numpy as np
+import soundfile
 import torch
-import torchaudio
-from librosa.filters import mel as librosa_mel_fn
-from scipy import signal
 
 from . import util
 from .display import DisplayMixin
@@ -217,7 +214,7 @@ class AudioSignal(
         cls,
         audio_path: typing.Union[str, Path],
         loudness_cutoff: float = None,
-        num_tries: int = None,
+        num_tries: int = 8,
         state: typing.Union[np.random.RandomState, int] = None,
         **kwargs,
     ):
@@ -230,11 +227,11 @@ class AudioSignal(
         audio_path : typing.Union[str, Path]
             Path to audio file to grab excerpt from.
         loudness_cutoff : float, optional
-            Loudness threshold in dB. Typical values are -40, -60,
+            Loudness threshold in dB. Typical values are ``-40, -60``,
             etc, by default None
         num_tries : int, optional
             Number of tries to grab an excerpt above the threshold
-            before giving up, by default None
+            before giving up, by default 8.
         state : typing.Union[np.random.RandomState, int], optional
             RandomState or seed of random state, by default None
         kwargs : dict
@@ -244,6 +241,12 @@ class AudioSignal(
         -------
         AudioSignal
             AudioSignal containing excerpt.
+
+
+        .. warning::
+            if ``num_tries`` is set to None, ``salient_excerpt`` may try forever, which can
+            result in an infinite loop if ``audio_path`` does not have
+            any loud enough excerpts.
 
         Examples
         --------
@@ -421,6 +424,8 @@ class AudioSignal(
         AudioSignal
             AudioSignal loaded from file
         """
+        import librosa
+
         data, sample_rate = librosa.load(
             audio_path,
             offset=offset,
@@ -517,7 +522,7 @@ class AudioSignal(
         """
         if self.audio_data[0].abs().max() > 1:
             warnings.warn("Audio amplitude > 1 clipped when saving")
-        torchaudio.save(str(audio_path), self.audio_data[0], self.sample_rate)
+        soundfile.write(str(audio_path), self.audio_data[0].numpy().T, self.sample_rate)
         return self
 
     def deepcopy(self):
@@ -836,6 +841,9 @@ class AudioSignal(
         self._loudness = None
         return
 
+    # alias for audio_data
+    samples = audio_data
+
     @property
     def stft_data(self):
         """Returns the STFT data inside the signal. Shape is
@@ -879,6 +887,9 @@ class AudioSignal(
         """
         return self.audio_data.shape[-1]
 
+    # alias for signal_length
+    length = signal_length
+
     @property
     def shape(self):
         """Shape of audio data.
@@ -900,6 +911,9 @@ class AudioSignal(
             Length of signal in seconds.
         """
         return self.signal_length / self.sample_rate
+
+    # alias for signal_duration
+    duration = signal_duration
 
     @property
     def num_channels(self):
@@ -934,6 +948,8 @@ class AudioSignal(
         torch.Tensor
             Window returned by scipy.signal.get_window, as a tensor.
         """
+        from scipy import signal
+
         if window_type == "average":
             window = np.ones(window_length) / window_length
         elif window_type == "sqrt_hann":
@@ -1225,6 +1241,8 @@ class AudioSignal(
         np.ndarray [shape=(n_mels, 1 + n_fft/2)]
             Mel transform matrix
         """
+        from librosa.filters import mel as librosa_mel_fn
+
         return librosa_mel_fn(
             sr=sr,
             n_fft=n_fft,

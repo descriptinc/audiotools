@@ -11,7 +11,6 @@ import subprocess
 from tempfile import NamedTemporaryFile
 
 import importlib_resources as pkg_resources
-import matplotlib.pyplot as plt
 
 from . import templates
 from .util import _close_temp_files
@@ -132,6 +131,7 @@ class PlayMixin:
         HTML
             HTML object.
         """
+        import matplotlib.pyplot as plt
 
         def _save_fig_to_tag():
             buffer = io.BytesIO()

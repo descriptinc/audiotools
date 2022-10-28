@@ -1,6 +1,7 @@
 import shlex
 import subprocess
 import tempfile
+from pathlib import Path
 
 import ffmpy
 import numpy as np
@@ -57,6 +58,15 @@ def r128stats(filepath: str, quiet: bool):
     }
 
     return stats_dict
+
+
+def ffprobe_duration(path):
+    ff = ffmpy.FFprobe(
+        inputs={path: None},
+        global_options="-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1",
+    )
+    duration = float(ff.run(stdout=subprocess.PIPE)[0])
+    return duration
 
 
 class FFMPEGMixin:
@@ -139,16 +149,39 @@ class FFMPEGMixin:
         AudioSignal
             AudioSignal loaded from file with FFMPEG.
         """
-        with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+        audio_path = str(audio_path)
+        with tempfile.TemporaryDirectory() as d:
+            wav_file = str(Path(d) / "extracted.wav")
+            padded_wav = str(Path(d) / "padded.wav")
+
             global_options = "-y"
             if quiet:
                 global_options += " -loglevel error"
 
             ff = ffmpy.FFmpeg(
                 inputs={audio_path: None},
-                outputs={f.name: None},
+                outputs={wav_file: None},
                 global_options=global_options,
             )
             ff.run()
-            signal = cls(f.name, **kwargs)
+
+            # We pad the file to match the same duration
+            # in case it's an audio stream starting at some
+            # offset in a video container.
+            wav_duration = ffprobe_duration(wav_file)
+            in_duration = ffprobe_duration(audio_path)
+            pad = max(in_duration - wav_duration, 0)
+            # Don't pad files with discrepancies less than
+            # 0.05s - it's likely due to codec latency.
+            if pad < 0.05:
+                pad = 0.0
+            ff = ffmpy.FFmpeg(
+                inputs={wav_file: None},
+                outputs={padded_wav: f"-af 'adelay={pad}s:all=true'"},
+                global_options=global_options,
+            )
+            ff.run()
+
+            signal = cls(padded_wav, **kwargs)
+
         return signal
