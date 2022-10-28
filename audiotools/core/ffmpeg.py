@@ -165,16 +165,23 @@ class FFMPEGMixin:
             )
             ff.run()
 
+            # We pad the file to match the same duration
+            # in case it's an audio stream starting at some
+            # offset in a video container.
             wav_duration = ffprobe_duration(wav_file)
             in_duration = ffprobe_duration(audio_path)
-
             pad = max(in_duration - wav_duration, 0)
+            # Don't pad files with discrepancies less than
+            # 0.05s - it's likely due to codec latency.
+            if pad < 0.05:
+                pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
                 outputs={padded_wav: f"-af 'adelay={pad}s:all=true'"},
                 global_options=global_options,
             )
             ff.run()
+
             signal = cls(padded_wav, **kwargs)
 
         return signal

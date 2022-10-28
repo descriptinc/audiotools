@@ -55,8 +55,7 @@ def test_ffmpeg_load():
         subprocess.check_call(shlex.split(command))
 
         signal_from_ffmpeg = AudioSignal.load_from_file_with_ffmpeg(f.name)
-        target_duration = get_actual_duration(f.name)
-        assert np.allclose(target_duration, signal_from_ffmpeg.signal_duration)
+        assert og_signal.signal_length == signal_from_ffmpeg.signal_length
 
     # test spaces in title
     with tempfile.TemporaryDirectory() as tmpdir:
