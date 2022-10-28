@@ -162,10 +162,10 @@ class FFMPEGMixin:
             ff.run()
             signal = cls(f.name, **kwargs)
 
-            # Check duration if original file and zero-pad if
+            # Check duration of original file and zero-pad if
             # audio duration doesn't match video duration
             duration = ffprobe_duration(audio_path)
             if duration > signal.signal_duration:
-                signal.zero_pad_to(int(duration * signal.sample_rate))
+                signal.zero_pad_to(int(duration * signal.sample_rate), "before")
 
         return signal

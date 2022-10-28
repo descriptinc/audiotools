@@ -11,19 +11,6 @@ import torch
 from audiotools import AudioSignal
 
 
-def get_actual_duration(path):
-    duration = subprocess.check_output(
-        shlex.split(
-            f"ffprobe -v error -show_entries "
-            f"format=duration -of "
-            f"default=noprint_wrappers=1:nokey=1 "
-            f"{path}"
-        )
-    )
-    duration = float(duration)
-    return duration
-
-
 @pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100, 48000])
 def test_ffmpeg_resample(sample_rate):
     array = np.random.randn(4, 2, 16000)
@@ -91,32 +78,52 @@ def test_ffmpeg_load():
 def test_ffmpeg_audio_offset():
     with tempfile.TemporaryDirectory() as d:
         video_path = Path(d) / "test.mp4"
+        audio_path = Path(d) / "test.wav"
         delayed_video = Path(d) / "test_delayed.mp4"
+        delayed_audio = Path(d) / "test_audio.wav"
+        remuxed_video = Path(d) / "test_remuxed.mp4"
 
         # Create a test video
         subprocess.run(
             shlex.split(
                 f"ffmpeg -y -f lavfi "
-                f"-i testsrc=d=5:s=120x120:r=24,format=yuv420p "
+                f"-i testsrc=d=5:s=120x120:r=60,format=yuv420p "
                 f"-f lavfi -i sine=f=440:b=4 "
                 f"-shortest {video_path} -loglevel error"
             )
         )
 
+        signal = AudioSignal(video_path)
+        signal.write(audio_path)
+
         # Create a video with the audio offset by 1 second
         subprocess.run(
             shlex.split(
                 f"ffmpeg -y -i {video_path} "
-                f"-itsoffset 1.0 -i {video_path} "
-                f"-map 0:v -map 1:a "
-                f"-c copy {delayed_video} -loglevel error "
+                f"-itsoffset 1.0 -i {audio_path} "
+                f"-c:v copy -c:a aac -map 0:v:0 -map 1:a:0 "
+                f"{delayed_video} -loglevel error "
             )
         )
-
-        # Get the duration of the video
-        duration = get_actual_duration(delayed_video)
-
-        # assert the length of a signal loaded from the
-        # video and the audio are the same
         signal = AudioSignal.load_from_file_with_ffmpeg(delayed_video)
-        assert np.allclose(signal.signal_duration, duration)
+
+        # Mux the read signal with the video, and then re-read it
+        # to make sure it stays the same.
+        signal.write(delayed_audio)
+        subprocess.run(
+            shlex.split(
+                f"ffmpeg -i {delayed_video} "
+                f"-i {delayed_audio} -c:v "
+                f"copy -c:a aac -map 0:v:0 "
+                f"-map 1:a:0 {remuxed_video} -loglevel error"
+            )
+        )
+        remuxed = AudioSignal.load_from_file_with_ffmpeg(remuxed_video)
+
+        # Muxing encodes the audio, changing it so the best
+        # we can do is compare the first nonzero offset (which
+        # is the encoded delay)
+        idx_a = signal.audio_data[0, 0].nonzero()[0]
+        idx_b = remuxed.audio_data[0, 0].nonzero()[0]
+        # Error of less than 20 samples
+        assert abs(idx_a - idx_b) < 20

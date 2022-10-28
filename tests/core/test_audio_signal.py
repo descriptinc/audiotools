@@ -31,6 +31,7 @@ def test_io():
     )
     assert mp3_signal.signal_duration == 5.0
     assert mp3_signal.duration == 5.0
+    assert mp3_signal.length == mp3_signal.signal_length
 
     rich.print(signal)
 

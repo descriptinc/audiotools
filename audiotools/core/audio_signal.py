@@ -11,8 +11,8 @@ from pathlib import Path
 
 import julius
 import numpy as np
+import soundfile
 import torch
-import torchaudio
 
 from . import util
 from .display import DisplayMixin
@@ -522,7 +522,7 @@ class AudioSignal(
         """
         if self.audio_data[0].abs().max() > 1:
             warnings.warn("Audio amplitude > 1 clipped when saving")
-        torchaudio.save(str(audio_path), self.audio_data[0], self.sample_rate)
+        soundfile.write(str(audio_path), self.audio_data[0].numpy().T, self.sample_rate)
         return self
 
     def deepcopy(self):
@@ -886,6 +886,9 @@ class AudioSignal(
             Length of signal in samples.
         """
         return self.audio_data.shape[-1]
+
+    # alias for signal_length
+    length = signal_length
 
     @property
     def shape(self):
