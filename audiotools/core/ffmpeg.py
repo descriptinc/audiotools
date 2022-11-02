@@ -177,7 +177,7 @@ class FFMPEGMixin:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
-                outputs={padded_wav: f"-af 'adelay={pad}s:all=true'"},
+                outputs={padded_wav: f"-af 'adelay={1000*pad}:all=true'"},
                 global_options=global_options,
             )
             ff.run()
