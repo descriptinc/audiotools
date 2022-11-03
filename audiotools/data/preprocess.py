@@ -2,6 +2,8 @@ import csv
 import os
 from pathlib import Path
 
+from tqdm import tqdm
+
 from ..core import AudioSignal
 
 
@@ -52,8 +54,10 @@ def create_csv(
         data_path = Path(os.getenv("PATH_TO_DATA", ""))
 
     info = []
-    for af in audio_files:
+    pbar = tqdm(audio_files)
+    for af in pbar:
         af = Path(af)
+        pbar.set_description(f"Processing {af.name}")
         _info = {}
         _info["path"] = af.relative_to(data_path)
         if loudness:
