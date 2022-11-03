@@ -59,13 +59,13 @@ setup(
         "protobuf >= 3.9.2, < 3.20",
         "torchmetrics>=0.7.3",
         "tensorboard",
+        "tqdm",
     ],
     extras_require={
         "tests": [
             "pytest",
             "pytest-cov",
             "line_profiler",
-            "tqdm",
             "pesq",
         ],
         "docs": [
