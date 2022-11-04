@@ -174,7 +174,7 @@ class FFMPEGMixin:
             )
             ff.run()
 
-            # We pad the file to match the same duration
+            # We pad the file using the start time offset
             # in case it's an audio stream starting at some
             # offset in a video container.
             pad, sec = ffprobe_offset(audio_path)
