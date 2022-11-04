@@ -189,9 +189,6 @@ class FFMPEGMixin:
             )
             ff.run()
 
-            # Create a video that mixes the audio and video
-            # together
-
             signal = cls(padded_wav, **kwargs)
 
         return signal
