@@ -1,3 +1,4 @@
+import json
 import shlex
 import subprocess
 import tempfile
@@ -60,13 +61,20 @@ def r128stats(filepath: str, quiet: bool):
     return stats_dict
 
 
-def ffprobe_duration(path):
+def ffprobe_offset(path):
     ff = ffmpy.FFprobe(
         inputs={path: None},
-        global_options="-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1",
+        global_options="-show_entries format=start_time:stream=duration,start_time,codec_type,start_pts,time_base -of json -v quiet",
     )
-    duration = float(ff.run(stdout=subprocess.PIPE)[0])
-    return duration
+    streams = json.loads(ff.run(stdout=subprocess.PIPE)[0])["streams"]
+    offset = 0.0
+    # Get the offset of the first audio stream we find
+    # and return its start time, if it has one.
+    for stream in streams:
+        if stream["codec_type"] == "audio":
+            offset = stream.get("start_time", 0.0)
+            break
+    return float(offset)
 
 
 class FFMPEGMixin:
@@ -168,9 +176,7 @@ class FFMPEGMixin:
             # We pad the file to match the same duration
             # in case it's an audio stream starting at some
             # offset in a video container.
-            wav_duration = ffprobe_duration(wav_file)
-            in_duration = ffprobe_duration(audio_path)
-            pad = max(in_duration - wav_duration, 0)
+            pad = ffprobe_offset(audio_path)
             # Don't pad files with discrepancies less than
             # 0.05s - it's likely due to codec latency.
             if pad < 0.05:
@@ -181,6 +187,9 @@ class FFMPEGMixin:
                 global_options=global_options,
             )
             ff.run()
+
+            # Create a video that mixes the audio and video
+            # together
 
             signal = cls(padded_wav, **kwargs)
 
