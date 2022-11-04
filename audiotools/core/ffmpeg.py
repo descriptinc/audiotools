@@ -1,3 +1,4 @@
+import json
 import shlex
 import subprocess
 import tempfile
@@ -60,13 +61,21 @@ def r128stats(filepath: str, quiet: bool):
     return stats_dict
 
 
-def ffprobe_duration(path):
+def ffprobe_offset(path):
     ff = ffmpy.FFprobe(
         inputs={path: None},
-        global_options="-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1",
+        global_options="-show_entries format=start_time:stream=duration,start_time,codec_type,start_pts,time_base -of json -v quiet",
     )
-    duration = float(ff.run(stdout=subprocess.PIPE)[0])
-    return duration
+    streams = json.loads(ff.run(stdout=subprocess.PIPE)[0])["streams"]
+    samples_offset, seconds_offset = 0, 0.0
+    # Get the offset of the first audio stream we find
+    # and return its start time, if it has one.
+    for stream in streams:
+        if stream["codec_type"] == "audio":
+            samples_offset = stream.get("start_pts", 0)
+            seconds_offset = stream.get("start_time", 0.0)
+            break
+    return int(samples_offset), float(seconds_offset)
 
 
 class FFMPEGMixin:
@@ -165,19 +174,17 @@ class FFMPEGMixin:
             )
             ff.run()
 
-            # We pad the file to match the same duration
+            # We pad the file using the start time offset
             # in case it's an audio stream starting at some
             # offset in a video container.
-            wav_duration = ffprobe_duration(wav_file)
-            in_duration = ffprobe_duration(audio_path)
-            pad = max(in_duration - wav_duration, 0)
+            pad, sec = ffprobe_offset(audio_path)
             # Don't pad files with discrepancies less than
             # 0.05s - it's likely due to codec latency.
-            if pad < 0.05:
-                pad = 0.0
+            if sec < 0.05:
+                pad = 0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
-                outputs={padded_wav: f"-af 'adelay={1000*pad}:all=true'"},
+                outputs={padded_wav: f"-af 'adelay={pad}S:all=true'"},
                 global_options=global_options,
             )
             ff.run()
