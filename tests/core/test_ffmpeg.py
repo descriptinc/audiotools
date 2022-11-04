@@ -125,4 +125,5 @@ def test_ffmpeg_audio_offset():
         idx_a = signal.audio_data[0, 0].nonzero()[0]
         idx_b = remuxed.audio_data[0, 0].nonzero()[0]
         # Error of less than 50 samples
+        print(idx_a, idx_b)
         assert abs(idx_a - idx_b) < 50
