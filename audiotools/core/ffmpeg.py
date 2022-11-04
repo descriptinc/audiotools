@@ -177,10 +177,6 @@ class FFMPEGMixin:
             # in case it's an audio stream starting at some
             # offset in a video container.
             pad = ffprobe_offset(audio_path)
-            # Don't pad files with discrepancies less than
-            # 0.05s - it's likely due to codec latency.
-            if pad < 0.05:
-                pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
                 outputs={padded_wav: f"-af 'adelay={1000*pad}:all=true'"},
