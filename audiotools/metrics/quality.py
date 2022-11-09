@@ -28,7 +28,7 @@ def stoi(
 
     Returns
     -------
-    float
+    Tensor[float]
         Short time objective intelligibility measure between clean and
         denoised speech
 
@@ -82,7 +82,7 @@ def pesq(
 
     Returns
     -------
-    float
+    Tensor[float]
         PESQ score: P.862.2 Prediction (MOS-LQO)
     """
     from pesq import pesq as pesq_fn
@@ -120,10 +120,10 @@ def visqol(
 
     Returns
     -------
-    float
+    Tensor[float]
         ViSQOL score (MOS-LQO)
     """
-    from python import visqol_lib_py
+    from pyvisqol import visqol_lib_py
     import visqol_config_pb2
     import similarity_result_pb2
 
@@ -141,7 +141,7 @@ def visqol(
     config.audio.sample_rate = target_sr
     config.options.svr_model_path = os.path.join(
         os.path.dirname(visqol_config_pb2.__file__),
-        "visqol.runfiles/__main__/model",
+        "pyvisqol/visqol_lib_py_test.runfiles/__main__/model",
         svr_model_path,
     )
 
