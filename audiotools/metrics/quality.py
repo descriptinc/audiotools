@@ -106,7 +106,7 @@ def visqol(
     estimates: AudioSignal,
     references: AudioSignal,
     mode: str = "audio",
-):
+):  # pragma: no cover
     """ViSQOL score.
 
     Parameters

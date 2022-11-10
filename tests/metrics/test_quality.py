@@ -55,27 +55,3 @@ def test_pesq():
         new_pesq = metrics.quality.pesq(estimate, x)
         assert new_pesq < old_pesq
         old_pesq = new_pesq
-
-
-def test_visqol():
-    audio_path = "tests/audio/spk/f10_script4_produced.wav"
-
-    x = AudioSignal.excerpt(audio_path, duration=1, offset=5, state=5)
-    y = x.deepcopy()
-    nz = AudioSignal(torch.rand_like(x.audio_data), x.sample_rate)
-    nz.normalize(-24)
-
-    loss_val_identity = metrics.quality.visqol(x, y)
-    assert loss_val_identity > 3.0
-
-    y = AudioSignal.excerpt(audio_path, duration=1, offset=5, state=0)
-
-    loss_val_diff = metrics.quality.visqol(x, y)
-    assert loss_val_diff < loss_val_identity
-
-    old_visqol = loss_val_identity
-    for snr in [50, 25, 10, 0, -10, -20]:
-        estimate = x.deepcopy().mix(nz.deepcopy(), snr=snr)
-        new_visqol = metrics.quality.visqol(estimate, x)
-        assert new_visqol < old_visqol
-        old_visqol = new_visqol
