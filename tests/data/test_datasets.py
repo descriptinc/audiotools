@@ -188,6 +188,32 @@ def test_csv_dataset():
         assert torch.allclose(signal[~mask].audio_data, original_)
 
 
+def test_multitrack_incoherent_dataset():
+    from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
+    from audiotools.core.util import generate_chord_dataset
+
+    generate_chord_dataset(max_voices=1, num_items=3, output_dir="tests/audio/chords")
+    dataset = CSVMultiTrackDataset(
+        sample_rate=44100,
+        n_examples=20,
+        csv_groups=[
+            {
+                "voice_0": "tests/audio/chords/voice_0.csv",
+                "voice_1": "tests/audio/chords/voice_0.csv",
+                "voice_2": "tests/audio/chords/voice_0.csv",
+            },
+        ],
+        coherent=False,
+    )
+    for i in range(10):
+        item = dataset[i]
+        assert len(item["signals"]) == 3
+        assert (
+            item["signals"]["voice_0"].path_to_file
+            != item["signals"]["voice_1"].path_to_file
+        )
+
+
 @pytest.mark.parametrize(
     "source_transforms",
     [

@@ -312,6 +312,7 @@ class MultiTrackAudioLoader:
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         offset: float = None,
+        coherent: bool = True,
     ):
         # pick a group of csvs
         csv_group_idx = state.choice(len(self.audio_lists), p=self.csv_weights)
@@ -320,8 +321,19 @@ class MultiTrackAudioLoader:
         csv_group = self.audio_lists[csv_group_idx]
         primary_key = self.primary_keys[csv_group_idx]
 
+        # if not coherent, sample the csv idxs for each track independently
+        if not coherent:
+            csv_idxs = state.choice(
+                len(csv_group[primary_key]), size=len(csv_group), replace=False
+            )
+            csv_idxs = {key: csv_idxs[i] for i, key in enumerate(csv_group.keys())}
+        else:
+            # otherwise, use the same csv idx for each track
+            choice_idx = state.choice(len(csv_group[primary_key]))
+            csv_idxs = {key: choice_idx for key in csv_group.keys()}
+
         # pick a row from the primary csv
-        csv_idx = state.choice(len(csv_group[primary_key]))
+        csv_idx = csv_idxs[primary_key]
         p_audio_info = csv_group[primary_key][csv_idx]
 
         # load the primary signal first,
@@ -349,6 +361,7 @@ class MultiTrackAudioLoader:
                 signals[audio_key] = primary_signal
                 continue
 
+            csv_idx = csv_idxs[audio_key]
             audio_info = audio_list[csv_idx]
 
             # if the path is empty, then skip
@@ -548,6 +561,11 @@ class CSVMultiTrackDataset(BaseDataset):
         Number of channels, by default 1
     transforms : Dict[str, typing.Callable], optional
         Dict of transforms, one for each source.
+    coherent : bool, optional
+        Whether to draw coherent excerpts, by default True.
+        A coherent item is one where the same CSV row is drawn
+        for each of the sources.
+        If False, then a random row is drawn for each source.
 
     Usage
     -----
@@ -599,11 +617,13 @@ class CSVMultiTrackDataset(BaseDataset):
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         transform: Dict[str, Callable] = None,
+        coherent: bool = True,
     ):
         self.loader = MultiTrackAudioLoader(csv_groups, csv_weights, primary_keys)
 
         self.num_channels = num_channels
         self.loudness_cutoff = loudness_cutoff
+        self.coherent = coherent
 
         if transform is None:
             transform = {}
@@ -638,6 +658,7 @@ class CSVMultiTrackDataset(BaseDataset):
             duration=self.duration,
             loudness_cutoff=self.loudness_cutoff,
             num_channels=self.num_channels,
+            coherent=self.coherent,
         )
 
         # Instantiate the transform.
