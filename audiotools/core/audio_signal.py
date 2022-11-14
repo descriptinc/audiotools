@@ -312,6 +312,60 @@ class AudioSignal(
         )
 
     @classmethod
+    def wave(
+        cls,
+        frequency: float,
+        duration: float,
+        sample_rate: int,
+        num_channels: int = 1,
+        shape: str = "saw",
+        **kwargs,
+    ):
+        """
+        Generate a waveform of a given frequency and shape.
+
+        Parameters
+        ----------
+        frequency : float
+            Frequency of the waveform
+        duration : float
+            Duration of the waveform
+        sample_rate : int
+            Sample rate of the waveform
+        num_channels : int, optional
+            Number of channels, by default 1
+        shape : str, optional
+            Shape of the waveform, by default "saw"
+            One of "sawtooth", "square", "sine", "triangle"
+        kwargs : dict
+            Keyword arguments to AudioSignal
+        """
+        n_samples = int(duration * sample_rate)
+        t = torch.linspace(0, duration, n_samples)
+        if shape == "sawtooth":
+            from scipy.signal import sawtooth
+
+            wave_data = sawtooth(2 * np.pi * frequency * t, 0.5)
+        elif shape == "square":
+            from scipy.signal import square
+
+            wave_data = square(2 * np.pi * frequency * t)
+        elif shape == "sine":
+            wave_data = np.sin(2 * np.pi * frequency * t)
+        elif shape == "triangle":
+            from scipy.signal import sawtooth
+
+            # frequency is doubled by the abs call, so omit the 2 in 2pi
+            wave_data = sawtooth(np.pi * frequency * t, 0.5)
+            wave_data = -np.abs(wave_data) * 2 + 1
+        else:
+            raise ValueError(f"Invalid shape {shape}")
+
+        wave_data = torch.tensor(wave_data, dtype=torch.float32)
+        wave_data = wave_data.unsqueeze(0).unsqueeze(0).repeat(1, num_channels, 1)
+        return cls(wave_data, sample_rate, **kwargs)
+
+    @classmethod
     def batch(
         cls,
         audio_signals: list,

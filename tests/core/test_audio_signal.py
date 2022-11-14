@@ -294,6 +294,13 @@ def test_zeros():
     assert x.sample_rate == 44100
 
 
+@pytest.mark.parametrize("shape", ["sine", "square", "sawtooth", "triangle"])
+def test_waves(shape: str):
+    x = AudioSignal.wave(440, 0.5, 44100, shape=shape)
+    assert x.duration == 0.5
+    assert x.sample_rate == 44100
+
+
 def test_zero_pad():
     array = np.random.randn(4, 2, 16000)
     sig1 = AudioSignal(array, sample_rate=16000)
