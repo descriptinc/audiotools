@@ -581,3 +581,4 @@ def test_batching():
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
     assert batched_signal.path_to_file == list(range(len(signals)))
+    assert batched_signal.path_to_input_file == batched_signal.path_to_file
