@@ -171,6 +171,9 @@ def load_signal(
         signal = signal.to_mono()
     signal = signal.resample(sample_rate)
 
+    if signal.duration < duration:
+        signal = signal.zero_pad_to(int(duration * sample_rate))
+
     return signal
 
 
@@ -231,7 +234,7 @@ class MultiTrackAudioLoader:
 
     For example, one may call this loader like this:
     ```
-    loader = MultiTrackAudioLoader2(
+    loader = MultiTrackAudioLoader(
         csv_groups = [
             {
                 "vocals": "datset1/vocals.csv",
@@ -344,6 +347,12 @@ class MultiTrackAudioLoader:
                 continue
 
             audio_info = audio_list[csv_idx]
+
+            # if the path is empty, then skip
+            # and add a zero signal later
+            if audio_info["path"] == "":
+                continue
+
             signal = load_signal(
                 path=audio_info["path"],
                 sample_rate=sample_rate,
@@ -366,6 +375,9 @@ class MultiTrackAudioLoader:
                     num_channels=num_channels,
                     sample_rate=sample_rate,
                 )
+
+        for signal in signals.values():
+            assert signal.duration == duration
 
         return signals, csv_group_idx
 
