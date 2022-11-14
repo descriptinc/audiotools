@@ -276,7 +276,10 @@ class MultiTrackAudioLoader:
         self.audio_lists = []
         for csv_dict in csv_groups:
             self.audio_lists.append(
-                {k: util.read_csv([v])[0] for k, v in csv_dict.items()}
+                {
+                    k: util.read_csv([v], remove_empty=False)[0]
+                    for k, v in csv_dict.items()
+                }
             )
 
         self.csv_groups = csv_groups
