@@ -515,7 +515,7 @@ class CSVMultiTrackDataset(BaseDataset):
     ```
     csv_groups = [
         {
-            "vocals": "datset1/vocals.csv",
+            "vocals": "dataset1/vocals.csv",
             "drums": "dataset1/drums.csv",
             "bass": "dataset1/bass.csv",
         },
