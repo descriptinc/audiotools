@@ -25,7 +25,7 @@ class LibrosaSignal(AudioSignal):
         self.original_signal_length = self.signal_length
 
         self.sample_rate = sample_rate
-        self.path_to_input_file = audio_path
+        self.path_to_file = audio_path
         return self.to(device)
 
 
@@ -55,7 +55,7 @@ class TorchSignal(AudioSignal):
         self.original_signal_length = self.signal_length
 
         self.sample_rate = sample_rate
-        self.path_to_input_file = audio_path
+        self.path_to_file = audio_path
         return self.to(device)
 
 

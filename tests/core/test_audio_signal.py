@@ -95,7 +95,7 @@ def test_copy_and_clone():
         assert np.allclose(a1, a3)
         assert np.allclose(a1, a4)
 
-    for a in ["path_to_input_file", "metadata"]:
+    for a in ["path_to_file", "metadata"]:
         a1 = getattr(signal, a)
         a2 = getattr(cloned, a)
         a3 = getattr(copied, a)
@@ -568,9 +568,9 @@ def test_batching():
     signal_lengths = [x.signal_length for x in signals]
     max_length = max(signal_lengths)
     for i, x in enumerate(signals):
-        x.path_to_input_file = i
+        x.path_to_file = i
     batched_signal = AudioSignal.batch(signals, resample=True, pad_signals=True)
 
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
-    assert batched_signal.path_to_input_file == list(range(len(signals)))
+    assert batched_signal.path_to_file == list(range(len(signals)))

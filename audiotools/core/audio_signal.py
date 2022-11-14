@@ -143,7 +143,7 @@ class AudioSignal(
                 "string, numpy array, or torch Tensor!"
             )
 
-        self.path_to_input_file = None
+        self.path_to_file = None
 
         self.audio_data = None
         self.sources = None  # List of AudioSignal objects.
@@ -445,13 +445,13 @@ class AudioSignal(
                 )
         # Concatenate along the batch dimension
         audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
-        audio_paths = [x.path_to_input_file for x in audio_signals]
+        audio_paths = [x.path_to_file for x in audio_signals]
 
         batched_signal = cls(
             audio_data,
             sample_rate=audio_signals[0].sample_rate,
         )
-        batched_signal.path_to_input_file = audio_paths
+        batched_signal.path_to_file = audio_paths
         return batched_signal
 
     # I/O
@@ -505,7 +505,7 @@ class AudioSignal(
         self.original_signal_length = self.signal_length
 
         self.sample_rate = sample_rate
-        self.path_to_input_file = audio_path
+        self.path_to_file = audio_path
         return self.to(device)
 
     def load_from_array(
@@ -552,7 +552,8 @@ class AudioSignal(
         """Writes audio to a file. Only writes the audio
         that is in the very first item of the batch. To write other items
         in the batch, index the signal along the batch dimension
-        before writing.
+        before writing. After writing, the signal's ``path_to_file``
+        attribute is updated to the new path.
 
         Parameters
         ----------
@@ -584,6 +585,8 @@ class AudioSignal(
         if self.audio_data[0].abs().max() > 1:
             warnings.warn("Audio amplitude > 1 clipped when saving")
         soundfile.write(str(audio_path), self.audio_data[0].numpy().T, self.sample_rate)
+
+        self.path_to_file = audio_path
         return self
 
     def deepcopy(self):
@@ -629,7 +632,7 @@ class AudioSignal(
             clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
-        clone.path_to_input_file = copy.deepcopy(self.path_to_input_file)
+        clone.path_to_file = copy.deepcopy(self.path_to_file)
         clone.metadata = copy.deepcopy(self.metadata)
         return clone
 
@@ -1480,9 +1483,7 @@ class AudioSignal(
         info = {
             "duration": f"{dur} seconds",
             "batch_size": self.batch_size,
-            "path": self.path_to_input_file
-            if self.path_to_input_file
-            else "path unknown",
+            "path": self.path_to_file if self.path_to_file else "path unknown",
             "sample_rate": self.sample_rate,
             "num_channels": self.num_channels if self.num_channels else "[unknown]",
             "audio_data.shape": self.audio_data.shape,
