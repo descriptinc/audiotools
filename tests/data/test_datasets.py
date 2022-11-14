@@ -207,10 +207,10 @@ def test_multitrack_dataset(source_transforms, primary_keys):
     from pathlib import Path
 
     dataset_dir = Path("tests/audio/chords")
-    if not dataset_dir.exists():
-        from audiotools.core.util import generate_chord_dataset
 
-        generate_chord_dataset(output_dir=dataset_dir)
+    from audiotools.core.util import generate_chord_dataset
+
+    generate_chord_dataset(max_voices=4, num_items=3, output_dir=dataset_dir)
 
     # wrong primary key
     with pytest.raises(ValueError):
@@ -231,6 +231,8 @@ def test_multitrack_dataset(source_transforms, primary_keys):
                 "voice_0": "tests/audio/chords/voice_0.csv",
                 "voice_1": "tests/audio/chords/voice_1.csv",
                 "voice_2": "tests/audio/chords/voice_2.csv",
+                "voice_3": "tests/audio/chords/voice_3.csv",
+                "empty": "tests/audio/empty.csv",
             },
             {
                 "voice_0": "tests/audio/chords/voice_0.csv",
@@ -241,7 +243,9 @@ def test_multitrack_dataset(source_transforms, primary_keys):
         transform=source_transforms,
     )
 
-    assert set(dataset.source_names) == set(["voice_0", "voice_1", "voice_2"])
+    assert set(dataset.source_names) == set(
+        ["voice_0", "voice_1", "voice_2", "voice_3", "empty"]
+    )
     if primary_keys is not None:
         assert dataset.primary_keys == primary_keys
 
