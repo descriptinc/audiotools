@@ -256,9 +256,10 @@ def read_csv(filelists: List[str]):
             reader = csv.DictReader(f)
             _files = []
             for x in reader:
-                x["path"] = str(data_path / x["path"])
+                if x["path"] != "":
+                    x["path"] = str(data_path / x["path"])
                 _files.append(x)
-        files.append(sorted(_files, key=lambda x: x["path"]))
+        files.append(_files)
     return files
 
 
