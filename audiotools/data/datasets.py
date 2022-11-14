@@ -312,7 +312,7 @@ class MultiTrackAudioLoader:
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         offset: float = None,
-        coherence: float = 1.0,
+        coherences: List[float] = [1.0],
     ):
         # pick a group of csvs
         csv_group_idx = state.choice(len(self.audio_lists), p=self.csv_weights)
@@ -322,6 +322,7 @@ class MultiTrackAudioLoader:
         primary_key = self.primary_keys[csv_group_idx]
 
         # if not coherent, sample the csv idxs for each track independently
+        coherence = coherences[csv_group_idx]
         coherent = state.rand() < coherence
         if not coherent:
             csv_idxs = state.choice(
@@ -542,6 +543,47 @@ class CSVMultiTrackDataset(BaseDataset):
     ]
     ```
 
+    You can create a multitrack dataset that behaves similar to
+    a regular CSV dataset:
+
+    ```
+    import audiotools
+
+    transform = audiotools.transforms.Identity()
+
+    # csv dataset
+    csv_dataset = audiotools.data.datasets.CSVDataset(
+        44100,
+        n_examples=100,
+        csv_files=["tests/audio/spk.csv"],
+        transform=transform,
+    )
+    # get an item
+    data = csv_dataset[0]
+    # get the signal
+    signal = data["signal"]
+    print(signal)
+
+    # multitrack dataset
+    multitrack_dataset = audiotools.data.datasets.CSVMultiTrackDataset(
+        44100,
+        n_examples=100,
+        csv_groups=[{
+            "speaker": "tests/audio/spk.csv"
+        }],
+        transform={
+            "speaker": transform,
+        }
+    )
+
+    # take an item from the dataset
+    data = multitrack_dataset[0]
+
+    # access the audio signal
+    signal = data["signals"]["speaker"]
+    print(signal)
+    ```
+
     Parameters
     ----------
     sample_rate : int
@@ -554,6 +596,13 @@ class CSVMultiTrackDataset(BaseDataset):
         NOTE: one primary key must be provided for each dict of csv files.
     csv_weights : List[float], optional
         List of weights of CSV files, by default None
+    coherences: List[float], optional
+        Coherence of sampled multitrack data, one for each CSV group. by default 1.0
+        Probability of sampling a multitrack recording that is coherent.
+        A coherent multitrack recording is one the same CSV row
+        is drawn for each of the sources.
+        A non-coherent multitrack recording is one where a random row
+        is drawn for each of the sources.
     n_examples : int, optional
         Number of examples, by default 1000
     duration : float, optional
@@ -562,13 +611,6 @@ class CSVMultiTrackDataset(BaseDataset):
         Number of channels, by default 1
     transforms : Dict[str, typing.Callable], optional
         Dict of transforms, one for each source.
-    coherence: float, optional
-        Coherence of sampled multitrack data, by default 1.0
-        Probability of sampling a multitrack recording that is coherent.
-        A coherent multitrack recording is one the same CSV row
-        is drawn for each of the sources.
-        A non-coherent multitrack recording is one where a random row
-        is drawn for each of the sources.
 
     Usage
     -----
@@ -617,19 +659,26 @@ class CSVMultiTrackDataset(BaseDataset):
         csv_groups: List[Dict[str, str]] = None,
         csv_weights: List[float] = None,
         primary_keys: List[str] = None,
+        coherences: Union[List[float], float] = 1.0,
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         transform: Dict[str, Callable] = None,
-        coherence: float = 1.0,
     ):
         self.loader = MultiTrackAudioLoader(csv_groups, csv_weights, primary_keys)
 
         self.num_channels = num_channels
         self.loudness_cutoff = loudness_cutoff
-        self.coherence = coherence
+        coherences = coherences
 
         if transform is None:
             transform = {}
+
+        if isinstance(coherences, float):
+            coherences = [coherences] * len(csv_groups)
+        assert len(coherences) == len(
+            csv_groups
+        ), f"Must provide a coherence for each CSV group or a float, but got {coherences}."
+        self.coherences = coherences
 
         assert isinstance(
             transform, dict
@@ -661,7 +710,7 @@ class CSVMultiTrackDataset(BaseDataset):
             duration=self.duration,
             loudness_cutoff=self.loudness_cutoff,
             num_channels=self.num_channels,
-            coherence=self.coherence,
+            coherences=self.coherences,
         )
 
         # Instantiate the transform.
