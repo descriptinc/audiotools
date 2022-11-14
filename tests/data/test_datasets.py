@@ -192,7 +192,7 @@ def test_multitrack_incoherent_dataset():
     from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
     from audiotools.core.util import generate_chord_dataset
 
-    generate_chord_dataset(max_voices=1, num_items=3, output_dir="tests/audio/chords")
+    generate_chord_dataset(max_voices=4, num_items=3, output_dir="tests/audio/chords")
     dataset = CSVMultiTrackDataset(
         sample_rate=44100,
         n_examples=20,
