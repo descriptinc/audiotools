@@ -312,7 +312,7 @@ class MultiTrackAudioLoader:
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         offset: float = None,
-        coherent: bool = True,
+        coherence: float = 1.0,
     ):
         # pick a group of csvs
         csv_group_idx = state.choice(len(self.audio_lists), p=self.csv_weights)
@@ -322,6 +322,7 @@ class MultiTrackAudioLoader:
         primary_key = self.primary_keys[csv_group_idx]
 
         # if not coherent, sample the csv idxs for each track independently
+        coherent = state.rand() < coherence
         if not coherent:
             csv_idxs = state.choice(
                 len(csv_group[primary_key]), size=len(csv_group), replace=False
@@ -561,11 +562,13 @@ class CSVMultiTrackDataset(BaseDataset):
         Number of channels, by default 1
     transforms : Dict[str, typing.Callable], optional
         Dict of transforms, one for each source.
-    coherent : bool, optional
-        Whether to draw coherent excerpts, by default True.
-        A coherent item is one where the same CSV row is drawn
-        for each of the sources.
-        If False, then a random row is drawn for each source.
+    coherence: float, optional
+        Coherence of sampled multitrack data, by default 1.0
+        Probability of sampling a multitrack recording that is coherent.
+        A coherent multitrack recording is one the same CSV row
+        is drawn for each of the sources.
+        A non-coherent multitrack recording is one where a random row
+        is drawn for each of the sources.
 
     Usage
     -----
@@ -617,13 +620,13 @@ class CSVMultiTrackDataset(BaseDataset):
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         transform: Dict[str, Callable] = None,
-        coherent: bool = True,
+        coherence: float = 1.0,
     ):
         self.loader = MultiTrackAudioLoader(csv_groups, csv_weights, primary_keys)
 
         self.num_channels = num_channels
         self.loudness_cutoff = loudness_cutoff
-        self.coherent = coherent
+        self.coherence = coherence
 
         if transform is None:
             transform = {}
@@ -658,7 +661,7 @@ class CSVMultiTrackDataset(BaseDataset):
             duration=self.duration,
             loudness_cutoff=self.loudness_cutoff,
             num_channels=self.num_channels,
-            coherent=self.coherent,
+            coherence=self.coherence,
         )
 
         # Instantiate the transform.

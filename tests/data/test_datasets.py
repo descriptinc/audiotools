@@ -203,7 +203,7 @@ def test_multitrack_incoherent_dataset():
                 "voice_2": "tests/audio/chords/voice_0.csv",
             },
         ],
-        coherent=False,
+        coherence=0.0,
     )
     for i in range(10):
         item = dataset[i]
