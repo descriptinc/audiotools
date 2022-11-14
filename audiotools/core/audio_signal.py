@@ -164,6 +164,16 @@ class AudioSignal(
             "duration": duration,
         }
 
+    @property
+    def path_to_input_file(
+        self,
+    ):
+        """
+        Path to input file, if it exists.
+        Alias to ``path_to_file`` for backwards compatibility
+        """
+        return self.path_to_file
+
     @classmethod
     def excerpt(
         cls,
