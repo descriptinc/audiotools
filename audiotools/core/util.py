@@ -536,3 +536,84 @@ def format_figure(
             color="white",
         )
         t.set_bbox(dict(facecolor="black", alpha=0.5, edgecolor="black"))
+
+
+def generate_chord_dataset(
+    max_voices: int = 8,
+    sample_rate: int = 44100,
+    num_items: int = 5,
+    duration: float = 1.0,
+    min_note: str = "C2",
+    max_note: str = "C6",
+    output_dir: Path = "chords",
+):
+    """
+    Generates a toy multitrack dataset of chords, synthesized from sine waves.
+
+
+    Parameters
+    ----------
+    max_voices : int, optional
+        Maximum number of voices in a chord, by default 8
+    sample_rate : int, optional
+        Sample rate of audio, by default 44100
+    num_items : int, optional
+        Number of items to generate, by default 5
+    duration : float, optional
+        Duration of each item, by default 1.0
+    min_note : str, optional
+        Minimum note in the dataset, by default "C2"
+    max_note : str, optional
+        Maximum note in the dataset, by default "C6"
+    output_dir : Path, optional
+        Directory to save the dataset, by default "chords"
+
+    """
+    import librosa
+    from . import AudioSignal
+    from ..data.preprocess import create_csv
+
+    min_midi = librosa.note_to_midi(min_note)
+    max_midi = librosa.note_to_midi(max_note)
+
+    tracks = []
+    for idx in range(num_items):
+        track = {}
+        # figure out how many voices to put in this track
+        num_voices = random.randint(1, max_voices)
+        for voice_idx in range(num_voices):
+            # choose some random params
+            midinote = random.randint(min_midi, max_midi)
+            dur = random.uniform(0.85 * duration, duration)
+
+            sig = AudioSignal.wave(
+                frequency=librosa.midi_to_hz(midinote),
+                duration=dur,
+                sample_rate=sample_rate,
+                shape="sine",
+            )
+            track[f"voice_{voice_idx}"] = sig
+        tracks.append(track)
+
+    # save the tracks to disk
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True)
+    for idx, track in enumerate(tracks):
+        track_dir = output_dir / f"track_{idx}"
+        track_dir.mkdir(exist_ok=True)
+        for voice_name, sig in track.items():
+            sig.write(track_dir / f"{voice_name}.wav")
+
+    all_voices = list(set([k for track in tracks for k in track.keys()]))
+    voice_lists = {voice: [] for voice in all_voices}
+    for track in tracks:
+        for voice_name in all_voices:
+            if voice_name in track:
+                voice_lists[voice_name].append(track[voice_name].path_to_file)
+            else:
+                voice_lists[voice_name].append("")
+
+    for voice_name, paths in voice_lists.items():
+        create_csv(paths, output_dir / f"{voice_name}.csv", loudness=True, data_path="")
+
+    return output_dir

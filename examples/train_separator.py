@@ -1,9 +1,11 @@
+import random
 from pathlib import Path
 from typing import Dict
 from typing import List
 from typing import Tuple
 
 import argbind
+import librosa
 import torch
 import torchaudio
 from torch.utils.tensorboard import SummaryWriter
@@ -29,12 +31,7 @@ class Model(torchaudio.models.ConvTasNet, audiotools.ml.BaseModel):
 def build_dataset(
     sample_rate: int = 44100,
     duration: float = 0.5,
-    csv_groups: List[str] = [
-        {
-            "bass": "tests/audio/musdb-7s/bass.csv",
-            "drums": "tests/audio/musdb-7s/drums.csv",
-        }
-    ],
+    csv_groups: List[str] = None,
 ):
 
     transform = {
@@ -66,7 +63,19 @@ def train(accel, batch_size: int = 4):
     if accel.local_rank == 0:
         writer = SummaryWriter(log_dir="logs/")
 
-    train_data, source_names = build_dataset()
+    # generate some fake data to train on
+    audiotools.util.generate_chord_dataset(max_voices=4, output_dir="chords")
+
+    train_data, source_names = build_dataset(
+        csv_groups=[
+            {
+                "voice_1": "chords/voice_0.csv",
+                "voice_2": "chords/voice_1.csv",
+                "voice_3": "chords/voice_2.csv",
+                "voice_4": "chords/voice_3.csv",
+            }
+        ]
+    )
 
     train_dataloader = accel.prepare_dataloader(
         train_data, batch_size=batch_size, collate_fn=audiotools.util.collate
@@ -121,7 +130,7 @@ def train(accel, batch_size: int = 4):
                 accel.unwrap(model).save(ckpt_path / "best.model.pth", metadata)
 
     trainer = Trainer(writer=writer, rank=accel.local_rank)
-    trainer.run(train_dataloader, num_epochs=10, epoch_length=100)
+    trainer.run(train_dataloader, num_epochs=10, epoch_length=10)
 
 
 @argbind.bind(without_prefix=True)

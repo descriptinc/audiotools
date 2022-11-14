@@ -193,27 +193,34 @@ def test_csv_dataset():
     [
         None,
         {
-            "bass": tfm.Compose([tfm.VolumeNorm(), tfm.Silence(prob=0.5)]),
-            "vocals": tfm.VolumeNorm(),
-            "drums": tfm.VolumeNorm(),
-            "other": tfm.VolumeNorm(),
+            "voice_0": tfm.Compose([tfm.VolumeNorm(), tfm.Silence(prob=0.5)]),
+            "voice_1": tfm.VolumeNorm(),
+            "voice_2": tfm.VolumeNorm(),
+            "voice_3": tfm.VolumeNorm(),
         },
-        {"bass": tfm.VolumeNorm(), "vocals": tfm.VolumeNorm()},
+        {"voice_0": tfm.VolumeNorm(), "voice_2": tfm.VolumeNorm()},
     ],
 )
-@pytest.mark.parametrize("primary_keys", [["bass", "drums"], None])
+@pytest.mark.parametrize("primary_keys", [["voice_0", "voice_0"], None])
 def test_multitrack_dataset(source_transforms, primary_keys):
     from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
+    from pathlib import Path
+
+    dataset_dir = Path("tests/audio/chords")
+    if not dataset_dir.exists():
+        from audiotools.core.util import generate_chord_dataset
+
+        generate_chord_dataset(output_dir=dataset_dir)
 
     # wrong primary key
     with pytest.raises(ValueError):
         MultiTrackAudioLoader(
             [
                 {
-                    "bass": "tests/audio/irs.csv",
+                    "irs": "tests/audio/irs.csv",
                 }
             ],
-            primary_keys=["vocals"],
+            primary_keys=["voice_1"],
         )
 
     dataset = CSVMultiTrackDataset(
@@ -221,20 +228,20 @@ def test_multitrack_dataset(source_transforms, primary_keys):
         n_examples=20,
         csv_groups=[
             {
-                "drums": "tests/audio/musdb-7s/drums.csv",
-                "bass": "tests/audio/musdb-7s/bass.csv",
-                "vocals": "tests/audio/musdb-7s/vocals.csv",
+                "voice_0": "tests/audio/chords/voice_0.csv",
+                "voice_1": "tests/audio/chords/voice_1.csv",
+                "voice_2": "tests/audio/chords/voice_2.csv",
             },
             {
-                "drums": "tests/audio/musdb-7s/drums.csv",
-                "bass": "tests/audio/musdb-7s/bass.csv",
+                "voice_0": "tests/audio/chords/voice_0.csv",
+                "voice_1": "tests/audio/chords/voice_1.csv",
             },
         ],
         primary_keys=primary_keys,
         transform=source_transforms,
     )
 
-    assert set(dataset.source_names) == set(["bass", "drums", "vocals"])
+    assert set(dataset.source_names) == set(["voice_0", "voice_1", "voice_2"])
     if primary_keys is not None:
         assert dataset.primary_keys == primary_keys
 
