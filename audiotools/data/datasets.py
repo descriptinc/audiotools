@@ -759,6 +759,9 @@ class CSVMultiTrackDataset(BaseDataset):
         assert (
             "mix" not in self.loader.audio_columns
         ), "mix is a reserved key for CSVMultiTrackDataset"
+        assert (
+            "primary_key" not in self.loader.audio_columns
+        ), "primary_key is a reserved key for CSVMultiTrackDataset"
         assert "mix" not in transform, "mix is a reserved key in the transform dict"
         transform["mix"] = mix_transform
 
@@ -806,6 +809,7 @@ class CSVMultiTrackDataset(BaseDataset):
         item = {
             "idx": idx,
             "signals": signals,
+            "primary_key": self.primary_keys[csv_idx],
             "label": csv_idx,
             "transform_args": transform_kwargs,
             "mix_transform_args": mix_transform_kwargs,
