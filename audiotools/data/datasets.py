@@ -310,7 +310,7 @@ class MultiTrackAudioLoader:
         # (i.e. the union of all keys across all csv groups)
         # this way, we can add zero signals for any missing tracks
         # which let's us batch different csv groups together
-        csv_group_keys = [list(set(g.keys())) for g in csv_groups]
+        csv_group_keys = [list(g.keys()) for g in csv_groups]
         self.audio_columns = list(
             set(
                 [
