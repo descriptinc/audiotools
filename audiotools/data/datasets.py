@@ -8,6 +8,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+import numpy as np
 from numpy.random import RandomState
 from torch.utils.data import BatchSampler as _BatchSampler
 from torch.utils.data import SequentialSampler
@@ -240,16 +241,42 @@ class MultiTrackAudioLoader:
                 "vocals": "datset1/vocals.csv",
                 "drums": "dataset1/drums.csv",
                 "bass": "dataset1/bass.csv",
+
+                "coherence": 0.5,
+                "weight": 1,
+                "primary_key": "vocals",
             },
             {
                 "vocals": "datset2/vocals.csv",
                 "drums": "dataset2/drums.csv",
                 "bass": "dataset2/bass.csv",
                 "guitar": "dataset2/guitar.csv",
+
+                "coherence": 0.5,
+                "weight": 3,
+                "primary_key": "vocals",
             },
         ]
     )
     ```
+
+    There are special keys that can be passed to each csv group dictionary:
+
+    - primary_key : str, optional
+        - If provided, will load a salient excerpt from the audio file specified by the primary key.
+        - If not provided, will pick the first column for each csv as the primary key.
+    - weight : float, optional
+        - weight for sampling this CSV group, by default 1.0
+    - coherence: float, optional
+        - Coherence of sampled multitrack data, by default 1.0
+        - Probability of sampling a multitrack recording that is coherent.
+        - A coherent multitrack recording is one the same CSV row
+        is drawn for each of the sources.
+        - An incoherent multitrack recording is one where a random row
+        is drawn for each of the sources.
+
+    You can change the default values for these keys by updating the
+    ``MultiTrackAudioLoader.CSV_GROUP_DEFAULTS`` dictionary.
 
     NOTE: If no offset is provided to the loader, then the loader will
     choose a salient excerpt as dictated by the signal associated with ``primary_key``.
@@ -259,20 +286,46 @@ class MultiTrackAudioLoader:
     ----------
     csv_groups: List[Dict[str, str]], optional
         List of dictionaries containing CSV files and their associated keys.
-    csv_weights : List[float], optional
-        Weights to sample audio files from each dictionary of CSVs, by default None
-    primary_keys : List[str], optional
-        If provided, will load a salient excerpt from the audio file specified by the primary key.
-        If not provided, will pick the first column for each csv as the primary key.
-        NOTE: one primary key must be provided for each dict of csv files.
     """
+
+    CSV_GROUP_DEFAULTS = {"csv_weight": 1.0, "coherence": 1.0}
+    CSV_GROUP_RESERVED_KEYS = ["csv_weight", "coherence", "primary_key"]
 
     def __init__(
         self,
         csv_groups: List[Dict[str, str]] = None,
-        csv_weights: List[float] = None,
-        primary_keys: List[str] = None,
     ):
+
+        csv_weights = [
+            g.pop("csv_weight", self.CSV_GROUP_DEFAULTS["csv_weight"])
+            for g in csv_groups
+        ]
+        csv_weights = np.exp(csv_weights) / np.sum(np.exp(csv_weights))
+        self.csv_weights = csv_weights.tolist()
+        self.coherences = [
+            g.pop("coherence", self.CSV_GROUP_DEFAULTS["coherence"]) for g in csv_groups
+        ]
+
+        # find the set of audio columns
+        # (i.e. the union of all keys across all csv groups)
+        # this way, we can add zero signals for any missing tracks
+        # which let's us batch different csv groups together
+        csv_group_keys = [list(set(g.keys())) for g in csv_groups]
+        self.audio_columns = list(
+            set(
+                [
+                    key
+                    for keys in csv_group_keys
+                    for key in keys
+                    if key not in self.CSV_GROUP_RESERVED_KEYS
+                ]
+            )
+        )
+        self.primary_keys = [
+            g.pop("primary_key", keys[0]) for g, keys in zip(csv_groups, csv_group_keys)
+        ]
+
+        self.csv_groups = csv_groups
         self.audio_lists = []
         for csv_dict in csv_groups:
             self.audio_lists.append(
@@ -281,18 +334,6 @@ class MultiTrackAudioLoader:
                     for k, v in csv_dict.items()
                 }
             )
-
-        self.csv_groups = csv_groups
-        self.csv_weights = csv_weights
-        self.primary_keys = primary_keys
-
-        # find the set of audio columns
-        # (i.e. the union of all keys across all csv groups)
-        # this way, we can add zero signals for any missing tracks
-        # which let's us batch different csv groups together
-        self.audio_columns = set(
-            [key for csv_dict in csv_groups for key in csv_dict.keys()]
-        )
 
         # default to the first column of each csv as the primary key
         if self.primary_keys is None:
@@ -312,7 +353,6 @@ class MultiTrackAudioLoader:
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         offset: float = None,
-        coherences: List[float] = [1.0],
     ):
         # pick a group of csvs
         csv_group_idx = state.choice(len(self.audio_lists), p=self.csv_weights)
@@ -322,7 +362,7 @@ class MultiTrackAudioLoader:
         primary_key = self.primary_keys[csv_group_idx]
 
         # if not coherent, sample the csv idxs for each track independently
-        coherence = coherences[csv_group_idx]
+        coherence = self.coherences[csv_group_idx]
         coherent = state.rand() < coherence
         if not coherent:
             csv_idxs = state.choice(
@@ -338,23 +378,28 @@ class MultiTrackAudioLoader:
         csv_idx = csv_idxs[primary_key]
         p_audio_info = csv_group[primary_key][csv_idx]
 
-        # load the primary signal first,
+        # load the primary signal first (if it exists in this row),
         # and use it to determine the offset and duration
-        primary_signal = load_signal(
-            path=p_audio_info["path"],
-            sample_rate=sample_rate,
-            num_channels=num_channels,
-            state=state,
-            offset=offset,
-            duration=duration,
-            loudness_cutoff=loudness_cutoff,
-        )
-        for k, v in p_audio_info.items():
-            primary_signal.metadata[k] = v
+        if p_audio_info["path"] == "":
+            primary_signal = AudioSignal.zeros(
+                sample_rate=sample_rate, num_channels=num_channels, duration=duration
+            )
+        else:
+            primary_signal = load_signal(
+                path=p_audio_info["path"],
+                sample_rate=sample_rate,
+                num_channels=num_channels,
+                state=state,
+                offset=offset,
+                duration=duration,
+                loudness_cutoff=loudness_cutoff,
+            )
+            for k, v in p_audio_info.items():
+                primary_signal.metadata[k] = v
 
-        # update the offset and duration according to the primary signal
-        offset = primary_signal.metadata["offset"]
-        duration = primary_signal.metadata["duration"]
+            # update the offset and duration according to the primary signal
+            offset = primary_signal.metadata["offset"]
+            duration = primary_signal.metadata["duration"]
 
         # load the rest of the signals
         signals = {}
@@ -533,15 +578,39 @@ class CSVMultiTrackDataset(BaseDataset):
             "vocals": "dataset1/vocals.csv",
             "drums": "dataset1/drums.csv",
             "bass": "dataset1/bass.csv",
+            "coherence_prob": 0.5,          # probability of sampling coherent multitracks.
+            "primary_key": "vocals",        # the key of the primary track.
+            "weight": 1.0,                  # the weight for sampling this group
         },
         {
             "vocals": "datset2/vocals.csv",
             "drums": "dataset2/drums.csv",
             "bass": "dataset2/bass.csv",
             "guitar": "dataset2/guitar.csv",
+            "coherence_prob": 1.0,
+            "primary_key": "vocals",
+            "weight": 1.0,
         },
     ]
     ```
+
+    There are special keys that can be passed to each csv group dictionary:
+
+    - primary_key : str, optional
+        - If provided, will load a salient excerpt from the audio file specified by the primary key.
+        - If not provided, will pick the first column for each csv as the primary key.
+    - weight : float, optional
+        - weight for sampling this CSV group, by default 1.0
+    - coherence: float, optional
+        - Coherence of sampled multitrack data, by default 1.0
+        - Probability of sampling a multitrack recording that is coherent.
+        - A coherent multitrack recording is one the same CSV row
+        is drawn for each of the sources.
+        - An incoherent multitrack recording is one where a random row
+        is drawn for each of the sources.
+
+    You can change the default values for these keys by updating the
+    ``MultiTrackAudioLoader.CSV_GROUP_DEFAULTS`` dictionary.
 
     You can create a multitrack dataset that behaves similar to
     a regular CSV dataset:
@@ -590,19 +659,6 @@ class CSVMultiTrackDataset(BaseDataset):
         Sample rate of audio.
     csv_groups: List[Dict[str, str]], optional
         List of dictionaries containing CSV files and their associated keys.
-    primary_keys : List[str], optional
-        If provided, will load a salient excerpt from the audio file specified by the primary key.
-        If not provided, will pick the first column for each csv as the primary key.
-        NOTE: one primary key must be provided for each dict of csv files.
-    csv_weights : List[float], optional
-        List of weights of CSV files, by default None
-    coherences: List[float], optional
-        Coherence of sampled multitrack data, one for each CSV group. by default 1.0
-        Probability of sampling a multitrack recording that is coherent.
-        A coherent multitrack recording is one the same CSV row
-        is drawn for each of the sources.
-        A non-coherent multitrack recording is one where a random row
-        is drawn for each of the sources.
     n_examples : int, optional
         Number of examples, by default 1000
     duration : float, optional
@@ -615,6 +671,11 @@ class CSVMultiTrackDataset(BaseDataset):
     Usage
     -----
     ```python
+    source_transforms = {
+        "vocals": audiotools.transforms.Identity(),
+        "drums": audiotools.transforms.Identity(),
+        "bass": audiotools.transforms.Identity(),
+    }
     dataset = CSVMultiTrackDataset(
         sample_rate=44100,
         n_examples=20,
@@ -622,11 +683,16 @@ class CSVMultiTrackDataset(BaseDataset):
             "drums": "tests/audio/musdb-7s/drums.csv",
             "bass": "tests/audio/musdb-7s/bass.csv",
             "vocals": "tests/audio/musdb-7s/vocals.csv",
+
+            "coherence_prob": 0.95,
+            "primary_key": "drums",
         }, {
             "drums": "tests/audio/musdb-7s/drums.csv",
             "bass": "tests/audio/musdb-7s/bass.csv",
+
+            "coherence_prob": 1.0,
+            "primary_key": "drums",
         }],
-        primary_keys=primary_keys,
         transform=source_transforms,
     )
 
@@ -657,28 +723,17 @@ class CSVMultiTrackDataset(BaseDataset):
         n_examples: int = 1000,
         duration: float = 0.5,
         csv_groups: List[Dict[str, str]] = None,
-        csv_weights: List[float] = None,
-        primary_keys: List[str] = None,
-        coherences: Union[List[float], float] = 1.0,
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         transform: Dict[str, Callable] = None,
     ):
-        self.loader = MultiTrackAudioLoader(csv_groups, csv_weights, primary_keys)
+        self.loader = MultiTrackAudioLoader(csv_groups)
 
         self.num_channels = num_channels
         self.loudness_cutoff = loudness_cutoff
-        coherences = coherences
 
         if transform is None:
             transform = {}
-
-        if isinstance(coherences, float):
-            coherences = [coherences] * len(csv_groups)
-        assert len(coherences) == len(
-            csv_groups
-        ), f"Must provide a coherence for each CSV group or a float, but got {coherences}."
-        self.coherences = coherences
 
         assert isinstance(
             transform, dict
@@ -710,7 +765,6 @@ class CSVMultiTrackDataset(BaseDataset):
             duration=self.duration,
             loudness_cutoff=self.loudness_cutoff,
             num_channels=self.num_channels,
-            coherences=self.coherences,
         )
 
         # Instantiate the transform.

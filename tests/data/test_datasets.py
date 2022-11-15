@@ -201,9 +201,9 @@ def test_multitrack_incoherent_dataset():
                 "voice_0": "tests/audio/chords/voice_0.csv",
                 "voice_1": "tests/audio/chords/voice_0.csv",
                 "voice_2": "tests/audio/chords/voice_0.csv",
+                "coherence": 0.0,
             },
         ],
-        coherences=0.0,
     )
     for i in range(10):
         item = dataset[i]
@@ -227,8 +227,7 @@ def test_multitrack_incoherent_dataset():
         {"voice_0": tfm.VolumeNorm(), "voice_2": tfm.VolumeNorm()},
     ],
 )
-@pytest.mark.parametrize("primary_keys", [["voice_0", "voice_0"], None])
-def test_multitrack_dataset(source_transforms, primary_keys):
+def test_multitrack_dataset(source_transforms):
     from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
     from pathlib import Path
 
@@ -244,9 +243,9 @@ def test_multitrack_dataset(source_transforms, primary_keys):
             [
                 {
                     "irs": "tests/audio/irs.csv",
+                    "primary_key": "voice_0",
                 }
             ],
-            primary_keys=["voice_1"],
         )
 
     dataset = CSVMultiTrackDataset(
@@ -259,21 +258,19 @@ def test_multitrack_dataset(source_transforms, primary_keys):
                 "voice_2": "tests/audio/chords/voice_2.csv",
                 "voice_3": "tests/audio/chords/voice_3.csv",
                 "empty": "tests/audio/empty.csv",
+                "primary_key": "voice_2",
             },
             {
                 "voice_0": "tests/audio/chords/voice_0.csv",
-                "voice_1": "tests/audio/chords/voice_1.csv",
             },
         ],
-        primary_keys=primary_keys,
         transform=source_transforms,
     )
 
     assert set(dataset.source_names) == set(
         ["voice_0", "voice_1", "voice_2", "voice_3", "empty"]
     )
-    if primary_keys is not None:
-        assert dataset.primary_keys == primary_keys
+    assert dataset.primary_keys == ["voice_2", "voice_0"]
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
