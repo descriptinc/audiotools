@@ -264,7 +264,7 @@ class MultiTrackAudioLoader:
 
     - primary_key : str, optional
         - If provided, will load a salient excerpt from the audio file specified by the primary key.
-        - If not provided, will pick the first column for each csv as the primary key.
+        - If not provided, will pick the first csv file in the group from the csv_group dict.
     - weight : float, optional
         - weight for sampling this CSV group, by default 1.0
     - coherence: float, optional
@@ -598,7 +598,7 @@ class CSVMultiTrackDataset(BaseDataset):
 
     - primary_key : str, optional
         - If provided, will load a salient excerpt from the audio file specified by the primary key.
-        - If not provided, will pick the first column for each csv as the primary key.
+        - If not provided, will pick the first csv file in the group from the csv_group dict.
     - weight : float, optional
         - weight for sampling this CSV group, by default 1.0
     - coherence: float, optional
