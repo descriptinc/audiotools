@@ -335,10 +335,6 @@ class MultiTrackAudioLoader:
                 }
             )
 
-        # default to the first column of each csv as the primary key
-        if self.primary_keys is None:
-            self.primary_keys = [list(csv_dict.keys())[0] for csv_dict in csv_groups]
-
         for key, csv_group in zip(self.primary_keys, self.csv_groups):
             if key not in csv_group.keys():
                 raise ValueError(
