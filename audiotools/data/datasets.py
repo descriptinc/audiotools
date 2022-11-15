@@ -663,6 +663,10 @@ class CSVMultiTrackDataset(BaseDataset):
         Number of channels, by default 1
     transforms : Dict[str, typing.Callable], optional
         Dict of transforms, one for each source.
+    mix_transform : typing.Callable, optional
+        Transform to apply a mix of all sources, by default None.
+        This is useful if you plan to mix the sources yourself, but want to
+        apply a transform to the mix.
 
     Usage
     -----
@@ -672,6 +676,7 @@ class CSVMultiTrackDataset(BaseDataset):
         "drums": audiotools.transforms.Identity(),
         "bass": audiotools.transforms.Identity(),
     }
+    mix_transform = audiotools.transforms.Identity()
     dataset = CSVMultiTrackDataset(
         sample_rate=44100,
         n_examples=20,
@@ -690,6 +695,7 @@ class CSVMultiTrackDataset(BaseDataset):
             "primary_key": "drums",
         }],
         transform=source_transforms,
+        mix_transform=mix_transform,
     )
 
     assert set(dataset.source_names) == set(["bass", "drums", "vocals"])
@@ -710,6 +716,10 @@ class CSVMultiTrackDataset(BaseDataset):
             for k, sig in signals.items()
         }
         mix = sum(tfmed.values())
+
+        # apply the mix transform
+        mix_tfm_kwargs = batch["mix_transform_args"]
+        mix_tfmed = dataset.mix_transform(mix.clone(), **mix_tfm_kwargs)
     ```
     """
 
@@ -722,6 +732,7 @@ class CSVMultiTrackDataset(BaseDataset):
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         transform: Dict[str, Callable] = None,
+        mix_transform: Callable = None,
     ):
         self.loader = MultiTrackAudioLoader(csv_groups)
 
@@ -740,9 +751,28 @@ class CSVMultiTrackDataset(BaseDataset):
 
                 transform[key] = Identity()
 
+        if mix_transform is None:
+            from .transforms import Identity
+
+            mix_transform = Identity()
+
+        assert (
+            "mix" not in self.loader.audio_columns
+        ), "mix is a reserved key for CSVMultiTrackDataset"
+        assert "mix" not in transform, "mix is a reserved key in the transform dict"
+        transform["mix"] = mix_transform
+
         super().__init__(
             n_examples, duration=duration, transform=transform, sample_rate=sample_rate
         )
+
+    @property
+    def mix_transform(self):
+        """
+        The mix transform for this dataset, also accessible
+        via ``dataset.transform["mix"]``.
+        """
+        return self.transform["mix"]
 
     @property
     def source_names(self):
@@ -768,11 +798,17 @@ class CSVMultiTrackDataset(BaseDataset):
             k: self.transform[k].instantiate(state, signal=signals[k]) for k in signals
         }
 
+        mix_transform_kwargs = self.mix_transform.instantiate(
+            state,
+            signal=sum(signals.values()),
+        )
+
         item = {
             "idx": idx,
             "signals": signals,
             "label": csv_idx,
             "transform_args": transform_kwargs,
+            "mix_transform_args": mix_transform_kwargs,
         }
         return item
 

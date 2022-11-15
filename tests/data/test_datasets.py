@@ -289,6 +289,9 @@ def test_multitrack_dataset(source_transforms):
         }
         mix = sum(tfmed.values())
 
+        mix_tfm_args = batch["mix_transform_args"]
+        mix_tfmed = dataset.mix_transform(mix.clone(), **mix_tfm_args)
+
 
 def test_dataset_pipeline():
     transform = tfm.Compose(
