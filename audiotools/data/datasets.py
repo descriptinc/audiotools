@@ -777,6 +777,10 @@ class CSVMultiTrackDataset(BaseDataset):
         """
         return self.transform["mix"]
 
+    @mix_transform.setter
+    def mix_transform(self, value):
+        self.transform["mix"] = value
+
     @property
     def source_names(self):
         return list(self.loader.audio_columns)
