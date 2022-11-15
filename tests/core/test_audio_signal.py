@@ -67,6 +67,9 @@ def test_io():
         AudioSignal(audio_path).hash() != AudioSignal(audio_path).normalize(-20).hash()
     )
 
+    with pytest.raises(RuntimeError):
+        AudioSignal(audio_path, offset=100000, duration=3)
+
 
 def test_copy_and_clone():
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
@@ -92,7 +95,7 @@ def test_copy_and_clone():
         assert np.allclose(a1, a3)
         assert np.allclose(a1, a4)
 
-    for a in ["path_to_input_file", "metadata"]:
+    for a in ["path_to_file", "metadata"]:
         a1 = getattr(signal, a)
         a2 = getattr(cloned, a)
         a3 = getattr(copied, a)
@@ -287,6 +290,20 @@ def test_indexing():
 def test_zeros():
     x = AudioSignal.zeros(0.5, 44100)
     assert x.signal_duration == 0.5
+    assert x.duration == 0.5
+    assert x.sample_rate == 44100
+
+
+@pytest.mark.parametrize("shape", ["sine", "square", "sawtooth", "triangle", "beep"])
+def test_waves(shape: str):
+    # error case
+    if shape == "beep":
+        with pytest.raises(ValueError):
+            AudioSignal.wave(440, 0.5, 44100, shape=shape)
+
+        return
+
+    x = AudioSignal.wave(440, 0.5, 44100, shape=shape)
     assert x.duration == 0.5
     assert x.sample_rate == 44100
 
@@ -558,9 +575,10 @@ def test_batching():
     signal_lengths = [x.signal_length for x in signals]
     max_length = max(signal_lengths)
     for i, x in enumerate(signals):
-        x.path_to_input_file = i
+        x.path_to_file = i
     batched_signal = AudioSignal.batch(signals, resample=True, pad_signals=True)
 
     assert batched_signal.signal_length == max_length
     assert batched_signal.batch_size == batch_size
-    assert batched_signal.path_to_input_file == list(range(len(signals)))
+    assert batched_signal.path_to_file == list(range(len(signals)))
+    assert batched_signal.path_to_input_file == batched_signal.path_to_file

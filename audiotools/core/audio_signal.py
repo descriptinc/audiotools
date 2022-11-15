@@ -143,7 +143,7 @@ class AudioSignal(
                 "string, numpy array, or torch Tensor!"
             )
 
-        self.path_to_input_file = None
+        self.path_to_file = None
 
         self.audio_data = None
         self.sources = None  # List of AudioSignal objects.
@@ -159,7 +159,20 @@ class AudioSignal(
         self.window = None
         self.stft_params = stft_params
 
-        self.metadata = {}
+        self.metadata = {
+            "offset": offset,
+            "duration": duration,
+        }
+
+    @property
+    def path_to_input_file(
+        self,
+    ):
+        """
+        Path to input file, if it exists.
+        Alias to ``path_to_file`` for backwards compatibility
+        """
+        return self.path_to_file
 
     @classmethod
     def excerpt(
@@ -196,7 +209,7 @@ class AudioSignal(
         >>> signal = AudioSignal.excerpt("path/to/audio", duration=5)
         """
         info = util.info(audio_path)
-        total_duration = info.num_frames / info.sample_rate
+        total_duration = info.duration
 
         state = util.random_state(state)
         lower_bound = 0 if offset is None else offset
@@ -309,6 +322,60 @@ class AudioSignal(
         )
 
     @classmethod
+    def wave(
+        cls,
+        frequency: float,
+        duration: float,
+        sample_rate: int,
+        num_channels: int = 1,
+        shape: str = "saw",
+        **kwargs,
+    ):
+        """
+        Generate a waveform of a given frequency and shape.
+
+        Parameters
+        ----------
+        frequency : float
+            Frequency of the waveform
+        duration : float
+            Duration of the waveform
+        sample_rate : int
+            Sample rate of the waveform
+        num_channels : int, optional
+            Number of channels, by default 1
+        shape : str, optional
+            Shape of the waveform, by default "saw"
+            One of "sawtooth", "square", "sine", "triangle"
+        kwargs : dict
+            Keyword arguments to AudioSignal
+        """
+        n_samples = int(duration * sample_rate)
+        t = torch.linspace(0, duration, n_samples)
+        if shape == "sawtooth":
+            from scipy.signal import sawtooth
+
+            wave_data = sawtooth(2 * np.pi * frequency * t, 0.5)
+        elif shape == "square":
+            from scipy.signal import square
+
+            wave_data = square(2 * np.pi * frequency * t)
+        elif shape == "sine":
+            wave_data = np.sin(2 * np.pi * frequency * t)
+        elif shape == "triangle":
+            from scipy.signal import sawtooth
+
+            # frequency is doubled by the abs call, so omit the 2 in 2pi
+            wave_data = sawtooth(np.pi * frequency * t, 0.5)
+            wave_data = -np.abs(wave_data) * 2 + 1
+        else:
+            raise ValueError(f"Invalid shape {shape}")
+
+        wave_data = torch.tensor(wave_data, dtype=torch.float32)
+        wave_data = wave_data.unsqueeze(0).unsqueeze(0).repeat(1, num_channels, 1)
+        return cls(wave_data, sample_rate, **kwargs)
+
+    @classmethod
     def batch(
         cls,
         audio_signals: list,
@@ -388,13 +455,13 @@ class AudioSignal(
                 )
         # Concatenate along the batch dimension
         audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
-        audio_paths = [x.path_to_input_file for x in audio_signals]
+        audio_paths = [x.path_to_file for x in audio_signals]
 
         batched_signal = cls(
             audio_data,
             sample_rate=audio_signals[0].sample_rate,
         )
-        batched_signal.path_to_input_file = audio_paths
+        batched_signal.path_to_file = audio_paths
         return batched_signal
 
     # I/O
@@ -434,6 +501,10 @@ class AudioSignal(
             mono=False,
         )
         data = util.ensure_tensor(data)
+        if data.shape[-1] == 0:
+            raise RuntimeError(
+                f"Audio file {audio_path} with offset {offset} and duration {duration} is empty!"
+            )
 
         if data.ndim < 2:
             data = data.unsqueeze(0)
@@ -444,7 +515,7 @@ class AudioSignal(
         self.original_signal_length = self.signal_length
 
         self.sample_rate = sample_rate
-        self.path_to_input_file = audio_path
+        self.path_to_file = audio_path
         return self.to(device)
 
     def load_from_array(
@@ -491,7 +562,8 @@ class AudioSignal(
         """Writes audio to a file. Only writes the audio
         that is in the very first item of the batch. To write other items
         in the batch, index the signal along the batch dimension
-        before writing.
+        before writing. After writing, the signal's ``path_to_file``
+        attribute is updated to the new path.
 
         Parameters
         ----------
@@ -523,6 +595,8 @@ class AudioSignal(
         if self.audio_data[0].abs().max() > 1:
             warnings.warn("Audio amplitude > 1 clipped when saving")
         soundfile.write(str(audio_path), self.audio_data[0].numpy().T, self.sample_rate)
+
+        self.path_to_file = audio_path
         return self
 
     def deepcopy(self):
@@ -568,7 +642,7 @@ class AudioSignal(
             clone.stft_data = self.stft_data.clone()
         if self._loudness is not None:
             clone._loudness = self._loudness.clone()
-        clone.path_to_input_file = copy.deepcopy(self.path_to_input_file)
+        clone.path_to_file = copy.deepcopy(self.path_to_file)
         clone.metadata = copy.deepcopy(self.metadata)
         return clone
 
@@ -1419,9 +1493,7 @@ class AudioSignal(
         info = {
             "duration": f"{dur} seconds",
             "batch_size": self.batch_size,
-            "path": self.path_to_input_file
-            if self.path_to_input_file
-            else "path unknown",
+            "path": self.path_to_file if self.path_to_file else "path unknown",
             "sample_rate": self.sample_rate,
             "num_channels": self.num_channels if self.num_channels else "[unknown]",
             "audio_data.shape": self.audio_data.shape,

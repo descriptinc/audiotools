@@ -40,6 +40,11 @@ def create_csv(
     >>>     audio_files, output_csv, loudness=True
     >>> )
 
+    Note that you can create empty rows in the CSV file by passing an empty
+    string or None in the ``audio_files`` list. This is useful if you want to
+    sync multiple CSV files in a multitrack setting. The loudness of these
+    empty rows will be set to -inf.
+
     Parameters
     ----------
     audio_files : list
@@ -59,9 +64,14 @@ def create_csv(
         af = Path(af)
         pbar.set_description(f"Processing {af.name}")
         _info = {}
-        _info["path"] = af.relative_to(data_path)
-        if loudness:
-            _info["loudness"] = AudioSignal(af).ffmpeg_loudness().item()
+        if af.name == "":
+            _info["path"] = ""
+            if loudness:
+                _info["loudness"] = -float("inf")
+        else:
+            _info["path"] = af.relative_to(data_path)
+            if loudness:
+                _info["loudness"] = AudioSignal(af).ffmpeg_loudness().item()
 
         info.append(_info)
 

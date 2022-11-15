@@ -1,9 +1,9 @@
 import numpy as np
+import pytest
 import torch
 
 import audiotools
-from audiotools import AudioSignal
-from audiotools import data
+from audiotools.core import util
 from audiotools.data import transforms as tfm
 
 
@@ -186,6 +186,108 @@ def test_csv_dataset():
 
         assert torch.allclose(signal[mask].audio_data, zeros_)
         assert torch.allclose(signal[~mask].audio_data, original_)
+
+
+def test_multitrack_incoherent_dataset():
+    from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
+    from audiotools.core.util import generate_chord_dataset
+
+    generate_chord_dataset(max_voices=4, num_items=3, output_dir="tests/audio/chords")
+    dataset = CSVMultiTrackDataset(
+        sample_rate=44100,
+        n_examples=20,
+        csv_groups=[
+            {
+                "voice_0": "tests/audio/chords/voice_0.csv",
+                "voice_1": "tests/audio/chords/voice_0.csv",
+                "voice_2": "tests/audio/chords/voice_0.csv",
+                "coherence": 0.0,
+            },
+        ],
+    )
+    for i in range(10):
+        item = dataset[i]
+        assert len(item["signals"]) == 3
+        assert (
+            item["signals"]["voice_0"].path_to_file
+            != item["signals"]["voice_1"].path_to_file
+        )
+
+
+@pytest.mark.parametrize(
+    "source_transforms",
+    [
+        None,
+        {
+            "voice_0": tfm.Compose([tfm.VolumeNorm(), tfm.Silence(prob=0.5)]),
+            "voice_1": tfm.VolumeNorm(),
+            "voice_2": tfm.VolumeNorm(),
+            "voice_3": tfm.VolumeNorm(),
+        },
+        {"voice_0": tfm.VolumeNorm(), "voice_2": tfm.VolumeNorm()},
+    ],
+)
+def test_multitrack_dataset(source_transforms):
+    from audiotools.data.datasets import CSVMultiTrackDataset, MultiTrackAudioLoader
+    from pathlib import Path
+
+    dataset_dir = Path("tests/audio/chords")
+
+    from audiotools.core.util import generate_chord_dataset
+
+    generate_chord_dataset(max_voices=4, num_items=3, output_dir=dataset_dir)
+
+    # wrong primary key
+    with pytest.raises(ValueError):
+        MultiTrackAudioLoader(
+            [
+                {
+                    "irs": "tests/audio/irs.csv",
+                    "primary_key": "voice_0",
+                }
+            ],
+        )
+
+    dataset = CSVMultiTrackDataset(
+        sample_rate=44100,
+        n_examples=20,
+        csv_groups=[
+            {
+                "voice_0": "tests/audio/chords/voice_0.csv",
+                "voice_1": "tests/audio/chords/voice_1.csv",
+                "voice_2": "tests/audio/chords/voice_2.csv",
+                "voice_3": "tests/audio/chords/voice_3.csv",
+                "empty": "tests/audio/empty.csv",
+                "primary_key": "voice_2",
+            },
+            {
+                "voice_0": "tests/audio/chords/voice_0.csv",
+            },
+        ],
+        transform=source_transforms,
+    )
+
+    assert set(dataset.source_names) == set(
+        ["voice_0", "voice_1", "voice_2", "voice_3", "empty"]
+    )
+    assert dataset.primary_keys == ["voice_2", "voice_0"]
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=16,
+        num_workers=0,
+        collate_fn=dataset.collate,
+    )
+
+    for batch in dataloader:
+        kwargs = batch["transform_args"]
+        signals = batch["signals"]
+
+        tfmed = {
+            k: dataset.transform[k](sig.clone(), **kwargs[k])
+            for k, sig in signals.items()
+        }
+        mix = sum(tfmed.values())
 
 
 def test_dataset_pipeline():
