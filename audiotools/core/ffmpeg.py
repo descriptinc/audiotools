@@ -67,7 +67,7 @@ def ffprobe_offset(path):
         global_options="-show_entries format=start_time:stream=duration,start_time,codec_type,start_pts,time_base -of json -v quiet",
     )
     streams = json.loads(ff.run(stdout=subprocess.PIPE)[0])["streams"]
-    seconds_offset = 0, 0.0
+    seconds_offset = 0.0
     # Get the offset of the first audio stream we find
     # and return its start time, if it has one.
     for stream in streams:
