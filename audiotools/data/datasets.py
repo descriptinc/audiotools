@@ -243,7 +243,7 @@ class MultiTrackAudioLoader:
                 "bass": "dataset1/bass.csv",
 
                 "coherence": 0.5,
-                "weight": 1,
+                "csv_weight": 1,
                 "primary_key": "vocals",
             },
             {
@@ -253,7 +253,7 @@ class MultiTrackAudioLoader:
                 "guitar": "dataset2/guitar.csv",
 
                 "coherence": 0.5,
-                "weight": 3,
+                "csv_weight": 3,
                 "primary_key": "vocals",
             },
         ]
@@ -265,7 +265,7 @@ class MultiTrackAudioLoader:
     - primary_key : str, optional
         - If provided, will load a salient excerpt from the audio file specified by the primary key.
         - If not provided, will pick the first csv file in the group from the csv_group dict.
-    - weight : float, optional
+    - csv_weight : float, optional
         - weight for sampling this CSV group, by default 1.0
     - coherence: float, optional
         - Coherence of sampled multitrack data, by default 1.0
@@ -576,7 +576,7 @@ class CSVMultiTrackDataset(BaseDataset):
             "bass": "dataset1/bass.csv",
             "coherence_prob": 0.5,          # probability of sampling coherent multitracks.
             "primary_key": "vocals",        # the key of the primary track.
-            "weight": 1.0,                  # the weight for sampling this group
+            "csv_weight": 1.0,                  # the weight for sampling this group
         },
         {
             "vocals": "datset2/vocals.csv",
@@ -585,7 +585,7 @@ class CSVMultiTrackDataset(BaseDataset):
             "guitar": "dataset2/guitar.csv",
             "coherence_prob": 1.0,
             "primary_key": "vocals",
-            "weight": 1.0,
+            "csv_weight": 1.0,
         },
     ]
     ```
@@ -595,7 +595,7 @@ class CSVMultiTrackDataset(BaseDataset):
     - primary_key : str, optional
         - If provided, will load a salient excerpt from the audio file specified by the primary key.
         - If not provided, will pick the first csv file in the group from the csv_group dict.
-    - weight : float, optional
+    - csv_weight : float, optional
         - weight for sampling this CSV group, by default 1.0
     - coherence: float, optional
         - Coherence of sampled multitrack data, by default 1.0
