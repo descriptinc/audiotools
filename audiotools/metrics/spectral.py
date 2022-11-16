@@ -119,6 +119,8 @@ class MelSpectrogramLoss(nn.Module):
         log_weight: float = 1.0,
         weight: float = 1.0,
         match_stride: bool = False,
+        mel_fmin: List[float] = [0.0, 0.0],
+        mel_fmax: List[float] = [None, None],
     ):
         super().__init__()
         self.stft_params = [
@@ -131,6 +133,8 @@ class MelSpectrogramLoss(nn.Module):
         self.log_weight = log_weight
         self.mag_weight = mag_weight
         self.weight = weight
+        self.mel_fmin = mel_fmin
+        self.mel_fmax = mel_fmax
 
     def forward(self, x: AudioSignal, y: AudioSignal):
         """Computes mel loss between an estimate and a reference
@@ -149,14 +153,16 @@ class MelSpectrogramLoss(nn.Module):
             Mel loss.
         """
         loss = 0.0
-        for n_mels, s in zip(self.n_mels, self.stft_params):
+        for n_mels, fmin, fmax, s in zip(
+            self.n_mels, self.mel_fmin, self.mel_fmax, self.stft_params
+        ):
             kwargs = {
                 "window_length": s.window_length,
                 "hop_length": s.hop_length,
                 "window_type": s.window_type,
             }
-            x_mels = x.mel_spectrogram(n_mels, **kwargs)
-            y_mels = y.mel_spectrogram(n_mels, **kwargs)
+            x_mels = x.mel_spectrogram(n_mels, mel_fmin=fmin, mel_fmax=fmax, **kwargs)
+            y_mels = y.mel_spectrogram(n_mels, mel_fmin=fmin, mel_fmax=fmax, **kwargs)
 
             loss += self.log_weight * self.loss_fn(
                 x_mels.pow(2).clamp(self.clamp_eps).log10(),
