@@ -279,6 +279,9 @@ def test_multitrack_dataset(source_transforms):
         collate_fn=dataset.collate,
     )
 
+    dataset.mix_transform = tfm.Identity()
+    assert isinstance(dataset.transform["mix"], tfm.Identity)
+
     for batch in dataloader:
         kwargs = batch["transform_args"]
         signals = batch["signals"]
@@ -288,6 +291,9 @@ def test_multitrack_dataset(source_transforms):
             for k, sig in signals.items()
         }
         mix = sum(tfmed.values())
+
+        mix_tfm_args = batch["mix_transform_args"]
+        mix_tfmed = dataset.mix_transform(mix.clone(), **mix_tfm_args)
 
 
 def test_dataset_pipeline():

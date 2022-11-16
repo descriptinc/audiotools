@@ -411,3 +411,28 @@ def test_smoothing_edge_case():
     output = transform(signal, **kwargs)
 
     assert torch.allclose(output.audio_data, zeros)
+
+
+def test_global_volume_norm():
+    signal = AudioSignal.wave(440, 1, 44100, 1)
+
+    # signal with -inf loudness should be unchanged
+    signal.metadata["loudness"] = float("-inf")
+
+    transform = tfm.GlobalVolumeNorm(db=("const", -100))
+    kwargs = transform.instantiate(0, signal)
+
+    output = transform(signal.clone(), **kwargs)
+    assert torch.allclose(output.samples, signal.samples)
+
+    # signal without a loudness key should be unchanged
+    signal.metadata.pop("loudness")
+    kwargs = transform.instantiate(0, signal)
+    output = transform(signal.clone(), **kwargs)
+    assert torch.allclose(output.samples, signal.samples)
+
+    # signal with the actual loudness should be normalized
+    signal.metadata["loudness"] = signal.ffmpeg_loudness()
+    kwargs = transform.instantiate(0, signal)
+    output = transform(signal.clone(), **kwargs)
+    assert not torch.allclose(output.samples, signal.samples)
