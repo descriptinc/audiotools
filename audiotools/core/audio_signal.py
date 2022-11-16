@@ -328,7 +328,7 @@ class AudioSignal(
         duration: float,
         sample_rate: int,
         num_channels: int = 1,
-        shape: str = "saw",
+        shape: str = "sine",
         **kwargs,
     ):
         """

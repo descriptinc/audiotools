@@ -307,6 +307,11 @@ def test_waves(shape: str):
     assert x.duration == 0.5
     assert x.sample_rate == 44100
 
+    # test the default shape arg
+    x = AudioSignal.wave(440, 0.5, 44100)
+    assert x.duration == 0.5
+    assert x.sample_rate == 44100
+
 
 def test_zero_pad():
     array = np.random.randn(4, 2, 16000)
