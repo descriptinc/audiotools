@@ -23,6 +23,8 @@ class MultiScaleSTFTLoss(nn.Module):
         Weight of raw magnitude portion of loss, by default 1.0
     log_weight : float, optional
         Weight of log magnitude portion of loss, by default 1.0
+    pow : float, optional
+        Power to raise magnitude to before taking log, by default 2.0
     weight : float, optional
         Weight of this loss, by default 1.0
     match_stride : bool, optional
@@ -43,6 +45,7 @@ class MultiScaleSTFTLoss(nn.Module):
         clamp_eps: float = 1e-5,
         mag_weight: float = 1.0,
         log_weight: float = 1.0,
+        pow: float = 2.0,
         weight: float = 1.0,
         match_stride: bool = False,
     ):
@@ -56,6 +59,7 @@ class MultiScaleSTFTLoss(nn.Module):
         self.mag_weight = mag_weight
         self.clamp_eps = clamp_eps
         self.weight = weight
+        self.pow = pow
 
     def forward(self, x: AudioSignal, y: AudioSignal):
         """Computes multi-scale STFT between an estimate and a reference
@@ -78,8 +82,8 @@ class MultiScaleSTFTLoss(nn.Module):
             x.stft(s.window_length, s.hop_length, s.window_type)
             y.stft(s.window_length, s.hop_length, s.window_type)
             loss += self.log_weight * self.loss_fn(
-                x.magnitude.pow(2).clamp(self.clamp_eps).log10(),
-                y.magnitude.pow(2).clamp(self.clamp_eps).log10(),
+                x.magnitude.clamp(self.clamp_eps).pow(self.pow).log10(),
+                y.magnitude.clamp(self.clamp_eps).pow(self.pow).log10(),
             )
             loss += self.mag_weight * self.loss_fn(x.magnitude, y.magnitude)
         return loss
@@ -169,8 +173,8 @@ class MelSpectrogramLoss(nn.Module):
             y_mels = y.mel_spectrogram(n_mels, mel_fmin=fmin, mel_fmax=fmax, **kwargs)
 
             loss += self.log_weight * self.loss_fn(
-                x_mels.pow(self.pow).clamp(self.clamp_eps).log10(),
-                y_mels.pow(self.pow).clamp(self.clamp_eps).log10(),
+                x_mels.clamp(self.clamp_eps).pow(self.pow).log10(),
+                y_mels.clamp(self.clamp_eps).pow(self.pow).log10(),
             )
             loss += self.mag_weight * self.loss_fn(x_mels, y_mels)
         return loss
