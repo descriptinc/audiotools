@@ -1,4 +1,4 @@
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 from .core import AudioSignal
 from .core import STFTParams
 from .core import Meter

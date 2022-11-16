@@ -67,15 +67,14 @@ def ffprobe_offset(path):
         global_options="-show_entries format=start_time:stream=duration,start_time,codec_type,start_pts,time_base -of json -v quiet",
     )
     streams = json.loads(ff.run(stdout=subprocess.PIPE)[0])["streams"]
-    samples_offset, seconds_offset = 0, 0.0
+    seconds_offset = 0.0
     # Get the offset of the first audio stream we find
     # and return its start time, if it has one.
     for stream in streams:
         if stream["codec_type"] == "audio":
-            samples_offset = stream.get("start_pts", 0)
             seconds_offset = stream.get("start_time", 0.0)
             break
-    return int(samples_offset), float(seconds_offset)
+    return float(seconds_offset)
 
 
 class FFMPEGMixin:
@@ -177,14 +176,14 @@ class FFMPEGMixin:
             # We pad the file using the start time offset
             # in case it's an audio stream starting at some
             # offset in a video container.
-            pad, sec = ffprobe_offset(audio_path)
+            pad = ffprobe_offset(audio_path)
             # Don't pad files with discrepancies less than
-            # 0.05s - it's likely due to codec latency.
-            if sec < 0.05:
-                pad = 0
+            # 0.1s - it's likely due to codec latency.
+            if pad < 0.1:
+                pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
-                outputs={padded_wav: f"-af 'adelay={pad}S:all=true'"},
+                outputs={padded_wav: f"-af 'adelay={pad}s:all=true'"},
                 global_options=global_options,
             )
             ff.run()
