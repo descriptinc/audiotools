@@ -390,12 +390,15 @@ class MultiTrackAudioLoader:
                 duration=duration,
                 loudness_cutoff=loudness_cutoff,
             )
-            for k, v in p_audio_info.items():
-                primary_signal.metadata[k] = v
 
             # update the offset and duration according to the primary signal
             offset = primary_signal.metadata["offset"]
             duration = primary_signal.metadata["duration"]
+
+            for k, v in p_audio_info.items():
+                # don't update the duration and offset keys
+                if k not in primary_signal.metadata:
+                    primary_signal.metadata[k] = v
 
         # load the rest of the signals
         signals = {}

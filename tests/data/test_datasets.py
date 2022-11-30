@@ -248,6 +248,8 @@ def test_multitrack_dataset(source_transforms):
             ],
         )
 
+    from copy import deepcopy
+
     dataset = CSVMultiTrackDataset(
         sample_rate=44100,
         n_examples=20,
@@ -264,7 +266,7 @@ def test_multitrack_dataset(source_transforms):
                 "voice_0": "tests/audio/chords/voice_0.csv",
             },
         ],
-        transform=source_transforms,
+        transform=deepcopy(source_transforms),
     )
 
     assert set(dataset.source_names) == set(
@@ -294,6 +296,26 @@ def test_multitrack_dataset(source_transforms):
 
         mix_tfm_args = batch["mix_transform_args"]
         mix_tfmed = dataset.mix_transform(mix.clone(), **mix_tfm_args)
+
+    # test that if the csv has a 'duration' column, it does NOT
+    # overwrite the actual duration grabbed by the loader
+    dataset = CSVMultiTrackDataset(
+        sample_rate=44100,
+        n_examples=5,
+        duration=2.0,
+        csv_groups=[
+            {
+                "empty": "tests/audio/empty.csv",
+                "empty2": "tests/audio/empty.csv",
+                "primary_key": "empty",
+            },
+            {"empty3": "tests/audio/empty.csv"},
+        ],
+    )
+
+    for i in range(len(dataset)):
+        item = dataset[i]
+        assert dataset.duration == item["signals"]["empty"].duration
 
 
 def test_dataset_pipeline():
