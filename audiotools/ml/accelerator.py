@@ -30,7 +30,9 @@ class Accelerator:  # pragma: no cover
         Whether or not to enable automatic mixed precision, by default False
     """
 
-    def __init__(self, amp: bool = False):
+    def __init__(
+        self, amp: bool = False, backend: str = "nccl", init_method: str = "env://"
+    ):
         local_rank = os.getenv("LOCAL_RANK", None)
         self.world_size = torch.cuda.device_count()
 
@@ -41,8 +43,8 @@ class Accelerator:  # pragma: no cover
         if self.use_ddp:
             local_rank = int(local_rank)
             dist.init_process_group(
-                "nccl",
-                init_method="env://",
+                backend=backend,
+                init_method=init_method,
                 world_size=self.world_size,
                 rank=local_rank,
             )
