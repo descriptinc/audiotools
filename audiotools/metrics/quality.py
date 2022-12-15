@@ -123,7 +123,7 @@ def visqol(
     Tensor[float]
         ViSQOL score (MOS-LQO)
     """
-    from pyvisqol import visqol_lib_py
+    import visqol_lib_py
     import visqol_config_pb2
     import similarity_result_pb2
 
@@ -140,8 +140,7 @@ def visqol(
         raise ValueError(f"Unrecognized mode: {mode}")
     config.audio.sample_rate = target_sr
     config.options.svr_model_path = os.path.join(
-        os.path.dirname(visqol_config_pb2.__file__),
-        "pyvisqol/visqol_lib_py_test.runfiles/__main__/model",
+        os.path.dirname(visqol_lib_py.__file__),
         svr_model_path,
     )
 
