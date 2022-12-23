@@ -140,7 +140,8 @@ def visqol(
         raise ValueError(f"Unrecognized mode: {mode}")
     config.audio.sample_rate = target_sr
     config.options.svr_model_path = os.path.join(
-        os.path.dirname(visqol_lib_py.__file__), "model", svr_model_path)
+        os.path.dirname(visqol_lib_py.__file__), "model", svr_model_path
+    )
 
     api = visqol_lib_py.VisqolApi()
     api.Create(config)
