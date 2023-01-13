@@ -152,8 +152,8 @@ def visqol(
     visqols = []
     for i in range(estimates.batch_size):
         _visqol = api.Measure(
-            references.audio_data[i, 0].detach().cpu().numpy().astype(np.float),
-            estimates.audio_data[i, 0].detach().cpu().numpy().astype(np.float),
+            references.audio_data[i, 0].detach().cpu().numpy().astype(float),
+            estimates.audio_data[i, 0].detach().cpu().numpy().astype(float),
         )
         visqols.append(_visqol.moslqo)
     return torch.from_numpy(np.array(visqols))
