@@ -484,6 +484,23 @@ def test_mel_spectrogram(n_mels, window_length, hop_length, window_type):
         assert mel_spec.shape[2] == n_mels
 
 
+@pytest.mark.parametrize("n_mfcc", [20, 40])
+@pytest.mark.parametrize("n_mels", [40, 80, 128])
+@pytest.mark.parametrize("window_length", [2048, 512])
+@pytest.mark.parametrize("hop_length", [512, 128])
+def test_mfcc(n_mfcc, n_mels, window_length, hop_length):
+    if hop_length >= window_length:
+        hop_length = window_length // 2
+    audio_path = "tests/audio/spk/f10_script4_produced.wav"
+    stft_params = audiotools.STFTParams(
+        window_length=window_length, hop_length=hop_length
+    )
+    for _stft_params in [None, stft_params]:
+        signal = AudioSignal(audio_path, duration=10, stft_params=_stft_params)
+        mfcc = signal.mfcc(n_mfcc=n_mfcc, n_mels=n_mels)
+        assert mfcc.shape[2] == n_mfcc
+
+
 def test_to_mono():
     array = np.random.randn(4, 2, 16000)
     sr = 16000
