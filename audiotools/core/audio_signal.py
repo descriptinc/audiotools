@@ -1388,9 +1388,6 @@ class AudioSignal(
         """
         from torchaudio.functional import create_dct
 
-        # For more information about dct:
-        # http://en.wikipedia.org/wiki/Discrete_cosine_transform#DCT-II
-
         return create_dct(n_mfcc, n_mels, norm).to(device)
 
     def mfcc(
