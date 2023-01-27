@@ -26,16 +26,24 @@ class AudioLoader:
         paths to audio files, by default None
     weights : List[float], optional
         Weights to sample audio files from each source, by default None
+    relative_path : str, optional
+        Path audio should be loaded relative to, by default ""
+    transform : Callable, optional
+        Transform to instantiate and apply to loaded audio,
+        by default None
     """
 
     def __init__(
         self,
         sources: List[str] = None,
         weights: List[float] = None,
-        relative_path: str = "",
         transform: Callable = None,
+        relative_path: str = "",
+        ext: List[str] = util.AUDIO_EXTENSIONS,
     ):
-        self.audio_lists = util.read_sources(sources, relative_path=relative_path)
+        self.audio_lists = util.read_sources(
+            sources, relative_path=relative_path, ext=ext
+        )
         self.sources = sources
         self.weights = weights
         self.transform = transform
@@ -104,6 +112,30 @@ class AudioLoader:
 
 
 class AudioDataset:
+    """_summary_
+
+    Parameters
+    ----------
+    loaders : Union[AudioLoader, List[AudioLoader], Dict[str, AudioLoader]]
+        _description_
+    sample_rate : int
+        _description_
+    n_examples : int, optional
+        _description_, by default 1000
+    duration : float, optional
+        _description_, by default 0.5
+    loudness_cutoff : float, optional
+        _description_, by default -40
+    num_channels : int, optional
+        _description_, by default 1
+    transform : Callable, optional
+        _description_, by default None
+    aligned : bool, optional
+        _description_, by default False
+    shuffle_loaders : bool, optional
+        _description_, by default False
+    """
+
     def __init__(
         self,
         loaders: Union[AudioLoader, List[AudioLoader], Dict[str, AudioLoader]],
@@ -173,7 +205,7 @@ class AudioDataset:
                 state=state, signal=item[keys[0]]["signal"]
             )
 
-        # If there's only one item in the loader, pop it up
+        # If there's only one loader, pop it up
         # to the main dictionary, instead of keeping it
         # nested.
         if len(keys) == 1:
