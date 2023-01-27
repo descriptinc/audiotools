@@ -359,7 +359,7 @@ def test_masking():
         dataset,
         batch_size=16,
         num_workers=0,
-        collate_fn=audiotools.data.datasets.BaseDataset.collate,
+        collate_fn=util.collate,
     )
     for batch in dataloader:
         signal = batch.pop("signal")

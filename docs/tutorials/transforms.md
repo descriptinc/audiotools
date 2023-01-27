@@ -297,7 +297,7 @@ kwargs = transform.batch_instantiate(seeds)
 pp.pprint(kwargs)
 ```
 
-There are now 4 cutoffs, and 4 mask values in the dictionary, instead of just 1 as before. Under the hood, the `batch_instantiate` function calls `instantiate` with every `seed` in `seeds`, and then collates the results using the `audiotools.util.collate` function. In practice, you'll likely use `audiotools.datasets.BaseDataset` instead to get a single item at a time, and then use the `collate` function as an argument to the torch `DataLoader`'s `collate_fn` argument.
+There are now 4 cutoffs, and 4 mask values in the dictionary, instead of just 1 as before. Under the hood, the `batch_instantiate` function calls `instantiate` with every `seed` in `seeds`, and then collates the results using the `audiotools.util.collate` function. In practice, you'll likely use `audiotools.datasets.AudioDataset` instead to get a single item at a time, and then use the `collate` function as an argument to the torch `DataLoader`'s `collate_fn` argument.
 
 Alright, let's augment the entire batch at once, instead of in a for loop:
 

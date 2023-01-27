@@ -1,10 +1,8 @@
-import typing
 from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Union
 
-import numpy as np
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
@@ -29,7 +27,7 @@ class AudioLoader:
     relative_path : str, optional
         Path audio should be loaded relative to, by default ""
     transform : Callable, optional
-        Transform to instantiate and apply to loaded audio,
+        Transform to instantiate alongside audio sample,
         by default None
     """
 
@@ -113,28 +111,83 @@ class AudioLoader:
 
 
 class AudioDataset:
-    """_summary_
+    """Loads audio from multiple loaders (with associated transforms)
+    for a specified number of samples. Excerpts are drawn randomly
+    of the specified duration, above a specified loudness threshold
+    and are resampled on the fly to the desired sample rate
+    (if it is different from the audio source sample rate).
+
+    This takes either a single AudioLoader object,
+    a dictionary of AudioLoader objects, or a dictionary of AudioLoader
+    objects. Each AudioLoader is called by the dataset, and the
+    result is placed in the output dictionary. A transform can also be
+    specified for the entire dataset, rather than for each specific
+    loader. This transform can be applied to the output of all the
+    loaders if desired.
+
+    AudioLoader objects can be specified as aligned, which means the
+    loaders correspond to multitrack audio (e.g. a vocals, bass,
+    drums, and other loader for multitrack music mixtures).
+
 
     Parameters
     ----------
     loaders : Union[AudioLoader, List[AudioLoader], Dict[str, AudioLoader]]
-        _description_
+        AudioLoaders to sample audio from.
     sample_rate : int
-        _description_
+        Desired sample rate.
     n_examples : int, optional
-        _description_, by default 1000
+        Number of examples (length of dataset), by default 1000
     duration : float, optional
-        _description_, by default 0.5
+        Duration of audio samples, by default 0.5
     loudness_cutoff : float, optional
-        _description_, by default -40
+        Loudness cutoff threshold for audio samples, by default -40
     num_channels : int, optional
-        _description_, by default 1
+        Number of channels in output audio, by default 1
     transform : Callable, optional
-        _description_, by default None
+        Transform to instantiate alongside each dataset item, by default None
     aligned : bool, optional
-        _description_, by default False
+        Whether the loaders should be sampled in an aligned manner (e.g. same
+        offset, duration, and matched file name), by default False
     shuffle_loaders : bool, optional
-        _description_, by default False
+        Whether to shuffle the loaders before sampling from them, by default False
+
+
+    Examples
+    --------
+    >>> from audiotools.data.datasets import AudioLoader
+    >>> from audiotools.data.datasets import AudioDataset
+    >>> from audiotools import transforms as tfm
+    >>> import numpy as np
+    >>>
+    >>> loaders = [
+    >>>     AudioLoader(
+    >>>         sources=[f"tests/audio/spk"],
+    >>>         transform=tfm.Equalizer(),
+    >>>         ext=["wav"],
+    >>>     )
+    >>>     for i in range(5)
+    >>> ]
+    >>>
+    >>> dataset = AudioDataset(
+    >>>     loaders = loaders,
+    >>>     sample_rate = 44100,
+    >>>     duration = 1.0,
+    >>>     transform = tfm.RescaleAudio(),
+    >>> )
+    >>>
+    >>> item = dataset[np.random.randint(len(dataset))]
+    >>>
+    >>> for i in range(len(loaders)):
+    >>>     item[i]["signal"] = loaders[i].transform(
+    >>>         item[i]["signal"], **item[i]["transform_args"]
+    >>>     )
+    >>>     item[i]["signal"].widget(i)
+    >>>
+    >>> mix = sum([item[i]["signal"] for i in range(len(loaders))])
+    >>> mix = dataset.transform(mix, **item["transform_args"])
+    >>> mix.widget("mix")
+
     """
 
     def __init__(
