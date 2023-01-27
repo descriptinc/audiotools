@@ -102,11 +102,11 @@ distance = metrics.spectral.MelSpectrogramLoss()
 for transform_name in transforms_to_demo:
     kwargs = {}
     if transform_name == "BackgroundNoise":
-        kwargs["csv_files"] = ["../../tests/audio/noises.csv"]
+        kwargs["sources"] = ["../../tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
-        kwargs["csv_files"] = ["../../tests/audio/irs.csv"]
+        kwargs["sources"] = ["../../tests/audio/irs.csv"]
     if transform_name == "CrossTalk":
-        kwargs["csv_files"] = ["../../tests/audio/spk.csv"]
+        kwargs["sources"] = ["../../tests/audio/spk.csv"]
     if "Quantization" in transform_name:
         kwargs["channels"] = ("choice", [8, 16, 32])
     transform_cls = getattr(tfm, transform_name)
@@ -541,19 +541,19 @@ class YourTransform(BaseTransform):
 
 There are two transforms which require a dataset to run. They are:
 
-1. `BackgroundNoise`: takes a `csv_files` argument which points to a list of files that it can load background noise from.
-2. `RoomImpulseResponse`: takes a `csv_files` argument which points to a list of files that it can load impulse response data from.
+1. `BackgroundNoise`: takes a `sources` argument which points to a list of files that it can load background noise from.
+2. `RoomImpulseResponse`: takes a `sources` argument which points to a list of files that it can load impulse response data from.
 
 Both of these transforms require an additional argument to their `instantiate` function: an `AudioSignal` object. They get instantiated like this:
 
 ```python
 seed = ...
 signal = ...
-transform = tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"])
+transform = tfm.BackgroundNoise(sources=["/tmp/noises.csv"])
 transform.instantiate(seed, signal)
 ```
 
-The signal is used to load audio from the `csv_files` that is at the same
+The signal is used to load audio from the `sources` that is at the same
 sample rate, the same number of channels, and (in the case of `BackgroundNoise`) the same duration as that of `signal`.
 
 ## Complete example
@@ -580,8 +580,8 @@ preprocess.create_csv(util.find_audio(_path / "ir"), "/tmp/irs.csv")
 preprocess = tfm.VolumeChange(name="pre")
 process = tfm.Compose(
     [
-        tfm.RoomImpulseResponse(csv_files=["/tmp/irs.csv"]),
-        tfm.BackgroundNoise(csv_files=["/tmp/noises.csv"]),
+        tfm.RoomImpulseResponse(sources=["/tmp/irs.csv"]),
+        tfm.BackgroundNoise(sources=["/tmp/noises.csv"]),
         tfm.ClippingDistortion(),
         tfm.MuLawQuantization(),
         tfm.LowPass(prob=0.5),

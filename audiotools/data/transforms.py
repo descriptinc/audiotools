@@ -69,8 +69,8 @@ class BaseTransform:
     >>> signal = AudioSignal(audio_path, offset=10, duration=2)
     >>> transform = tfm.Compose(
     >>>     [
-    >>>         tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
-    >>>         tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
+    >>>         tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
+    >>>         tfm.BackgroundNoise(sources=["tests/audio/noises.csv"]),
     >>>     ],
     >>> )
     >>>
@@ -292,8 +292,8 @@ class Compose(BaseTransform):
 
     >>> transform = tfm.Compose(
     >>>     [
-    >>>         tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
-    >>>         tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
+    >>>         tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
+    >>>         tfm.BackgroundNoise(sources=["tests/audio/noises.csv"]),
     >>>     ],
     >>> )
 
@@ -735,10 +735,11 @@ class BackgroundNoise(BaseTransform):
     ----------
     snr : tuple, optional
         Signal-to-noise ratio, by default ("uniform", 10.0, 30.0)
-    csv_files : List[str], optional
-        A list of files to load audio from, by default None
-    csv_weights : List[float], optional
-        Weights to sample audio files from each CSV, by default None
+    sources : List[str], optional
+        Sources containing folders, or CSVs with paths to audio files,
+        by default None
+    weights : List[float], optional
+        Weights to sample audio files from each source, by default None
     eq_amount : tuple, optional
         Amount of equalization to apply, by default ("const", 1.0)
     n_bands : int, optional
@@ -755,8 +756,8 @@ class BackgroundNoise(BaseTransform):
     def __init__(
         self,
         snr: tuple = ("uniform", 10.0, 30.0),
-        csv_files: List[str] = None,
-        csv_weights: List[float] = None,
+        sources: List[str] = None,
+        weights: List[float] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 3,
         name: str = None,
@@ -768,7 +769,7 @@ class BackgroundNoise(BaseTransform):
         self.snr = snr
         self.eq_amount = eq_amount
         self.n_bands = n_bands
-        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loader = AudioLoader(sources, weights)
         self.loudness_cutoff = loudness_cutoff
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
@@ -776,13 +777,13 @@ class BackgroundNoise(BaseTransform):
         eq = -eq_amount * state.rand(self.n_bands)
         snr = util.sample_from_dist(self.snr, state)
 
-        bg_signal, _ = self.loader(
+        bg_signal = self.loader(
             state,
             signal.sample_rate,
             duration=signal.signal_duration,
             loudness_cutoff=self.loudness_cutoff,
             num_channels=signal.num_channels,
-        )
+        )["signal"]
 
         return {"eq": eq, "bg_signal": bg_signal, "snr": snr}
 
@@ -804,10 +805,11 @@ class CrossTalk(BaseTransform):
     snr : tuple, optional
         How loud cross-talk speaker is relative to original signal in dB,
         by default ("uniform", 0.0, 10.0)
-    csv_files : List[str], optional
-        A list of files to load audio from, by default None
-    csv_weights : List[float], optional
-        Weights to sample audio files from each CSV, by default None
+    sources : List[str], optional
+        Sources containing folders, or CSVs with paths to audio files,
+        by default None
+    weights : List[float], optional
+        Weights to sample audio files from each source, by default None
     name : str, optional
         Name of this transform, used to identify it in the dictionary
         produced by ``self.instantiate``, by default None
@@ -820,8 +822,8 @@ class CrossTalk(BaseTransform):
     def __init__(
         self,
         snr: tuple = ("uniform", 0.0, 10.0),
-        csv_files: List[str] = None,
-        csv_weights: List[float] = None,
+        sources: List[str] = None,
+        weights: List[float] = None,
         name: str = None,
         prob: float = 1.0,
         loudness_cutoff: float = -40,
@@ -829,18 +831,18 @@ class CrossTalk(BaseTransform):
         super().__init__(name=name, prob=prob)
 
         self.snr = snr
-        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loader = AudioLoader(sources, weights)
         self.loudness_cutoff = loudness_cutoff
 
     def _instantiate(self, state: RandomState, signal: AudioSignal):
         snr = util.sample_from_dist(self.snr, state)
-        crosstalk_signal, _ = self.loader(
+        crosstalk_signal = self.loader(
             state,
             signal.sample_rate,
             duration=signal.signal_duration,
             loudness_cutoff=self.loudness_cutoff,
             num_channels=signal.num_channels,
-        )
+        )["signal"]
 
         return {"crosstalk_signal": crosstalk_signal, "snr": snr}
 
@@ -866,10 +868,11 @@ class RoomImpulseResponse(BaseTransform):
     ----------
     drr : tuple, optional
         _description_, by default ("uniform", 0.0, 30.0)
-    csv_files : List[str], optional
-        A list of files to load audio from, by default None
-    csv_weights : List[float], optional
-        Weights to sample audio files from each CSV, by default None
+    sources : List[str], optional
+        Sources containing folders, or CSVs with paths to audio files,
+        by default None
+    weights : List[float], optional
+        Weights to sample audio files from each source, by default None
     eq_amount : tuple, optional
         Amount of equalization to apply, by default ("const", 1.0)
     n_bands : int, optional
@@ -890,8 +893,8 @@ class RoomImpulseResponse(BaseTransform):
     def __init__(
         self,
         drr: tuple = ("uniform", 0.0, 30.0),
-        csv_files: List[str] = None,
-        csv_weights: List[float] = None,
+        sources: List[str] = None,
+        weights: List[float] = None,
         eq_amount: tuple = ("const", 1.0),
         n_bands: int = 6,
         name: str = None,
@@ -907,7 +910,7 @@ class RoomImpulseResponse(BaseTransform):
         self.n_bands = n_bands
         self.use_original_phase = use_original_phase
 
-        self.loader = AudioLoader(csv_files, csv_weights)
+        self.loader = AudioLoader(sources, weights)
         self.offset = offset
         self.duration = duration
 
@@ -916,14 +919,14 @@ class RoomImpulseResponse(BaseTransform):
         eq = -eq_amount * state.rand(self.n_bands)
         drr = util.sample_from_dist(self.drr, state)
 
-        ir_signal, _ = self.loader(
+        ir_signal = self.loader(
             state,
             signal.sample_rate,
             offset=self.offset,
             duration=self.duration,
             loudness_cutoff=None,
             num_channels=signal.num_channels,
-        )
+        )["signal"]
         ir_signal.zero_pad_to(signal.sample_rate)
 
         return {"eq": eq, "ir_signal": ir_signal, "drr": drr}

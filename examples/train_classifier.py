@@ -38,9 +38,10 @@ def build_dataset(
         tfm.LowPass(prob=0.5),
         tfm.ClippingDistortion(prob=0.1),
     )
-    dataset = audiotools.datasets.CSVDataset(
+    loader = audiotools.datasets.AudioLoader(sources=csv_files)
+    dataset = audiotools.datasets.AudioDataset(
+        loader,
         sample_rate,
-        csv_files=csv_files,
         duration=duration,
         transform=transform,
     )

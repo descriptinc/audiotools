@@ -72,7 +72,7 @@ class DisplayMixin:
         log_mag = signal.log_magnitude(ref_value=ref)
 
         if y_axis == "mel":
-            log_mag = 10 * signal.mel_spectrogram(n_mels).pow(2).clamp(1e-5).log10()
+            log_mag = 20 * signal.mel_spectrogram(n_mels).clamp(1e-5).log10()
             log_mag -= log_mag.max()
 
         librosa.display.specshow(

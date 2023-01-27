@@ -9,7 +9,8 @@ from rich.table import Table
 from audiotools import AudioSignal
 from audiotools.core import util
 from audiotools.data import transforms as tfm
-from audiotools.data.datasets import CSVDataset
+from audiotools.data.datasets import AudioDataset
+from audiotools.data.datasets import AudioLoader
 
 
 def run(batch_size=64, duration=5.0, device="cuda"):
@@ -19,11 +20,12 @@ def run(batch_size=64, duration=5.0, device="cuda"):
             tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
         ]
     )
-    dataset = CSVDataset(
+    loader = AudioLoader(sources=["tests/audio/spk.csv"])
+    dataset = AudioDataset(
+        loader,
         44100,
-        1000,
-        duration,
-        csv_files=["tests/audio/spk.csv"],
+        n_examples=1000,
+        duration=duration,
         transform=transform,
     )
     dataloader = torch.utils.data.DataLoader(

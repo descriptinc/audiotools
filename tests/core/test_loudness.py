@@ -241,11 +241,12 @@ def test_fir_accuracy():
         transforms.Equalizer(prob=0.5),
         prob=0.5,
     )
-    dataset = datasets.CSVDataset(
+    loader = datasets.AudioLoader(sources=["tests/audio/spk.csv"])
+    dataset = datasets.AudioDataset(
+        loader,
         44100,
         10,
         5.0,
-        csv_files=["tests/audio/spk.csv"],
         transform=transform,
     )
 
