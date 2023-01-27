@@ -51,12 +51,10 @@ def create_csv(
         List of audio files.
     output_csv : Path
         Output CSV, with each row containing the relative path of every file
-        to ``PATH_TO_DATA`` (defaults to None).
+        to ``data_path``, if specified (defaults to None).
     loudness : bool
         Compute loudness of entire file and store alongside path.
     """
-    if data_path is None:
-        data_path = Path(os.getenv("PATH_TO_DATA", ""))
 
     info = []
     pbar = tqdm(audio_files)
@@ -69,7 +67,7 @@ def create_csv(
             if loudness:
                 _info["loudness"] = -float("inf")
         else:
-            _info["path"] = af.relative_to(data_path)
+            _info["path"] = af.relative_to(data_path) if data_path is not None else af
             if loudness:
                 _info["loudness"] = AudioSignal(af).ffmpeg_loudness().item()
 

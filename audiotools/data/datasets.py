@@ -87,7 +87,8 @@ class AudioLoader:
                     duration=duration,
                 )
         else:
-            path = "n/a"
+            # This needs to be a string so collate works
+            path = "none"
 
         if num_channels == 1:
             signal = signal.to_mono()
@@ -103,8 +104,8 @@ class AudioLoader:
             "signal": signal,
             "source_idx": source_idx,
             "item_idx": item_idx,
-            "source": self.sources[source_idx],
-            "path": path,
+            "source": str(self.sources[source_idx]),
+            "path": str(path),
         }
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)

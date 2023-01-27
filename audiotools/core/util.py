@@ -267,6 +267,7 @@ def read_sources(
     files = []
     relative_path = Path(relative_path)
     for source in sources:
+        source = str(source)
         _files = []
         if source.endswith(".csv"):
             with open(source, "r") as f:
@@ -631,6 +632,6 @@ def generate_chord_dataset(
                 voice_lists[voice_name].append("")
 
     for voice_name, paths in voice_lists.items():
-        create_csv(paths, output_dir / f"{voice_name}.csv", loudness=True, data_path="")
+        create_csv(paths, output_dir / f"{voice_name}.csv", loudness=True)
 
     return output_dir
