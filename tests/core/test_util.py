@@ -63,6 +63,9 @@ def test_find_audio():
     audio_files = util.find_audio("tests/", ["flac"])
     assert not audio_files
 
+    # Make sure it works with single audio files
+    audio_files = util.find_audio("tests/audio/spk//f10_script4_produced.wav")
+
 
 def test_chdir():
     with tempfile.TemporaryDirectory(suffix="tmp") as d:
