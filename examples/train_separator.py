@@ -32,10 +32,10 @@ def build_dataset(
 
     loaders = {
         f"track_{i}": audiotools.datasets.AudioLoader(
-            sources=["chords/track_{i}"],
+            sources=[f"chords/track_{i}"],
             transform=tfm.Compose(
                 tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
-                tfm.LowPass(prob=0.5),
+                tfm.LowPass(("const", 2000), prob=0.5),
                 tfm.ClippingDistortion(prob=0.1),
                 tfm.VolumeNorm(("uniform", -20, -10)),
             ),
@@ -72,7 +72,7 @@ def train(accel, batch_size: int = 4):
 
             for k in sources:
                 d = batch[k]
-                d["augmented"] = train_data.loaders[k](
+                d["augmented"] = train_data.loaders[k].transform(
                     d["signal"].clone(), **d["transform_args"]
                 )
 

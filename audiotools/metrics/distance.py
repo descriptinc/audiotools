@@ -68,7 +68,7 @@ class SISDRLoss(nn.Module):
     def __init__(
         self,
         scaling: int = True,
-        reduction: str = " mean",
+        reduction: str = "mean",
         zero_mean: int = True,
         clip_min: int = None,
         weight: float = 1.0,
