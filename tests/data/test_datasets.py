@@ -9,6 +9,33 @@ import audiotools
 from audiotools.data import transforms as tfm
 
 
+def test_align_lists():
+    input_lists = [
+        ["a/1.wav", "b/1.wav", "c/1.wav", "d/1.wav"],
+        ["a/2.wav", "c/2.wav"],
+        ["c/3.wav"],
+    ]
+    target_lists = [
+        ["a/1.wav", "b/1.wav", "c/1.wav", "d/1.wav"],
+        ["a/2.wav", "none", "c/2.wav", "none"],
+        ["none", "none", "c/3.wav", "none"],
+    ]
+
+    def _preprocess(lists):
+        output = []
+        for x in lists:
+            output.append([])
+            for y in x:
+                output[-1].append({"path": y})
+        return output
+
+    input_lists = _preprocess(input_lists)
+    target_lists = _preprocess(target_lists)
+
+    aligned_lists = audiotools.datasets.align_lists(input_lists)
+    assert target_lists == aligned_lists
+
+
 def test_audio_dataset():
     transform = tfm.Compose(
         [
