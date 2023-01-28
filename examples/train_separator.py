@@ -26,22 +26,24 @@ class Model(torchaudio.models.ConvTasNet, audiotools.ml.BaseModel):
 def build_dataset(
     sample_rate: int = 8000,
     duration: float = 0.5,
+    musdb_path: str = "~/.data/musdb/",
 ):
     # generate some fake data to train on
-    audiotools.util.generate_chord_dataset(max_voices=4, output_dir="chords")
-
+    musdb_path = Path(musdb_path).expanduser()
     loaders = {
-        f"track_{i}": audiotools.datasets.AudioLoader(
-            sources=[f"chords/track_{i}"],
+        src: audiotools.datasets.AudioLoader(
+            sources=[musdb_path],
             transform=tfm.Compose(
                 tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
                 tfm.LowPass(("const", 2000), prob=0.5),
                 tfm.ClippingDistortion(prob=0.1),
                 tfm.VolumeNorm(("uniform", -20, -10)),
             ),
+            ext=[f"{src}.wav"],
         )
-        for i in range(4)
+        for src in ["vocals", "bass", "drums", "other"]
     }
+
     dataset = audiotools.datasets.AudioDataset(
         loaders=loaders,
         sample_rate=sample_rate,

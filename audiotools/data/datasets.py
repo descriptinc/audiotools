@@ -1,8 +1,10 @@
+from pathlib import Path
 from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Union
 
+import numpy as np
 from torch.utils.data import SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
@@ -29,6 +31,10 @@ class AudioLoader:
     transform : Callable, optional
         Transform to instantiate alongside audio sample,
         by default None
+    ext : List[str]
+        List of extensions to find audio within each source by. Can
+        also be a file name (e.g. "vocals.wav"). by default
+        ``['.wav', '.flac', '.mp3', '.mp4']``.
     """
 
     def __init__(
@@ -61,7 +67,7 @@ class AudioLoader:
             try:
                 audio_info = self.audio_lists[source_idx][item_idx]
             except:
-                audio_info = {"path": None}
+                audio_info = {"path": "none"}
         else:
             audio_info, source_idx, item_idx = util.choose_from_list_of_lists(
                 state, self.audio_lists, p=self.weights
@@ -70,7 +76,7 @@ class AudioLoader:
         path = audio_info["path"]
         signal = AudioSignal.zeros(duration, sample_rate, num_channels)
 
-        if path is not None:
+        if path != "none":
             if offset is None:
                 signal = AudioSignal.salient_excerpt(
                     path,
@@ -84,9 +90,6 @@ class AudioLoader:
                     offset=offset,
                     duration=duration,
                 )
-        else:
-            # This needs to be a string so collate works
-            path = "none"
 
         if num_channels == 1:
             signal = signal.to_mono()
@@ -108,6 +111,21 @@ class AudioLoader:
         if self.transform is not None:
             item["transform_args"] = self.transform.instantiate(state, signal=signal)
         return item
+
+
+def default_matcher(x, y):
+    return Path(x).parent == Path(y).parent
+
+
+def align_lists(lists, matcher: Callable = default_matcher):
+    longest_list = lists[np.argmax([len(l) for l in lists])]
+    for i, x in enumerate(longest_list):
+        for l in lists:
+            if i >= len(l):
+                l.append({"path": "none"})
+            elif not matcher(l[i]["path"], x["path"]):
+                l.insert(i, {"path": "none"})
+    return lists
 
 
 class AudioDataset:
@@ -188,6 +206,126 @@ class AudioDataset:
     >>> mix = dataset.transform(mix, **item["transform_args"])
     >>> mix.widget("mix")
 
+    Below is an example of how one could load MUSDB multitrack data:
+
+    >>> import audiotools as at
+    >>> from pathlib import Path
+    >>> from audiotools import transforms as tfm
+    >>> import numpy as np
+    >>> import torch
+    >>>
+    >>> def build_dataset(
+    >>>     sample_rate: int = 44100,
+    >>>     duration: float = 5.0,
+    >>>     musdb_path: str = "~/.data/musdb/",
+    >>> ):
+    >>>     musdb_path = Path(musdb_path).expanduser()
+    >>>     loaders = {
+    >>>         src: at.datasets.AudioLoader(
+    >>>             sources=[musdb_path],
+    >>>             transform=tfm.Compose(
+    >>>                 tfm.VolumeNorm(("uniform", -20, -10)),
+    >>>                 tfm.Silence(prob=0.1),
+    >>>             ),
+    >>>             ext=[f"{src}.wav"],
+    >>>         )
+    >>>         for src in ["vocals", "bass", "drums", "other"]
+    >>>     }
+    >>>
+    >>>     dataset = at.datasets.AudioDataset(
+    >>>         loaders=loaders,
+    >>>         sample_rate=sample_rate,
+    >>>         duration=duration,
+    >>>         num_channels=1,
+    >>>         aligned=True,
+    >>>         transform=tfm.RescaleAudio(),
+    >>>         shuffle_loaders=True,
+    >>>     )
+    >>>     return dataset, list(loaders.keys())
+    >>>
+    >>> train_data, sources = build_dataset()
+    >>> dataloader = torch.utils.data.DataLoader(
+    >>>     train_data,
+    >>>     batch_size=16,
+    >>>     num_workers=0,
+    >>>     collate_fn=train_data.collate,
+    >>> )
+    >>> batch = next(iter(dataloader))
+    >>>
+    >>> for k in sources:
+    >>>     src = batch[k]
+    >>>     src["transformed"] = train_data.loaders[k].transform(
+    >>>         src["signal"].clone(), **src["transform_args"]
+    >>>     )
+    >>>
+    >>> mixture = sum(batch[k]["transformed"] for k in sources)
+    >>> mixture = train_data.transform(mixture, **batch["transform_args"])
+    >>>
+    >>> # Say a model takes the mix and gives back (n_batch, n_src, n_time).
+    >>> # Construct the targets:
+    >>> targets = at.AudioSignal.batch([batch[k]["transformed"] for k in sources], dim=1)
+
+    Similarly, here's example code for loading Slakh data:
+
+    >>> import audiotools as at
+    >>> from pathlib import Path
+    >>> from audiotools import transforms as tfm
+    >>> import numpy as np
+    >>> import torch
+    >>> import glob
+    >>>
+    >>> def build_dataset(
+    >>>     sample_rate: int = 16000,
+    >>>     duration: float = 10.0,
+    >>>     slakh_path: str = "~/.data/slakh/",
+    >>> ):
+    >>>     slakh_path = Path(slakh_path).expanduser()
+    >>>
+    >>>     # Find the max number of sources in Slakh
+    >>>     src_names = [x.name for x in list(slakh_path.glob("**/*.wav"))  if "S" in str(x.name)]
+    >>>     n_sources = len(list(set(src_names)))
+    >>>
+    >>>     loaders = {
+    >>>         f"S{i:02d}": at.datasets.AudioLoader(
+    >>>             sources=[slakh_path],
+    >>>             transform=tfm.Compose(
+    >>>                 tfm.VolumeNorm(("uniform", -20, -10)),
+    >>>                 tfm.Silence(prob=0.1),
+    >>>             ),
+    >>>             ext=[f"S{i:02d}.wav"],
+    >>>         )
+    >>>         for i in range(n_sources)
+    >>>     }
+    >>>     dataset = at.datasets.AudioDataset(
+    >>>         loaders=loaders,
+    >>>         sample_rate=sample_rate,
+    >>>         duration=duration,
+    >>>         num_channels=1,
+    >>>         aligned=True,
+    >>>         transform=tfm.RescaleAudio(),
+    >>>         shuffle_loaders=False,
+    >>>     )
+    >>>
+    >>>     return dataset, list(loaders.keys())
+    >>>
+    >>> train_data, sources = build_dataset()
+    >>> dataloader = torch.utils.data.DataLoader(
+    >>>     train_data,
+    >>>     batch_size=16,
+    >>>     num_workers=0,
+    >>>     collate_fn=train_data.collate,
+    >>> )
+    >>> batch = next(iter(dataloader))
+    >>>
+    >>> for k in sources:
+    >>>     src = batch[k]
+    >>>     src["transformed"] = train_data.loaders[k].transform(
+    >>>         src["signal"].clone(), **src["transform_args"]
+    >>>     )
+    >>>
+    >>> mixture = sum(batch[k]["transformed"] for k in sources)
+    >>> mixture = train_data.transform(mixture, **batch["transform_args"])
+
     """
 
     def __init__(
@@ -201,6 +339,7 @@ class AudioDataset:
         transform: Callable = None,
         aligned: bool = False,
         shuffle_loaders: bool = False,
+        matcher: Callable = default_matcher,
     ):
         # Internally we convert loaders to a dictionary
         if isinstance(loaders, list):
@@ -219,11 +358,15 @@ class AudioDataset:
         self.aligned = aligned
         self.shuffle_loaders = shuffle_loaders
 
+        if aligned:
+            loaders_list = list(loaders.values())
+            for i in range(len(loaders_list[0].audio_lists)):
+                input_lists = [l.audio_lists[i] for l in loaders_list]
+                # Alignment happens in-place
+                align_lists(input_lists, matcher)
+
     def __getitem__(self, idx):
         state = util.random_state(idx)
-
-        source_idx = None
-        item_idx = None
         offset = None
         item = {}
 
@@ -231,23 +374,32 @@ class AudioDataset:
         if self.shuffle_loaders:
             state.shuffle(keys)
 
-        for key in keys:
-            loader = self.loaders[key]
-            item[key] = loader(
-                state,
-                self.sample_rate,
-                offset=offset,
-                duration=self.duration,
-                loudness_cutoff=self.loudness_cutoff,
-                num_channels=self.num_channels,
-                source_idx=source_idx,
-                item_idx=item_idx,
-            )
+        loader_kwargs = {
+            "state": state,
+            "sample_rate": self.sample_rate,
+            "duration": self.duration,
+            "loudness_cutoff": self.loudness_cutoff,
+            "num_channels": self.num_channels,
+        }
 
+        # Draw item from first loader
+        loader = self.loaders[keys[0]]
+        item[keys[0]] = loader(**loader_kwargs)
+
+        for key in keys[1:]:
+            loader = self.loaders[key]
             if self.aligned:
-                source_idx = item[key]["source_idx"]
-                item_idx = item[key]["item_idx"]
-                offset = item[key]["signal"].metadata["offset"]
+                # Path mapper takes the current loader + everything
+                # returned by the first loader.
+                offset = item[keys[0]]["signal"].metadata["offset"]
+                loader_kwargs.update(
+                    {
+                        "offset": offset,
+                        "source_idx": item[keys[0]]["source_idx"],
+                        "item_idx": item[keys[0]]["item_idx"],
+                    }
+                )
+            item[key] = loader(**loader_kwargs)
 
         # Sort dictionary back into original order
         keys = list(self.loaders.keys())

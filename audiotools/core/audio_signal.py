@@ -382,6 +382,7 @@ class AudioSignal(
         pad_signals: bool = False,
         truncate_signals: bool = False,
         resample: bool = False,
+        dim: int = 0,
     ):
         """Creates a batched AudioSignal from a list of AudioSignals.
 
@@ -398,6 +399,8 @@ class AudioSignal(
         resample : bool, optional
             Whether to resample AudioSignal to the sample rate of
             the first AudioSignal in the list, by default False
+        dim : int, optional
+            Dimension along which to batch the signals.
 
         Returns
         -------
@@ -453,8 +456,8 @@ class AudioSignal(
                     f"All signals must be the same length, or pad_signals/truncate_signals "
                     f"must be True. "
                 )
-        # Concatenate along the batch dimension
-        audio_data = torch.cat([x.audio_data for x in audio_signals], dim=0)
+        # Concatenate along the specified dimension (default 0)
+        audio_data = torch.cat([x.audio_data for x in audio_signals], dim=dim)
         audio_paths = [x.path_to_file for x in audio_signals]
 
         batched_signal = cls(
