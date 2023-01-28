@@ -1366,6 +1366,63 @@ class AudioSignal(
         mel_spectrogram = mel_spectrogram.transpose(-1, 2)
         return mel_spectrogram
 
+    @staticmethod
+    @functools.lru_cache(None)
+    def get_dct(n_mfcc: int, n_mels: int, norm: str = "ortho", device: str = None):
+        """Create a discrete cosine transform (DCT) transformation matrix with shape (``n_mels``, ``n_mfcc``),
+        it can be normalized depending on norm. For more information about dct:
+        http://en.wikipedia.org/wiki/Discrete_cosine_transform#DCT-II
+
+        Parameters
+        ----------
+        n_mfcc : int
+            Number of mfccs
+        n_mels : int
+            Number of mels
+        norm   : str
+            Use "ortho" to get a orthogonal matrix or None, by default "ortho"
+        device : str, optional
+            Device to load the transformation matrix on, by default None
+
+        Returns
+        -------
+        torch.Tensor [shape=(n_mels, n_mfcc)] T
+            The dct transformation matrix.
+        """
+        from torchaudio.functional import create_dct
+
+        return create_dct(n_mfcc, n_mels, norm).to(device)
+
+    def mfcc(
+        self, n_mfcc: int = 40, n_mels: int = 80, log_offset: float = 1e-6, **kwargs
+    ):
+        """Computes mel-frequency cepstral coefficients (MFCCs).
+
+        Parameters
+        ----------
+        n_mfcc : int, optional
+            Number of mels, by default 40
+        n_mels : int, optional
+            Number of mels, by default 80
+        log_offset: float, optional
+            Small value to prevent numerical issues when trying to compute log(0), by default 1e-6
+        kwargs : dict, optional
+            Keyword arguments to self.mel_spectrogram(), note that some of them will be used for self.stft()
+
+        Returns
+        -------
+        torch.Tensor [shape=(batch, channels, mfccs, time)]
+            MFCCs.
+        """
+
+        mel_spectrogram = self.mel_spectrogram(n_mels, **kwargs)
+        mel_spectrogram = torch.log(mel_spectrogram + log_offset)
+        dct_mat = self.get_dct(n_mfcc, n_mels, "ortho", self.device)
+
+        mfcc = mel_spectrogram.transpose(-1, -2) @ dct_mat
+        mfcc = mfcc.transpose(-1, -2)
+        return mfcc
+
     @property
     def magnitude(self):
         """Computes and returns the absolute value of the STFT, which
