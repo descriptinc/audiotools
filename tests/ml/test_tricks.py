@@ -57,6 +57,8 @@ def test_autoclip():
     assert np.allclose(state_dict["grad_history"], grad_history)
     autoclip.load_state_dict(state_dict)
 
+    autoclip = ml.tricks.AutoClip(0, max_history=100)
+
 
 def test_autobalance():
     losses = torch.randn(10).abs().tolist()
