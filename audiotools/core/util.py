@@ -1,4 +1,5 @@
 import csv
+import math
 import numbers
 import os
 import random
@@ -410,7 +411,7 @@ def sample_from_dist(dist_tuple: tuple, state: np.random.RandomState = None):
     return dist_fn(*dist_tuple[1:])
 
 
-def collate(list_of_dicts: list):
+def collate(list_of_dicts: list, n_splits: int = None):
     """Collates a list of dictionaries (e.g. as returned by a
     dataloader) into a dictionary with batched values. This routine
     uses the default torch collate function for everything
@@ -418,31 +419,52 @@ def collate(list_of_dicts: list):
     :py:func:`audiotools.core.audio_signal.AudioSignal.batch`
     function.
 
+    This function is secretly a class to easily enable splitting a batch
+    into multiple sub-batches for the purposes of gradient accumulation,
+    etc.
+
     Parameters
     ----------
     list_of_dicts : list
         List of dictionaries to be collated.
+    n_splits : int
+        Number of splits to make when creating the batches (split into
+        sub-batches). Useful for things like gradient accumulation.
 
     Returns
     -------
     dict
         Dictionary containing batched data.
     """
+
     from . import AudioSignal
 
-    # Flatten the dictionaries to avoid recursion.
-    list_of_dicts = [flatten(d) for d in list_of_dicts]
-    dict_of_lists = {k: [dic[k] for dic in list_of_dicts] for k in list_of_dicts[0]}
+    batches = []
+    list_len = len(list_of_dicts)
 
-    batch = {}
-    for k, v in dict_of_lists.items():
-        if isinstance(v, list):
-            if all(isinstance(s, AudioSignal) for s in v):
-                batch[k] = AudioSignal.batch(v, pad_signals=True)
-            else:
-                # Borrow the default collate fn from torch.
-                batch[k] = torch.utils.data._utils.collate.default_collate(v)
-    return unflatten(batch)
+    return_list = False if n_splits is None else True
+    n_splits = 1 if n_splits is None else n_splits
+    n_items = int(math.ceil(list_len / n_splits))
+
+    for i in range(0, list_len, n_items):
+        # Flatten the dictionaries to avoid recursion.
+        list_of_dicts_ = [flatten(d) for d in list_of_dicts[i : i + n_items]]
+        dict_of_lists = {
+            k: [dic[k] for dic in list_of_dicts_] for k in list_of_dicts_[0]
+        }
+
+        batch = {}
+        for k, v in dict_of_lists.items():
+            if isinstance(v, list):
+                if all(isinstance(s, AudioSignal) for s in v):
+                    batch[k] = AudioSignal.batch(v, pad_signals=True)
+                else:
+                    # Borrow the default collate fn from torch.
+                    batch[k] = torch.utils.data._utils.collate.default_collate(v)
+        batches.append(unflatten(batch))
+
+    batches = batches[0] if not return_list else batches
+    return batches
 
 
 BASE_SIZE = 864

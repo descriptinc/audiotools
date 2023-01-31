@@ -423,7 +423,7 @@ class AudioDataset:
         return self.length
 
     @staticmethod
-    def collate(list_of_dicts: Union[list, dict]):
+    def collate(list_of_dicts: Union[list, dict], n_splits: int = None):
         """Collates items drawn from this dataset. Uses
         :py:func:`audiotools.core.util.collate`.
 
@@ -431,13 +431,16 @@ class AudioDataset:
         ----------
         list_of_dicts : typing.Union[list, dict]
             Data drawn from each item.
+        n_splits : int
+            Number of splits to make when creating the batches (split into
+            sub-batches). Useful for things like gradient accumulation.
 
         Returns
         -------
         dict
             Dictionary of batched data.
         """
-        return util.collate(list_of_dicts)
+        return util.collate(list_of_dicts, n_splits=n_splits)
 
 
 class ResumableDistributedSampler(DistributedSampler):  # pragma: no cover
