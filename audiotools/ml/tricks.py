@@ -1,3 +1,4 @@
+import collections
 from typing import List
 
 import numpy as np
@@ -58,8 +59,16 @@ class AutoClip:
         How often to re-compute the clipping value.
     """
 
-    def __init__(self, percentile: float = 10, frequency: int = 1, mask_nan: int = 0):
+    def __init__(
+        self,
+        percentile: float = 10,
+        frequency: int = 1,
+        mask_nan: int = 0,
+        max_history: int = None,
+    ):
         self.grad_history = []
+        if max_history is not None:
+            self.grad_history = collections.deque([], maxlen=max_history)
         self.percentile = percentile
         self.frequency = frequency
         self.mask_nan = bool(mask_nan)

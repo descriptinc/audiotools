@@ -63,6 +63,9 @@ def test_find_audio():
     audio_files = util.find_audio("tests/", ["flac"])
     assert not audio_files
 
+    # Make sure it works with single audio files
+    audio_files = util.find_audio("tests/audio/spk//f10_script4_produced.wav")
+
 
 def test_chdir():
     with tempfile.TemporaryDirectory(suffix="tmp") as d:
@@ -113,3 +116,31 @@ def test_collate():
     assert collated["tensor"].shape[0] == batch_size
     assert len(collated["string"]) == batch_size
     assert collated["dict"]["nested_signal"].batch_size == batch_size
+
+    # test collate with splitting (evenly)
+    batch_size = 16
+    n_splits = 4
+
+    items = [_one_item() for _ in range(batch_size)]
+    collated = util.collate(items, n_splits=n_splits)
+
+    for x in collated:
+        assert x["signal"].batch_size == batch_size // n_splits
+        assert x["tensor"].shape[0] == batch_size // n_splits
+        assert len(x["string"]) == batch_size // n_splits
+        assert x["dict"]["nested_signal"].batch_size == batch_size // n_splits
+
+    # test collate with splitting (unevenly)
+    batch_size = 15
+    n_splits = 4
+
+    items = [_one_item() for _ in range(batch_size)]
+    collated = util.collate(items, n_splits=n_splits)
+
+    tlen = [4, 4, 4, 3]
+
+    for x, t in zip(collated, tlen):
+        assert x["signal"].batch_size == t
+        assert x["tensor"].shape[0] == t
+        assert len(x["string"]) == t
+        assert x["dict"]["nested_signal"].batch_size == t

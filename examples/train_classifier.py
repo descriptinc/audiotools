@@ -30,17 +30,18 @@ class Model(torchaudio.models.DeepSpeech, audiotools.ml.BaseModel):
 def build_dataset(
     sample_rate: int = 44100,
     duration: float = 0.5,
-    csv_files: List[str] = ["tests/audio/spk.csv", "tests/audio/noises.csv"],
+    sources: List[str] = ["tests/audio/spk.csv", "tests/audio/noises.csv"],
 ):
-    num_classes = len(csv_files)
+    num_classes = len(sources)
     transform = tfm.Compose(
-        tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
+        tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
         tfm.LowPass(prob=0.5),
         tfm.ClippingDistortion(prob=0.1),
     )
-    dataset = audiotools.datasets.CSVDataset(
+    loader = audiotools.datasets.AudioLoader(sources=sources)
+    dataset = audiotools.datasets.AudioDataset(
+        loader,
         sample_rate,
-        csv_files=csv_files,
         duration=duration,
         transform=transform,
     )
@@ -69,7 +70,7 @@ def train(accel, batch_size: int = 16):
             signal = batch["signal"]
             kwargs = batch["transform_args"]
             signal = train_data.transform(signal.clone(), **kwargs)
-            label = batch["label"]
+            label = batch["source_idx"]
 
             model.train()
             optimizer.zero_grad()

@@ -10,7 +10,8 @@ from rich.table import Table
 
 from audiotools import AudioSignal
 from audiotools.core import util
-from audiotools.data.datasets import CSVDataset
+from audiotools.data.datasets import AudioDataset
+from audiotools.data.datasets import AudioLoader
 
 
 def collate(list_of_dicts):
@@ -30,11 +31,12 @@ def collate(list_of_dicts):
 
 
 def run(batch_size=64, duration=5.0, device="cuda"):
-    dataset = CSVDataset(
+    loader = AudioLoader(sources=["tests/audio/spk.csv"])
+    dataset = AudioDataset(
+        loader,
         44100,
         10 * batch_size,
         duration,
-        csv_files=["tests/audio/spk.csv"],
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, num_workers=16, batch_size=batch_size, collate_fn=collate

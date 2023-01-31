@@ -1,11 +1,6 @@
-import random
 from pathlib import Path
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import argbind
-import librosa
 import torch
 import torchaudio
 from torch.utils.tensorboard import SummaryWriter
@@ -29,32 +24,32 @@ class Model(torchaudio.models.ConvTasNet, audiotools.ml.BaseModel):
 
 @argbind.bind(without_prefix=True)
 def build_dataset(
-    sample_rate: int = 44100,
+    sample_rate: int = 8000,
     duration: float = 0.5,
-    csv_groups: List[str] = None,
+    musdb_path: str = "~/.data/musdb/",
 ):
-
-    transform = {
-        "bass": tfm.Compose(
-            tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
-            tfm.LowPass(prob=0.5),
-            tfm.ClippingDistortion(prob=0.1),
-            tfm.VolumeNorm(("uniform", -20, -10)),
-        ),
-        "drums": tfm.Compose(
-            tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
-            tfm.ClippingDistortion(prob=0.1),
-            tfm.VolumeNorm(("uniform", -20, -10)),
-        ),
+    musdb_path = Path(musdb_path).expanduser()
+    loaders = {
+        src: audiotools.datasets.AudioLoader(
+            sources=[musdb_path],
+            transform=tfm.Compose(
+                tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
+                tfm.LowPass(("const", 2000), prob=0.5),
+                tfm.ClippingDistortion(prob=0.1),
+                tfm.VolumeNorm(("uniform", -20, -10)),
+            ),
+            ext=[f"{src}.wav"],
+        )
+        for src in ["vocals", "bass", "drums", "other"]
     }
 
-    dataset = audiotools.datasets.CSVMultiTrackDataset(
+    dataset = audiotools.datasets.AudioDataset(
+        loaders=loaders,
         sample_rate=sample_rate,
-        csv_groups=csv_groups,
-        transform=transform,
         duration=duration,
+        num_channels=1,
     )
-    return dataset, dataset.source_names
+    return dataset, list(loaders.keys())
 
 
 @argbind.bind(without_prefix=True)
@@ -63,58 +58,45 @@ def train(accel, batch_size: int = 4):
     if accel.local_rank == 0:
         writer = SummaryWriter(log_dir="logs/")
 
-    # generate some fake data to train on
-    audiotools.util.generate_chord_dataset(max_voices=4, output_dir="chords")
-
-    train_data, source_names = build_dataset(
-        csv_groups=[
-            {
-                "voice_1": "chords/voice_0.csv",
-                "voice_2": "chords/voice_1.csv",
-                "voice_3": "chords/voice_2.csv",
-                "voice_4": "chords/voice_3.csv",
-            }
-        ]
-    )
-
+    train_data, sources = build_dataset()
     train_dataloader = accel.prepare_dataloader(
-        train_data, batch_size=batch_size, collate_fn=audiotools.util.collate
+        train_data, batch_size=batch_size, collate_fn=train_data.collate
     )
 
-    model = accel.prepare_model(Model(num_sources=len(source_names)))
+    model = accel.prepare_model(Model(num_sources=len(sources)))
     optimizer = Adam(model.parameters())
-    criterion = audiotools.metrics.spectral.MultiScaleSTFTLoss()
+    criterion = audiotools.metrics.distance.SISDRLoss()
 
     class Trainer(audiotools.ml.BaseTrainer):
         def train_loop(self, engine, batch):
             batch = audiotools.util.prepare_batch(batch, accel.device)
 
-            signals = batch["signals"]
-            tfm_kwargs = batch["transform_args"]
-            signals = {
-                k: train_data.transform[k](v, **tfm_kwargs[k])
-                for k, v in signals.items()
-            }
+            for k in sources:
+                d = batch[k]
+                d["augmented"] = train_data.loaders[k].transform(
+                    d["signal"].clone(), **d["transform_args"]
+                )
 
-            mixture = sum(signals.values())
-            sources = mixture.clone()
-            sources.audio_data = torch.concat(
-                [s.audio_data for s in signals.values()], dim=-2
-            )
+            mixture = sum(batch[k]["augmented"] for k in sources)
+            _targets = [batch[k]["signal"] for k in sources]
+            targets = mixture.clone()
+            targets.audio_data = torch.concat([s.audio_data for s in _targets], dim=-2)
 
             model.train()
             optimizer.zero_grad()
-            source_estimates = model(mixture)
-            loss = criterion(sources, source_estimates)
+            estimates = model(mixture)
+            loss = criterion(targets, estimates)
             loss.backward()
             optimizer.step()
 
             # log!
             if engine.state.iteration % 10 == 0:
                 mixture.write_audio_to_tb("mixture", writer, engine.state.iteration)
-                for i, (k, v) in enumerate(signals.items()):
-                    v.write_audio_to_tb(f"source/{k}", writer, engine.state.iteration)
-                    source_estimates[i].detach().write_audio_to_tb(
+                for i, k in enumerate(sources):
+                    batch[k]["signal"].write_audio_to_tb(
+                        f"source/{k}", writer, engine.state.iteration
+                    )
+                    estimates[i].detach().write_audio_to_tb(
                         f"estimate/{k}", writer, engine.state.iteration
                     )
 

@@ -8,7 +8,7 @@ import audiotools
 from audiotools import AudioSignal
 from audiotools import util
 from audiotools.data import transforms as tfm
-from audiotools.data.datasets import CSVDataset
+from audiotools.data.datasets import AudioDataset
 
 non_deterministic_transforms = ["TimeNoise", "FrequencyNoise"]
 transforms_to_test = []
@@ -39,11 +39,11 @@ def test_transform(transform_name):
 
     kwargs = {}
     if transform_name == "BackgroundNoise":
-        kwargs["csv_files"] = ["tests/audio/noises.csv"]
+        kwargs["sources"] = ["tests/audio/noises.csv"]
     if transform_name == "RoomImpulseResponse":
-        kwargs["csv_files"] = ["tests/audio/irs.csv"]
+        kwargs["sources"] = ["tests/audio/irs.csv"]
     if transform_name == "CrossTalk":
-        kwargs["csv_files"] = ["tests/audio/spk.csv"]
+        kwargs["sources"] = ["tests/audio/spk.csv"]
 
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     signal = AudioSignal(audio_path, offset=10, duration=2)
@@ -92,8 +92,8 @@ def test_compose_basic():
     signal = AudioSignal(audio_path, offset=10, duration=2)
     transform = tfm.Compose(
         [
-            tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
-            tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
+            tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
+            tfm.BackgroundNoise(sources=["tests/audio/noises.csv"]),
         ],
     )
 
@@ -204,8 +204,8 @@ def test_choose_basic():
     signal = AudioSignal(audio_path, offset=10, duration=2)
     transform = tfm.Choose(
         [
-            tfm.RoomImpulseResponse(csv_files=["tests/audio/irs.csv"]),
-            tfm.BackgroundNoise(csv_files=["tests/audio/noises.csv"]),
+            tfm.RoomImpulseResponse(sources=["tests/audio/irs.csv"]),
+            tfm.BackgroundNoise(sources=["tests/audio/noises.csv"]),
         ]
     )
 
@@ -359,7 +359,7 @@ def test_masking():
         dataset,
         batch_size=16,
         num_workers=0,
-        collate_fn=audiotools.data.datasets.BaseDataset.collate,
+        collate_fn=util.collate,
     )
     for batch in dataloader:
         signal = batch.pop("signal")
@@ -385,10 +385,11 @@ def test_nested_masking():
         prob=0.9,
     )
 
-    dataset = CSVDataset(
+    loader = audiotools.data.datasets.AudioLoader(sources=["tests/audio/spk.csv"])
+    dataset = audiotools.data.datasets.AudioDataset(
+        loader,
         44100,
-        100,
-        csv_files=["tests/audio/spk.csv"],
+        n_examples=100,
         transform=transform,
     )
     dataloader = torch.utils.data.DataLoader(

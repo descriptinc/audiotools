@@ -9,7 +9,8 @@ from rich.table import Table
 from audiotools import AudioSignal
 from audiotools.core import util
 from audiotools.data import transforms as tfm
-from audiotools.data.datasets import CSVDataset
+from audiotools.data.datasets import AudioDataset
+from audiotools.data.datasets import AudioLoader
 
 transforms_to_demo = []
 for x in dir(tfm):
@@ -24,20 +25,21 @@ def run(batch_size=64, duration=5.0, device="cuda"):
     for transform_name in track(transforms_to_demo):
         kwargs = {}
         if transform_name == "BackgroundNoise":
-            kwargs["csv_files"] = ["tests/audio/noises.csv"]
+            kwargs["sources"] = ["tests/audio/noises.csv"]
         if transform_name == "RoomImpulseResponse":
-            kwargs["csv_files"] = ["tests/audio/irs.csv"]
+            kwargs["sources"] = ["tests/audio/irs.csv"]
         if "Quantization" in transform_name:
             kwargs["channels"] = ("choice", [8, 16, 32])
 
         transform_cls = getattr(tfm, transform_name)
         t = transform_cls(prob=1.0, **kwargs)
 
-        dataset = CSVDataset(
+        loader = AudioLoader(sources=["tests/audio/spk.csv"])
+        dataset = AudioDataset(
+            loader,
             44100,
             batch_size * 10,
             duration,
-            csv_files=["tests/audio/spk.csv"],
             transform=t,
         )
         dataloader = torch.utils.data.DataLoader(

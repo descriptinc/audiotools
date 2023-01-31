@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 from audiotools.core.util import find_audio
-from audiotools.core.util import read_csv
+from audiotools.core.util import read_sources
 from audiotools.data import preprocess
 
 
@@ -21,7 +21,7 @@ def test_create_csv_with_empty_rows():
     with tempfile.NamedTemporaryFile(suffix=".csv") as f:
         preprocess.create_csv(audio_files, f.name, loudness=True)
 
-        audio_files = read_csv([f.name], remove_empty=True)
+        audio_files = read_sources([f.name], remove_empty=True)
         assert len(audio_files[0]) == 1
-        audio_files = read_csv([f.name], remove_empty=False)
+        audio_files = read_sources([f.name], remove_empty=False)
         assert len(audio_files[0]) == 3
