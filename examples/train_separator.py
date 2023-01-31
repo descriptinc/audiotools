@@ -28,7 +28,6 @@ def build_dataset(
     duration: float = 0.5,
     musdb_path: str = "~/.data/musdb/",
 ):
-    # generate some fake data to train on
     musdb_path = Path(musdb_path).expanduser()
     loaders = {
         src: audiotools.datasets.AudioLoader(
