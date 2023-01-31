@@ -419,7 +419,7 @@ def collate(list_of_dicts: list, n_splits: int = None):
     :py:func:`audiotools.core.audio_signal.AudioSignal.batch`
     function.
 
-    This function is secretly a class to easily enable splitting a batch
+    This function takes n_splits to enable splitting a batch
     into multiple sub-batches for the purposes of gradient accumulation,
     etc.
 
