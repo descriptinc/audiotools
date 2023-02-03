@@ -180,9 +180,9 @@ class FFMPEGMixin:
             # Don't pad files with discrepancies less than
             # 0.1s - it's likely due to codec latency.
             # The amount of latency introduced by mp3 is
-            # 1105 samples at 44khz, which is 0.02505s. So we
+            # 1152, which is 0.0261 44khz. So we
             # set the threshold here slightly above that.
-            if pad < 0.0251:
+            if pad < 0.027:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},

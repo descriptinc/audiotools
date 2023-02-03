@@ -9,12 +9,10 @@ from audiotools import AudioSignal
 
 
 def test_audio_grad():
-
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
     ir_path = "tests/audio/ir/h179_Bar_1txts.wav"
 
     def _test_audio_grad(attr: str, target=True, kwargs: dict = {}):
-
         signal = AudioSignal(audio_path)
         signal.audio_data.requires_grad = True
 
@@ -26,7 +24,6 @@ def test_audio_grad():
 
         try:
             if isinstance(result, AudioSignal):
-
                 # If necessary, propagate spectrogram changes to waveform
                 if result.stft_data is not None:
                     result.istft()
@@ -88,7 +85,6 @@ def test_audio_grad():
 
 
 def test_batch_grad():
-
     audio_path = "tests/audio/spk/f10_script4_produced.wav"
 
     signal = AudioSignal(audio_path)
