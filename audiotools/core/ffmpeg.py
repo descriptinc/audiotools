@@ -179,7 +179,7 @@ class FFMPEGMixin:
             pad = ffprobe_offset(audio_path)
             # Don't pad files with discrepancies less than
             # 0.1s - it's likely due to codec latency.
-            if pad < 0.1:
+            if pad < 0.0251:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
