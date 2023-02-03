@@ -182,6 +182,7 @@ class FFMPEGMixin:
             # The amount of latency introduced by mp3 is
             # 1152, which is 0.0261 44khz. So we
             # set the threshold here slightly above that.
+            # Source: https://lame.sourceforge.io/tech-FAQ.txt.
             if pad < 0.027:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
