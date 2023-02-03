@@ -179,6 +179,9 @@ class FFMPEGMixin:
             pad = ffprobe_offset(audio_path)
             # Don't pad files with discrepancies less than
             # 0.1s - it's likely due to codec latency.
+            # The amount of latency introduced by mp3 is
+            # 1105 samples at 44khz, which is 0.02505s. So we
+            # set the threshold here slightly above that.
             if pad < 0.0251:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
