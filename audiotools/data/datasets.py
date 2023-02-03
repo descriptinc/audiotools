@@ -334,6 +334,7 @@ class AudioDataset:
         sample_rate: int,
         n_examples: int = 1000,
         duration: float = 0.5,
+        offset: float = None,
         loudness_cutoff: float = -40,
         num_channels: int = 1,
         transform: Callable = None,
@@ -355,6 +356,7 @@ class AudioDataset:
         self.transform = transform
         self.sample_rate = sample_rate
         self.duration = duration
+        self.offset = offset
         self.aligned = aligned
         self.shuffle_loaders = shuffle_loaders
 
@@ -367,7 +369,7 @@ class AudioDataset:
 
     def __getitem__(self, idx):
         state = util.random_state(idx)
-        offset = None
+        offset = None if self.offset is None else self.offset
         item = {}
 
         keys = list(self.loaders.keys())
