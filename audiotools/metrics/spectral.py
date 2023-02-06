@@ -48,10 +48,16 @@ class MultiScaleSTFTLoss(nn.Module):
         pow: float = 2.0,
         weight: float = 1.0,
         match_stride: bool = False,
+        window_type: str = None,
     ):
         super().__init__()
         self.stft_params = [
-            STFTParams(window_length=w, hop_length=w // 4, match_stride=match_stride)
+            STFTParams(
+                window_length=w,
+                hop_length=w // 4,
+                match_stride=match_stride,
+                window_type=window_type,
+            )
             for w in window_lengths
         ]
         self.loss_fn = loss_fn
@@ -128,10 +134,16 @@ class MelSpectrogramLoss(nn.Module):
         match_stride: bool = False,
         mel_fmin: List[float] = [0.0, 0.0],
         mel_fmax: List[float] = [None, None],
+        window_type: str = None,
     ):
         super().__init__()
         self.stft_params = [
-            STFTParams(window_length=w, hop_length=w // 4, match_stride=match_stride)
+            STFTParams(
+                window_length=w,
+                hop_length=w // 4,
+                match_stride=match_stride,
+                window_type=window_type,
+            )
             for w in window_lengths
         ]
         self.n_mels = n_mels
