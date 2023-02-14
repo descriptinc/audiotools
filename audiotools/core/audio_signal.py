@@ -1063,7 +1063,7 @@ class AudioSignal(
     def stft_params(self, value: STFTParams):
         default_win_len = int(2 ** (np.ceil(np.log2(0.032 * self.sample_rate))))
         default_hop_len = default_win_len // 4
-        default_win_type = "sqrt_hann"
+        default_win_type = "hann"
         default_match_stride = False
         default_padding_type = "reflect"
 

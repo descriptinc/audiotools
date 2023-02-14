@@ -493,7 +493,6 @@ class Repeat(Compose):
         name: str = None,
         prob: float = 1.0,
     ):
-
         transforms = [copy.copy(transform) for _ in range(n_repeat)]
         super().__init__(transforms, name=name, prob=prob)
 
@@ -1479,7 +1478,6 @@ class TimeNoise(TimeMask):
         name: str = None,
         prob: float = 1,
     ):
-
         super().__init__(t_center=t_center, t_width=t_width, name=name, prob=prob)
 
     def _transform(self, signal, tmin_s: float, tmax_s: float):

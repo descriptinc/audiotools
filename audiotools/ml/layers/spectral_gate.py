@@ -35,7 +35,6 @@ class SpectralGate(nn.Module):
     """
 
     def __init__(self, n_freq: int = 3, n_time: int = 5):
-
         super().__init__()
 
         smoothing_filter = torch.outer(

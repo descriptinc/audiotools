@@ -111,7 +111,6 @@ def audio_table(
 
         v_keys = list(v.keys())
         if columns is None:
-
             columns = [first_column] + v_keys
             output.append(" | ".join(columns))
 

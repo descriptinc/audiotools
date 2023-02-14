@@ -140,3 +140,4 @@ test_out.md
 
 # generated test data
 tests/audio/chords/
+notebooks/*
