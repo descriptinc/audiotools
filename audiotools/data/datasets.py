@@ -52,8 +52,9 @@ class AudioLoader:
         )
 
         self.audio_indices = [
-            (src_idx, item_idx) for src_idx, src in enumerate(self.audio_lists) 
-                                for item_idx in range(len(src))
+            (src_idx, item_idx)
+            for src_idx, src in enumerate(self.audio_lists)
+            for item_idx in range(len(src))
         ]
         if shuffle:
             state = util.random_state(shuffle_state)
@@ -73,7 +74,7 @@ class AudioLoader:
         offset: float = None,
         source_idx: int = None,
         item_idx: int = None,
-        global_idx: int = None
+        global_idx: int = None,
     ):
         if source_idx is not None and item_idx is not None:
             try:
@@ -81,7 +82,9 @@ class AudioLoader:
             except:
                 audio_info = {"path": "none"}
         elif global_idx is not None:
-            source_idx, item_idx = self.audio_indices[global_idx % len(self.audio_indices)]
+            source_idx, item_idx = self.audio_indices[
+                global_idx % len(self.audio_indices)
+            ]
             audio_info = self.audio_lists[source_idx][item_idx]
         else:
             audio_info, source_idx, item_idx = util.choose_from_list_of_lists(
