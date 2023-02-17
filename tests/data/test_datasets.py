@@ -151,6 +151,7 @@ def test_loader_without_replacement():
                 global_idx=None,
             )
 
+
 def test_loader_out_of_range():
     with tempfile.TemporaryDirectory() as d:
         dataset_dir = Path(d)
@@ -163,15 +164,15 @@ def test_loader_out_of_range():
         )
         loader = audiotools.data.datasets.AudioLoader([dataset_dir])
 
-
         item = loader(
             sample_rate=44100,
             duration=0.01,
             state=audiotools.util.random_state(0),
-            source_idx=0, 
-            item_idx=101
+            source_idx=0,
+            item_idx=101,
         )
         assert item["path"] == "none"
+
 
 def test_dataset_pipeline():
     transform = tfm.Compose(
