@@ -359,6 +359,7 @@ class AudioDataset:
         aligned: bool = False,
         shuffle_loaders: bool = False,
         matcher: Callable = default_matcher,
+        without_replacement: bool = True,
     ):
         # Internally we convert loaders to a dictionary
         if isinstance(loaders, list):
@@ -377,6 +378,7 @@ class AudioDataset:
         self.offset = offset
         self.aligned = aligned
         self.shuffle_loaders = shuffle_loaders
+        self.without_replacement = without_replacement
 
         if aligned:
             loaders_list = list(loaders.values())
@@ -400,7 +402,7 @@ class AudioDataset:
             "duration": self.duration,
             "loudness_cutoff": self.loudness_cutoff,
             "num_channels": self.num_channels,
-            "global_idx": idx,
+            "global_idx": idx if self.without_replacement else None,
         }
 
         # Draw item from first loader

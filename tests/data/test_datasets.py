@@ -108,6 +108,22 @@ def test_aligned_audio_dataset():
                 col = col[col != "none"]
                 assert np.all(col == col[0])
 
+def test_loader_without_replacement():
+    with tempfile.TemporaryDirectory() as d:
+        dataset_dir = Path(d)
+        num_items = 100
+        audiotools.util.generate_chord_dataset(
+            max_voices=1,
+            num_items=num_items,
+            output_dir=dataset_dir,
+            duration=0.01,
+        )
+        loader = audiotools.data.datasets.AudioLoader([dataset_dir], shuffle=False)
+        dataset = audiotools.data.datasets.AudioDataset(loader, 44100)
+
+        for idx in range(num_items):
+            item = dataset[idx]
+            assert item["item_idx"] == idx
 
 def test_loader_with_replacement():
     with tempfile.TemporaryDirectory() as d:
@@ -119,37 +135,11 @@ def test_loader_with_replacement():
             output_dir=dataset_dir,
             duration=0.01,
         )
-        loader = audiotools.data.datasets.AudioLoader([dataset_dir], shuffle=False)
-
-        for idx in range(num_items):
-            item = loader(
-                sample_rate=44100,
-                duration=0.01,
-                state=audiotools.util.random_state(idx),
-                global_idx=idx,
-            )
-            assert item["item_idx"] == idx
-
-
-def test_loader_without_replacement():
-    with tempfile.TemporaryDirectory() as d:
-        dataset_dir = Path(d)
-        num_items = 100
-        audiotools.util.generate_chord_dataset(
-            max_voices=1,
-            num_items=num_items,
-            output_dir=dataset_dir,
-            duration=0.01,
-        )
         loader = audiotools.data.datasets.AudioLoader([dataset_dir])
+        dataset = audiotools.data.datasets.AudioDataset(loader, 44100, without_replacement=False)
 
         for idx in range(num_items):
-            item = loader(
-                sample_rate=44100,
-                duration=0.01,
-                state=audiotools.util.random_state(idx),
-                global_idx=None,
-            )
+            item = dataset[idx]
 
 
 def test_loader_out_of_range():
