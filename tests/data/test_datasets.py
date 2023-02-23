@@ -109,6 +109,65 @@ def test_aligned_audio_dataset():
                 assert np.all(col == col[0])
 
 
+def test_loader_without_replacement():
+    with tempfile.TemporaryDirectory() as d:
+        dataset_dir = Path(d)
+        num_items = 100
+        audiotools.util.generate_chord_dataset(
+            max_voices=1,
+            num_items=num_items,
+            output_dir=dataset_dir,
+            duration=0.01,
+        )
+        loader = audiotools.data.datasets.AudioLoader([dataset_dir], shuffle=False)
+        dataset = audiotools.data.datasets.AudioDataset(loader, 44100)
+
+        for idx in range(num_items):
+            item = dataset[idx]
+            assert item["item_idx"] == idx
+
+
+def test_loader_with_replacement():
+    with tempfile.TemporaryDirectory() as d:
+        dataset_dir = Path(d)
+        num_items = 100
+        audiotools.util.generate_chord_dataset(
+            max_voices=1,
+            num_items=num_items,
+            output_dir=dataset_dir,
+            duration=0.01,
+        )
+        loader = audiotools.data.datasets.AudioLoader([dataset_dir])
+        dataset = audiotools.data.datasets.AudioDataset(
+            loader, 44100, without_replacement=False
+        )
+
+        for idx in range(num_items):
+            item = dataset[idx]
+
+
+def test_loader_out_of_range():
+    with tempfile.TemporaryDirectory() as d:
+        dataset_dir = Path(d)
+        num_items = 100
+        audiotools.util.generate_chord_dataset(
+            max_voices=1,
+            num_items=num_items,
+            output_dir=dataset_dir,
+            duration=0.01,
+        )
+        loader = audiotools.data.datasets.AudioLoader([dataset_dir])
+
+        item = loader(
+            sample_rate=44100,
+            duration=0.01,
+            state=audiotools.util.random_state(0),
+            source_idx=0,
+            item_idx=101,
+        )
+        assert item["path"] == "none"
+
+
 def test_dataset_pipeline():
     transform = tfm.Compose(
         [

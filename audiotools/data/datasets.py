@@ -35,6 +35,10 @@ class AudioLoader:
         List of extensions to find audio within each source by. Can
         also be a file name (e.g. "vocals.wav"). by default
         ``['.wav', '.flac', '.mp3', '.mp4']``.
+    shuffle: bool
+        Whether to shuffle the files within the dataloader. Defaults to True.
+    shuffle_state: int
+        State to use to seed the shuffle of the files.
     """
 
     def __init__(
@@ -44,10 +48,22 @@ class AudioLoader:
         transform: Callable = None,
         relative_path: str = "",
         ext: List[str] = util.AUDIO_EXTENSIONS,
+        shuffle: bool = True,
+        shuffle_state: int = 0,
     ):
         self.audio_lists = util.read_sources(
             sources, relative_path=relative_path, ext=ext
         )
+
+        self.audio_indices = [
+            (src_idx, item_idx)
+            for src_idx, src in enumerate(self.audio_lists)
+            for item_idx in range(len(src))
+        ]
+        if shuffle:
+            state = util.random_state(shuffle_state)
+            state.shuffle(self.audio_indices)
+
         self.sources = sources
         self.weights = weights
         self.transform = transform
@@ -62,12 +78,18 @@ class AudioLoader:
         offset: float = None,
         source_idx: int = None,
         item_idx: int = None,
+        global_idx: int = None,
     ):
         if source_idx is not None and item_idx is not None:
             try:
                 audio_info = self.audio_lists[source_idx][item_idx]
             except:
                 audio_info = {"path": "none"}
+        elif global_idx is not None:
+            source_idx, item_idx = self.audio_indices[
+                global_idx % len(self.audio_indices)
+            ]
+            audio_info = self.audio_lists[source_idx][item_idx]
         else:
             audio_info, source_idx, item_idx = util.choose_from_list_of_lists(
                 state, self.audio_lists, p=self.weights
@@ -169,6 +191,11 @@ class AudioDataset:
         offset, duration, and matched file name), by default False
     shuffle_loaders : bool, optional
         Whether to shuffle the loaders before sampling from them, by default False
+    matcher : Callable
+        How to match files from adjacent audio lists (e.g. for a multitrack audio loader),
+        by default uses the parent directory of each file.
+    without_replacement : bool
+        Whether to choose files with or without replacement, by default True.
 
 
     Examples
@@ -341,6 +368,7 @@ class AudioDataset:
         aligned: bool = False,
         shuffle_loaders: bool = False,
         matcher: Callable = default_matcher,
+        without_replacement: bool = True,
     ):
         # Internally we convert loaders to a dictionary
         if isinstance(loaders, list):
@@ -359,6 +387,7 @@ class AudioDataset:
         self.offset = offset
         self.aligned = aligned
         self.shuffle_loaders = shuffle_loaders
+        self.without_replacement = without_replacement
 
         if aligned:
             loaders_list = list(loaders.values())
@@ -382,6 +411,7 @@ class AudioDataset:
             "duration": self.duration,
             "loudness_cutoff": self.loudness_cutoff,
             "num_channels": self.num_channels,
+            "global_idx": idx if self.without_replacement else None,
         }
 
         # Draw item from first loader
