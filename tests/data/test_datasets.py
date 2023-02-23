@@ -108,6 +108,7 @@ def test_aligned_audio_dataset():
                 col = col[col != "none"]
                 assert np.all(col == col[0])
 
+
 def test_loader_without_replacement():
     with tempfile.TemporaryDirectory() as d:
         dataset_dir = Path(d)
@@ -125,6 +126,7 @@ def test_loader_without_replacement():
             item = dataset[idx]
             assert item["item_idx"] == idx
 
+
 def test_loader_with_replacement():
     with tempfile.TemporaryDirectory() as d:
         dataset_dir = Path(d)
@@ -136,7 +138,9 @@ def test_loader_with_replacement():
             duration=0.01,
         )
         loader = audiotools.data.datasets.AudioLoader([dataset_dir])
-        dataset = audiotools.data.datasets.AudioDataset(loader, 44100, without_replacement=False)
+        dataset = audiotools.data.datasets.AudioDataset(
+            loader, 44100, without_replacement=False
+        )
 
         for idx in range(num_items):
             item = dataset[idx]
