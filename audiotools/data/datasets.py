@@ -35,6 +35,10 @@ class AudioLoader:
         List of extensions to find audio within each source by. Can
         also be a file name (e.g. "vocals.wav"). by default
         ``['.wav', '.flac', '.mp3', '.mp4']``.
+    shuffle: bool
+        Whether to shuffle the files within the dataloader. Defaults to True.
+    shuffle_state: int
+        State to use to seed the shuffle of the files.
     """
 
     def __init__(
@@ -187,6 +191,11 @@ class AudioDataset:
         offset, duration, and matched file name), by default False
     shuffle_loaders : bool, optional
         Whether to shuffle the loaders before sampling from them, by default False
+    matcher : Callable
+        How to match files from adjacent audio lists (e.g. for a multitrack audio loader),
+        by default uses the parent directory of each file.
+    without_replacement : bool
+        Whether to choose files with or without replacement, by default True.
 
 
     Examples
