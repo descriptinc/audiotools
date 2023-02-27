@@ -475,6 +475,18 @@ class AudioDataset:
         return util.collate(list_of_dicts, n_splits=n_splits)
 
 
+class ConcatDataset(AudioDataset):
+    def __init__(self, datasets: list):
+        self.datasets = datasets
+
+    def __len__(self):
+        return sum([len(d) for d in self.datasets])
+
+    def __getitem__(self, idx):
+        dataset = self.datasets[idx % len(self.datasets)]
+        return dataset[idx // len(self.datasets)]
+
+
 class ResumableDistributedSampler(DistributedSampler):  # pragma: no cover
     """Distributed sampler that can be resumed from a given start index."""
 
