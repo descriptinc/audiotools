@@ -190,3 +190,29 @@ def test_dataset_pipeline():
         kwargs = batch["transform_args"]
         signal = batch["signal"]
         batch = dataset.transform(signal, **kwargs)
+
+
+class NumberDataset:
+    def __init__(self):
+        pass
+
+    def __len__(self):
+        return 10
+
+    def __getitem__(self, idx):
+        return {"idx": idx}
+
+
+def test_concat_dataset():
+    d1 = NumberDataset()
+    d2 = NumberDataset()
+    d3 = NumberDataset()
+
+    d = audiotools.datasets.ConcatDataset([d1, d2, d3])
+    x = d.collate([d[i] for i in range(len(d))])["idx"].tolist()
+
+    t = []
+    for i in range(10):
+        t += [i, i, i]
+
+    assert x == t
