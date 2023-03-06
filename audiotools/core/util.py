@@ -37,7 +37,11 @@ def info(audio_path: str):
     audio_path : str
         Path to audio file.
     """
-    info = torchaudio.info(str(audio_path))
+    try: 
+        info = torchaudio.backend.sox_io_backend.info(str(audio_path))
+    except:
+        info = torchaudio.backend.soundfile_backend.info(str(audio_path))
+
     if isinstance(info, tuple):  # pragma: no cover
         signal_info = info[0]
         info = Info(sample_rate=signal_info.rate, num_frames=signal_info.length)
