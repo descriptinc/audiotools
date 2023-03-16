@@ -37,8 +37,9 @@ def info(audio_path: str):
     audio_path : str
         Path to audio file.
     """
+    # try default backend first, then fallback to soundfile
     try: 
-        info = torchaudio.backend.sox_io_backend.info(str(audio_path))
+        info = torchaudio.info(str(audio_path))
     except:
         info = torchaudio.backend.soundfile_backend.info(str(audio_path))
 
