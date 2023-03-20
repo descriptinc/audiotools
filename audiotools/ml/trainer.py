@@ -155,6 +155,7 @@ class BaseTrainer:
         quiet: bool = False,
         record_memory: bool = False,
         log_file: str = "log.txt",
+        teriminate_on_nan: bool = False,
         **kwargs,
     ):
         self.width = width
@@ -183,7 +184,8 @@ class BaseTrainer:
             "epoch": defaultdict(lambda: []),
         }
         self.trainer.state.prefix = "train"
-        self.trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
+        if teriminate_on_nan:
+            self.trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
         self.trainer.add_event_handler(Events.ITERATION_COMPLETED, self.collect_metrics)
         self.trainer.add_event_handler(Events.EPOCH_STARTED, self.before_epoch)
         self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
