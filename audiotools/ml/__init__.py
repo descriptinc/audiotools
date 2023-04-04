@@ -1,3 +1,4 @@
+from . import decorators
 from . import layers
 from . import tricks
 from .accelerator import Accelerator
