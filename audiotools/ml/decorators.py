@@ -91,7 +91,7 @@ def timer(prefix: str = "time"):
 class Tracker:
     def __init__(
         self,
-        step_fn,
+        step_fn=lambda: 0,
         writer: SummaryWriter = None,
         log_file: str = None,
         rank: int = 0,
