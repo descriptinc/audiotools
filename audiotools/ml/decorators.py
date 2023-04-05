@@ -62,6 +62,17 @@ def when(condition):
 
 
 def timer(prefix: str = "time"):
+    """Adds execution time to the output dictionary of the decorated
+    function. The function decorated by this must output a dictionary.
+    The key added will follow the form "[prefix]/[name_of_function]"
+
+    Parameters
+    ----------
+    prefix : str, optional
+        The key added will follow the form "[prefix]/[name_of_function]",
+        by default "time".
+    """
+
     def decorator(fn):
         @wraps(fn)
         def decorated(*args, **kwargs):
