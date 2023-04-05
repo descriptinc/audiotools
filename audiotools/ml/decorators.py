@@ -95,12 +95,13 @@ class Tracker:
         log_file: str = None,
         rank: int = 0,
         console_width: int = 87,
+        step: int = 0,
     ):
         self.metrics = {}
         self.history = {}
         self.writer = writer
         self.rank = rank
-        self.step = 0
+        self.step = step
 
         # Create progress bars etc.
         self.tasks = {}
