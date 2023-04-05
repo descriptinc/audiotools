@@ -14,7 +14,7 @@ def test_all_decorators():
     max_iters = 100
 
     writer = SummaryWriter("/tmp/logs")
-    tracker = Tracker(lambda: i, writer, log_file="/tmp/log.txt")
+    tracker = Tracker(writer, log_file="/tmp/log.txt")
 
     train_data = range(100)
     val_data = range(100)
@@ -70,6 +70,7 @@ def test_all_decorators():
 
     with tracker.live:
         for i in range(max_iters):
+            tracker.step = i
             validate()
             state_dict = checkpoint()
             train_loop()

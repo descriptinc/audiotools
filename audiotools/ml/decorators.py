@@ -91,17 +91,16 @@ def timer(prefix: str = "time"):
 class Tracker:
     def __init__(
         self,
-        step_fn=lambda: 0,
         writer: SummaryWriter = None,
         log_file: str = None,
         rank: int = 0,
         console_width: int = 87,
     ):
-        self.step_fn = step_fn
         self.metrics = {}
         self.history = {}
         self.writer = writer
         self.rank = rank
+        self.step = 0
 
         # Create progress bars etc.
         self.tasks = {}
@@ -231,12 +230,12 @@ class Tracker:
                     metrics = self.metrics[label][value_type]
                     for k, v in metrics.items():
                         v = v.compute().item()
-                        self.writer.add_scalar(f"{k}/{label}", v, self.step_fn())
+                        self.writer.add_scalar(f"{k}/{label}", v, self.step)
                         if label in self.history:
                             self.history[label][k].append(v)
 
                     if label in self.history:
-                        self.history[label]["step"].append(self.step_fn())
+                        self.history[label]["step"].append(self.step)
 
                 return output
 
