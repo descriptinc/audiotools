@@ -58,6 +58,8 @@ def test_all_decorators():
         state_dict["i"] = i
         tracker.done("val", f"Iteration {i}")
 
+        return state_dict
+
     @when(lambda: i % 100 == 0)
     @tracker.log("val", "mean")
     @torch.no_grad()
@@ -69,7 +71,7 @@ def test_all_decorators():
     with tracker.live:
         for i in range(max_iters):
             validate()
-            checkpoint()
+            state_dict = checkpoint()
             train_loop()
 
-    tracker.load_state_dict(tracker.state_dict())
+    tracker.load_state_dict(state_dict)

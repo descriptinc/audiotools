@@ -23,11 +23,37 @@ from torch.utils.tensorboard import SummaryWriter
 # Progress bars and dashboard
 
 
-def when(chk):
+def when(condition):
+    """Runs a function only when the condition is met. The condition is
+    a function that is run.
+
+    Parameters
+    ----------
+    condition : Callable
+        Function to run to check whether or not to run the decorated
+        function.
+
+    Example
+    -------
+    Checkpoint only runs every 100 iterations, and only if the
+    local rank is 0.
+
+    >>> i = 0
+    >>> rank = 0
+    >>>
+    >>> @when(lambda: i % 100 == 0 and rank == 0)
+    >>> def checkpoint():
+    >>>     print("Saving to /runs/exp1")
+    >>>
+    >>> for i in range(1000):
+    >>>     checkpoint()
+
+    """
+
     def decorator(fn):
         @wraps(fn)
         def decorated(*args, **kwargs):
-            if chk():
+            if condition():
                 return fn(*args, **kwargs)
 
         return decorated
