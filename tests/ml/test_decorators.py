@@ -9,7 +9,6 @@ from audiotools.ml.decorators import when
 
 
 def test_all_decorators():
-    i = 0
     rank = 0
     max_iters = 100
 
@@ -20,7 +19,7 @@ def test_all_decorators():
     val_data = range(100)
 
     @tracker.log("train", "value", history=False)
-    @tracker.track("train", max_iters, i)
+    @tracker.track("train", max_iters, tracker.step)
     @timer()
     def train_loop():
         time.sleep(0.01)
@@ -42,12 +41,12 @@ def test_all_decorators():
             "waveform": torch.exp(torch.FloatTensor([-i / 100])),
         }
 
-    @when(lambda: i % 1000 == 0 and rank == 0)
+    @when(lambda: tracker.step % 1000 == 0 and rank == 0)
     @torch.no_grad()
     def save_samples():
         tracker.print("Saving samples to TensorBoard.")
 
-    @when(lambda: i % 100 == 0 and rank == 0)
+    @when(lambda: tracker.step % 100 == 0 and rank == 0)
     def checkpoint():
         save_samples()
         if tracker.is_best("val", "mel"):
@@ -55,12 +54,11 @@ def test_all_decorators():
         tracker.print("Saving to /runs/exp1")
 
         state_dict = tracker.state_dict()
-        state_dict["i"] = i
         tracker.done("val", f"Iteration {i}")
 
         return state_dict
 
-    @when(lambda: i % 100 == 0)
+    @when(lambda: tracker.step % 100 == 0)
     @tracker.log("val", "mean")
     @torch.no_grad()
     def validate():
@@ -69,8 +67,7 @@ def test_all_decorators():
         return output
 
     with tracker.live:
-        for i in range(max_iters):
-            tracker.step = i
+        for tracker.step in range(max_iters):
             validate()
             state_dict = checkpoint()
             train_loop()
