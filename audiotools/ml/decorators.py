@@ -93,6 +93,23 @@ def timer(prefix: str = "time"):
     return decorator
 
 
+class DummyMetric:
+    def __init__(self):
+        self.value = None
+
+    def to(self):
+        pass
+
+    def update(self, value):
+        self.value = value
+
+    def compute(self):
+        return self.value
+
+    def reset(self):
+        pass
+
+
 class Tracker:
     def __init__(
         self,
@@ -173,7 +190,7 @@ class Tracker:
             )
 
     def track(self, label: str, length: int, completed: int = 0):
-        f = lambda: torchmetrics.MeanMetric()
+        f = lambda: DummyMetric()
 
         self.tasks[label] = {
             "pbar": self.pbar.add_task(
