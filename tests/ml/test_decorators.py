@@ -54,7 +54,7 @@ def test_all_decorators():
         tracker.print("Saving to /runs/exp1")
 
         state_dict = tracker.state_dict()
-        tracker.done("val", f"Iteration {i}")
+        tracker.done("val", f"Iteration {tracker.step}")
 
         return state_dict
 

@@ -192,10 +192,6 @@ class Tracker:
                 output = fn(*args, **kwargs)
                 assert isinstance(output, dict)
 
-                for k in self.metrics[label]["value"]:
-                    # Reset latest val
-                    self.metrics[label]["value"][k].reset()
-
                 device = "cpu"
                 for k, v in output.items():
                     if hasattr(v, "device"):
@@ -209,10 +205,14 @@ class Tracker:
 
                     # Collect v across all processes
                     self.metrics[label]["value"][k].to(v.device).update(v)
-                    output[k] = self.metrics[label]["value"][k].compute().item()
-
                     # Update the running mean
                     self.metrics[label]["mean"][k].to(v.device).update(v)
+                    output[k] = v.item()
+
+                output = {}
+                for k, v in self.metrics[label]["value"].items():
+                    output[k] = v.compute().item()
+                    v.reset()
 
                 self.update(label, fn.__name__)
 
