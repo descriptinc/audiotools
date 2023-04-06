@@ -6,6 +6,7 @@ import random
 import typing
 from contextlib import contextmanager
 from dataclasses import dataclass
+from glob import glob
 from pathlib import Path
 from typing import Dict
 from typing import List
@@ -38,7 +39,7 @@ def info(audio_path: str):
         Path to audio file.
     """
     # try default backend first, then fallback to soundfile
-    try: 
+    try:
         info = torchaudio.info(str(audio_path))
     except:
         info = torchaudio.backend.soundfile_backend.info(str(audio_path))
@@ -237,7 +238,12 @@ def find_audio(folder: str, ext: List[str] = AUDIO_EXTENSIONS):
     # Take care of case where user has passed in an audio file directly
     # into one of the calling functions.
     if str(folder).endswith(tuple(ext)):
-        return [folder]
+        # if, however, there's a glob in the path, we need to
+        # return the glob, not the file.
+        if "*" in str(folder):
+            return glob(str(folder), recursive=("**" in str(folder)))
+        else:
+            return [folder]
     files = []
     for x in ext:
         files += folder.glob(f"**/*{x}")

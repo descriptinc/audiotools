@@ -60,6 +60,9 @@ class AudioLoader:
             for src_idx, src in enumerate(self.audio_lists)
             for item_idx in range(len(src))
         ]
+        print(
+            f"Loaded {len(self.audio_indices)} audio files from {len(sources)} sources."
+        )
         if shuffle:
             state = util.random_state(shuffle_state)
             state.shuffle(self.audio_indices)
