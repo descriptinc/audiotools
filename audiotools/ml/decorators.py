@@ -97,7 +97,7 @@ class DummyMetric:
     def __init__(self):
         self.value = None
 
-    def to(self):
+    def to(self, device):
         pass
 
     def update(self, value):
