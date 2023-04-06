@@ -95,7 +95,7 @@ def timer(prefix: str = "time"):
 
 class DummyMetric:
     def __init__(self):
-        self.value = None
+        self.value = 0.0
 
     def to(self, device):
         return self
@@ -108,6 +108,9 @@ class DummyMetric:
 
     def reset(self):
         return self
+
+    def item(self):
+        return self.value
 
 
 class Tracker:
