@@ -248,7 +248,7 @@ class Tracker:
         return self.history[label][key][-1] == min(self.history[label][key])
 
     def state_dict(self):
-        return {"history": self.history, "step": self.step}
+        return {"history": dict(self.history), "step": self.step}
 
     def load_state_dict(self, state_dict):
         self.history = state_dict["history"]
