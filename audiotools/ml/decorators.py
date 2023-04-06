@@ -23,6 +23,11 @@ from torch.utils.tensorboard import SummaryWriter
 # Progress bars and dashboard
 
 
+# This is here so that the history can be pickled.
+def default_list():
+    return []
+
+
 def when(condition):
     """Runs a function only when the condition is met. The condition is
     a function that is run.
@@ -220,7 +225,8 @@ class Tracker:
     def log(self, label: str, value_type: str = "value", history: bool = True):
         assert value_type in ["mean", "value"]
         if history:
-            self.history[label] = defaultdict(lambda: [])
+            if label not in self.history:
+                self.history[label] = defaultdict(default_list)
 
         def decorator(fn):
             @wraps(fn)
@@ -248,7 +254,7 @@ class Tracker:
         return self.history[label][key][-1] == min(self.history[label][key])
 
     def state_dict(self):
-        return {"history": dict(self.history), "step": self.step}
+        return {"history": self.history, "step": self.step}
 
     def load_state_dict(self, state_dict):
         self.history = state_dict["history"]
