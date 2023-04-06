@@ -98,7 +98,7 @@ class DummyMetric:
         self.value = None
 
     def to(self, device):
-        pass
+        return self
 
     def update(self, value):
         self.value = value
@@ -107,7 +107,7 @@ class DummyMetric:
         return self.value
 
     def reset(self):
-        pass
+        return self
 
 
 class Tracker:
