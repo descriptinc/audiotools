@@ -1,9 +1,10 @@
+import os
 import time
 from collections import defaultdict
 from functools import wraps
 
 import torch
-import torchmetrics
+import torch.distributed as dist
 from rich import box
 from rich.console import Console
 from rich.console import Group
@@ -20,12 +21,27 @@ from rich.rule import Rule
 from rich.table import Table
 from torch.utils.tensorboard import SummaryWriter
 
-# Progress bars and dashboard
-
 
 # This is here so that the history can be pickled.
 def default_list():
     return []
+
+
+class Mean:
+    def __init__(self):
+        self.reset()
+
+    def __call__(self):
+        mean = self.total / self.count
+        return mean
+
+    def reset(self):
+        self.count = 0
+        self.total = 0
+
+    def update(self, val):
+        self.count += 1
+        self.total += val
 
 
 def when(condition):
@@ -93,26 +109,6 @@ def timer(prefix: str = "time"):
     return decorator
 
 
-class DummyMetric:
-    def __init__(self):
-        self.value = 0.0
-
-    def to(self, device):
-        return self
-
-    def update(self, value):
-        self.value = value
-
-    def compute(self):
-        return self.value
-
-    def reset(self):
-        return self
-
-    def item(self):
-        return self.value
-
-
 class Tracker:
     def __init__(
         self,
@@ -161,8 +157,8 @@ class Tracker:
 
             keys = self.metrics[label]["value"].keys()
             for k in keys:
-                value = self.metrics[label]["value"][k].compute()
-                mean = self.metrics[label]["mean"][k].compute()
+                value = self.metrics[label]["value"][k]
+                mean = self.metrics[label]["mean"][k]()
                 table.add_row(k, f"{value:10.6f}", f"{mean:10.6f}")
 
             self.tasks[label]["table"] = table
@@ -192,9 +188,13 @@ class Tracker:
                 )
             )
 
-    def track(self, label: str, length: int, completed: int = 0):
-        f = lambda: DummyMetric()
-
+    def track(
+        self,
+        label: str,
+        length: int,
+        completed: int = 0,
+        op: dist.ReduceOp = dist.ReduceOp.AVG,
+    ):
         self.tasks[label] = {
             "pbar": self.pbar.add_task(
                 f"[white]Iteration ({label})", total=length, completed=completed
@@ -202,40 +202,31 @@ class Tracker:
             "table": Table(),
         }
         self.metrics[label] = {
-            "value": defaultdict(f),
-            "mean": defaultdict(f),
+            "value": defaultdict(),
+            "mean": defaultdict(lambda: Mean()),
         }
+        ddp_active = "LOCAL_RANK" in os.environ
 
         def decorator(fn):
             @wraps(fn)
             def decorated(*args, **kwargs):
                 output = fn(*args, **kwargs)
                 assert isinstance(output, dict)
-
-                device = "cpu"
-                for k, v in output.items():
-                    if hasattr(v, "device"):
-                        device = v.device
-                        break
-
+                # Collect across all DDP processes
                 for k, v in output.items():
                     if not torch.is_tensor(v):
-                        v = torch.FloatTensor([v]).to(device)
-                    v = v.detach()
+                        continue
+                    if ddp_active:  # pragma: no cover
+                        dist.all_reduce(v, op=op)
+                    output[k] = v.detach().item()
 
-                    # Collect v across all processes
-                    self.metrics[label]["value"][k].to(v.device).update(v)
+                # Save the outputs to tracker
+                for k, v in output.items():
+                    self.metrics[label]["value"][k] = v
                     # Update the running mean
-                    self.metrics[label]["mean"][k].to(v.device).update(v)
-                    output[k] = v.item()
-
-                output = {}
-                for k, v in self.metrics[label]["value"].items():
-                    output[k] = v.compute().item()
-                    v.reset()
+                    self.metrics[label]["mean"][k].update(v)
 
                 self.update(label, fn.__name__)
-
                 return output
 
             return decorated
@@ -256,7 +247,7 @@ class Tracker:
                     nonlocal value_type, label
                     metrics = self.metrics[label][value_type]
                     for k, v in metrics.items():
-                        v = v.compute().item()
+                        v = v() if isinstance(v, Mean) else v
                         self.writer.add_scalar(f"{k}/{label}", v, self.step)
                         if label in self.history:
                             self.history[label][k].append(v)

@@ -22,6 +22,7 @@ def test_all_decorators():
     @tracker.track("train", max_iters, tracker.step)
     @timer()
     def train_loop():
+        i = tracker.step
         time.sleep(0.01)
         return {
             "loss": torch.exp(torch.FloatTensor([-i / 100])),
@@ -33,6 +34,7 @@ def test_all_decorators():
     @tracker.track("val", len(val_data))
     @timer()
     def val_loop():
+        i = tracker.step
         time.sleep(0.01)
         return {
             "loss": torch.exp(torch.FloatTensor([-i / 100])),
@@ -52,11 +54,7 @@ def test_all_decorators():
         if tracker.is_best("val", "mel"):
             tracker.print("Best model so far.")
         tracker.print("Saving to /runs/exp1")
-
-        state_dict = tracker.state_dict()
         tracker.done("val", f"Iteration {tracker.step}")
-
-        return state_dict
 
     @when(lambda: tracker.step % 100 == 0)
     @tracker.log("val", "mean")
@@ -69,7 +67,8 @@ def test_all_decorators():
     with tracker.live:
         for tracker.step in range(max_iters):
             validate()
-            state_dict = checkpoint()
+            checkpoint()
             train_loop()
 
+    state_dict = tracker.state_dict()
     tracker.load_state_dict(state_dict)
