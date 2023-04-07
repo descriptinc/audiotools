@@ -269,4 +269,5 @@ class Tracker:
 
     def load_state_dict(self, state_dict):
         self.history = state_dict["history"]
+        self.step = state_dict["step"]
         return self
