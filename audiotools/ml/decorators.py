@@ -243,12 +243,13 @@ class Tracker:
             @wraps(fn)
             def decorated(*args, **kwargs):
                 output = fn(*args, **kwargs)
-                if self.rank == 0 and self.writer is not None:
+                if self.rank == 0:
                     nonlocal value_type, label
                     metrics = self.metrics[label][value_type]
                     for k, v in metrics.items():
                         v = v() if isinstance(v, Mean) else v
-                        self.writer.add_scalar(f"{k}/{label}", v, self.step)
+                        if self.writer is not None:
+                            self.writer.add_scalar(f"{k}/{label}", v, self.step)
                         if label in self.history:
                             self.history[label][k].append(v)
 
