@@ -243,7 +243,7 @@ class Tracker:
             @wraps(fn)
             def decorated(*args, **kwargs):
                 output = fn(*args, **kwargs)
-                if self.rank == 0:
+                if self.rank == 0 and self.writer is not None:
                     nonlocal value_type, label
                     metrics = self.metrics[label][value_type]
                     for k, v in metrics.items():
