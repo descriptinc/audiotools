@@ -194,6 +194,7 @@ class Tracker:
         length: int,
         completed: int = 0,
         op: dist.ReduceOp = dist.ReduceOp.AVG,
+        ddp_active: bool = "LOCAL_RANK" in os.environ,
     ):
         self.tasks[label] = {
             "pbar": self.pbar.add_task(
@@ -205,7 +206,6 @@ class Tracker:
             "value": defaultdict(),
             "mean": defaultdict(lambda: Mean()),
         }
-        ddp_active = "LOCAL_RANK" in os.environ
 
         def decorator(fn):
             @wraps(fn)
