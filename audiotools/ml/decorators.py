@@ -115,7 +115,7 @@ class Tracker:
         writer: SummaryWriter = None,
         log_file: str = None,
         rank: int = 0,
-        console_width: int = 87,
+        console_width: int = 100,
         step: int = 0,
     ):
         self.metrics = {}
