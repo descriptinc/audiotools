@@ -1,3 +1,4 @@
+import math
 import os
 import time
 from collections import defaultdict
@@ -40,8 +41,9 @@ class Mean:
         self.total = 0
 
     def update(self, val):
-        self.count += 1
-        self.total += val
+        if not math.isnan(val):
+            self.count += 1
+            self.total += val
 
 
 def when(condition):
