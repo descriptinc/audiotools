@@ -33,7 +33,7 @@ class Mean:
         self.reset()
 
     def __call__(self):
-        mean = self.total / self.count
+        mean = self.total / max(self.count, 1)
         return mean
 
     def reset(self):
@@ -41,7 +41,7 @@ class Mean:
         self.total = 0
 
     def update(self, val):
-        if not math.isnan(val):
+        if math.isfinite(val):
             self.count += 1
             self.total += val
 
