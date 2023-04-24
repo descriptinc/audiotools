@@ -58,6 +58,7 @@ setup(
         # Borrowing pin from tensorboard source: https://github.com/tensorflow/tensorboard/commit/fd4f5ff79374252e313c2e7e9b247bc49ab0d54d.
         "protobuf >= 3.9.2, < 3.20",
         "torchmetrics>=0.7.3",
+        "transformers>=4.23.1",
         "tensorboard",
         "tqdm",
     ],

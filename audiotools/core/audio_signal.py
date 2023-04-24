@@ -22,6 +22,7 @@ from .effects import ImpulseResponseMixin
 from .ffmpeg import FFMPEGMixin
 from .loudness import LoudnessMixin
 from .playback import PlayMixin
+from .whisper import WhisperMixin
 
 
 STFTParams = namedtuple(
@@ -57,6 +58,7 @@ class AudioSignal(
     DSPMixin,
     DisplayMixin,
     FFMPEGMixin,
+    WhisperMixin,
 ):
     """This is the core object of this library. Audio is always
     loaded into an AudioSignal, which then enables all the features
