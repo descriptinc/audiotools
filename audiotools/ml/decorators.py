@@ -184,11 +184,9 @@ class Tracker:
 
         if self.rank == 0:
             self.pbar.reset(self.tasks[label]["pbar"])
-            self.print(
-                Group(
-                    Markdown(f"# {title}"), *[t["table"] for t in self.tasks.values()]
-                )
-            )
+            tables = [t["table"] for t in self.tasks.values()]
+            group = Group(Markdown(f"# {title}"), *tables, self.pbar)
+            self.print(group)
 
     def track(
         self,
@@ -213,17 +211,24 @@ class Tracker:
             @wraps(fn)
             def decorated(*args, **kwargs):
                 output = fn(*args, **kwargs)
-                assert isinstance(output, dict)
+                if not isinstance(output, dict):
+                    return output
                 # Collect across all DDP processes
+                scalar_keys = []
                 for k, v in output.items():
                     if not torch.is_tensor(v):
                         continue
                     if ddp_active:  # pragma: no cover
                         dist.all_reduce(v, op=op)
-                    output[k] = v.detach().item()
+                    output[k] = v.detach()
+                    if torch.numel(v) == 1:
+                        scalar_keys.append(k)
+                        output[k] = v.item()
 
                 # Save the outputs to tracker
                 for k, v in output.items():
+                    if k not in scalar_keys:
+                        continue
                     self.metrics[label]["value"][k] = v
                     # Update the running mean
                     self.metrics[label]["mean"][k].update(v)

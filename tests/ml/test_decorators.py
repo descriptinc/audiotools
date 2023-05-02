@@ -29,6 +29,7 @@ def test_all_decorators():
             "mel": torch.exp(torch.FloatTensor([-i / 100])),
             "stft": torch.exp(torch.FloatTensor([-i / 100])),
             "waveform": torch.exp(torch.FloatTensor([-i / 100])),
+            "not_scalar": torch.arange(10),
         }
 
     @tracker.track("val", len(val_data))
@@ -41,6 +42,7 @@ def test_all_decorators():
             "mel": torch.exp(torch.FloatTensor([-i / 100])),
             "stft": torch.exp(torch.FloatTensor([-i / 100])),
             "waveform": torch.exp(torch.FloatTensor([-i / 100])),
+            "not_scalar": torch.arange(10),
         }
 
     @when(lambda: tracker.step % 1000 == 0 and rank == 0)
@@ -72,3 +74,15 @@ def test_all_decorators():
 
     state_dict = tracker.state_dict()
     tracker.load_state_dict(state_dict)
+
+    # If train loop returned not a dict
+    @tracker.track("train", max_iters, tracker.step)
+    def train_loop_2():
+        i = tracker.step
+        time.sleep(0.01)
+
+    with tracker.live:
+        for tracker.step in range(max_iters):
+            validate()
+            checkpoint()
+            train_loop_2()

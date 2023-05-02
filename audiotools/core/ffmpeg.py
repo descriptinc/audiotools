@@ -178,7 +178,7 @@ class FFMPEGMixin:
             # offset in a video container.
             pad = ffprobe_offset(audio_path)
             # Don't pad files with discrepancies less than
-            # 0.0.27s - it's likely due to codec latency.
+            # 0.027s - it's likely due to codec latency.
             # The amount of latency introduced by mp3 is
             # 1152, which is 0.0261 44khz. So we
             # set the threshold here slightly above that.
