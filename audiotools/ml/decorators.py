@@ -29,6 +29,10 @@ def default_list():
 
 
 class Mean:
+    """Keeps track of the running mean, along with the latest
+    value.
+    """
+
     def __init__(self):
         self.reset()
 
@@ -112,6 +116,50 @@ def timer(prefix: str = "time"):
 
 
 class Tracker:
+    """
+    A tracker class that helps to monitor the progress of training and logging the metrics.
+
+    Attributes
+    ----------
+    metrics : dict
+        A dictionary containing the metrics for each label.
+    history : dict
+        A dictionary containing the history of metrics for each label.
+    writer : SummaryWriter
+        A SummaryWriter object for logging the metrics.
+    rank : int
+        The rank of the current process.
+    step : int
+        The current step of the training.
+    tasks : dict
+        A dictionary containing the progress bars and tables for each label.
+    pbar : Progress
+        A progress bar object for displaying the progress.
+    consoles : list
+        A list of console objects for logging.
+    live : Live
+        A Live object for updating the display live.
+
+    Methods
+    -------
+    print(msg: str)
+        Prints the given message to all consoles.
+    update(label: str, fn_name: str)
+        Updates the progress bar and table for the given label.
+    done(label: str, title: str)
+        Resets the progress bar and table for the given label and prints the final result.
+    track(label: str, length: int, completed: int = 0, op: dist.ReduceOp = dist.ReduceOp.AVG, ddp_active: bool = "LOCAL_RANK" in os.environ)
+        A decorator for tracking the progress and metrics of a function.
+    log(label: str, value_type: str = "value", history: bool = True)
+        A decorator for logging the metrics of a function.
+    is_best(label: str, key: str) -> bool
+        Checks if the latest value of the given key in the label is the best so far.
+    state_dict() -> dict
+        Returns a dictionary containing the state of the tracker.
+    load_state_dict(state_dict: dict) -> Tracker
+        Loads the state of the tracker from the given state dictionary.
+    """
+
     def __init__(
         self,
         writer: SummaryWriter = None,
@@ -120,6 +168,22 @@ class Tracker:
         console_width: int = 100,
         step: int = 0,
     ):
+        """
+        Initializes the Tracker object.
+
+        Parameters
+        ----------
+        writer : SummaryWriter, optional
+            A SummaryWriter object for logging the metrics, by default None.
+        log_file : str, optional
+            The path to the log file, by default None.
+        rank : int, optional
+            The rank of the current process, by default 0.
+        console_width : int, optional
+            The width of the console, by default 100.
+        step : int, optional
+            The current step of the training, by default 0.
+        """
         self.metrics = {}
         self.history = {}
         self.writer = writer
@@ -143,11 +207,29 @@ class Tracker:
             self.consoles.append(Console(width=console_width, file=open(log_file, "a")))
 
     def print(self, msg):
+        """
+        Prints the given message to all consoles.
+
+        Parameters
+        ----------
+        msg : str
+            The message to be printed.
+        """
         if self.rank == 0:
             for c in self.consoles:
                 c.log(msg)
 
     def update(self, label, fn_name):
+        """
+        Updates the progress bar and table for the given label.
+
+        Parameters
+        ----------
+        label : str
+            The label of the progress bar and table to be updated.
+        fn_name : str
+            The name of the function associated with the label.
+        """
         if self.rank == 0:
             self.pbar.advance(self.tasks[label]["pbar"])
 
@@ -178,6 +260,16 @@ class Tracker:
             )
 
     def done(self, label: str, title: str):
+        """
+        Resets the progress bar and table for the given label and prints the final result.
+
+        Parameters
+        ----------
+        label : str
+            The label of the progress bar and table to be reset.
+        title : str
+            The title to be displayed when printing the final result.
+        """
         for label in self.metrics:
             for v in self.metrics[label]["mean"].values():
                 v.reset()
@@ -196,6 +288,22 @@ class Tracker:
         op: dist.ReduceOp = dist.ReduceOp.AVG,
         ddp_active: bool = "LOCAL_RANK" in os.environ,
     ):
+        """
+        A decorator for tracking the progress and metrics of a function.
+
+        Parameters
+        ----------
+        label : str
+            The label to be associated with the progress and metrics.
+        length : int
+            The total number of iterations to be completed.
+        completed : int, optional
+            The number of iterations already completed, by default 0.
+        op : dist.ReduceOp, optional
+            The reduce operation to be used, by default dist.ReduceOp.AVG.
+        ddp_active : bool, optional
+            Whether the DistributedDataParallel is active, by default "LOCAL_RANK" in os.environ.
+        """
         self.tasks[label] = {
             "pbar": self.pbar.add_task(
                 f"[white]Iteration ({label})", total=length, completed=completed
@@ -241,6 +349,18 @@ class Tracker:
         return decorator
 
     def log(self, label: str, value_type: str = "value", history: bool = True):
+        """
+        A decorator for logging the metrics of a function.
+
+        Parameters
+        ----------
+        label : str
+            The label to be associated with the logging.
+        value_type : str, optional
+            The type of value to be logged, by default "value".
+        history : bool, optional
+            Whether to save the history of the metrics, by default True.
+        """
         assert value_type in ["mean", "value"]
         if history:
             if label not in self.history:
@@ -270,12 +390,48 @@ class Tracker:
         return decorator
 
     def is_best(self, label, key):
+        """
+        Checks if the latest value of the given key in the label is the best so far.
+
+        Parameters
+        ----------
+        label : str
+            The label of the metrics to be checked.
+        key : str
+            The key of the metric to be checked.
+
+        Returns
+        -------
+        bool
+            True if the latest value is the best so far, otherwise False.
+        """
         return self.history[label][key][-1] == min(self.history[label][key])
 
     def state_dict(self):
+        """
+        Returns a dictionary containing the state of the tracker.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the history and step of the tracker.
+        """
         return {"history": self.history, "step": self.step}
 
     def load_state_dict(self, state_dict):
+        """
+        Loads the state of the tracker from the given state dictionary.
+
+        Parameters
+        ----------
+        state_dict : dict
+            A dictionary containing the history and step of the tracker.
+
+        Returns
+        -------
+        Tracker
+            The tracker object with the loaded state.
+        """
         self.history = state_dict["history"]
         self.step = state_dict["step"]
         return self
