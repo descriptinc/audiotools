@@ -320,6 +320,7 @@ class Tracker:
             def decorated(*args, **kwargs):
                 output = fn(*args, **kwargs)
                 if not isinstance(output, dict):
+                    self.update(label, fn.__name__)
                     return output
                 # Collect across all DDP processes
                 scalar_keys = []
