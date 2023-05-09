@@ -325,6 +325,8 @@ class Tracker:
                 # Collect across all DDP processes
                 scalar_keys = []
                 for k, v in output.items():
+                    if isinstance(v, (int, float)):
+                        v = torch.tensor([v])
                     if not torch.is_tensor(v):
                         continue
                     if ddp_active:  # pragma: no cover

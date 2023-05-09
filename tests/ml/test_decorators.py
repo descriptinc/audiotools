@@ -43,6 +43,7 @@ def test_all_decorators():
             "stft": torch.exp(torch.FloatTensor([-i / 100])),
             "waveform": torch.exp(torch.FloatTensor([-i / 100])),
             "not_scalar": torch.arange(10),
+            "string": "string",
         }
 
     @when(lambda: tracker.step % 1000 == 0 and rank == 0)
