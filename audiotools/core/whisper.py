@@ -1,10 +1,13 @@
+import torch
+
+
 class WhisperMixin:
     is_initialized = False
 
     def setup_whisper(
         self,
         pretrained_model_name_or_path: str = "openai/whisper-base.en",
-        device: str = "cuda",
+        device: str = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     ):
         from transformers import WhisperForConditionalGeneration
         from transformers import WhisperProcessor
@@ -20,7 +23,7 @@ class WhisperMixin:
         ).to(self.whisper_device)
         self.is_initialized = True
 
-    def get_whisper_features(self):
+    def get_whisper_features(self) -> torch.Tensor:
         """Preprocess audio signal as per the whisper model's training config.
 
         Returns
@@ -60,7 +63,6 @@ class WhisperMixin:
         str
             The transcript of the audio signal, including special tokens such as <|startoftranscript|> and <|endoftext|>.
         """
-        import torch
 
         if not self.is_initialized:
             self.setup_whisper()
@@ -74,7 +76,7 @@ class WhisperMixin:
         transcription = self.whisper_processor.batch_decode(generated_ids)
         return transcription[0]
 
-    def get_whisper_embeddings(self):
+    def get_whisper_embeddings(self) -> torch.Tensor:
         """Get the last hidden state embeddings of the audio signal using the whisper model.
 
         Returns
