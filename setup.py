@@ -76,5 +76,8 @@ setup(
             "myst-nb",
             "sphinx-multiversion",
         ],
+        "whisper": [
+            "transformers>=4.23.1",
+        ],
     },
 )
