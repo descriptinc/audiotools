@@ -11,8 +11,6 @@ class WhisperMixin:
     ):
         from transformers import WhisperForConditionalGeneration
         from transformers import WhisperProcessor
-        from transformers import PreTrainedTokenizer
-        from transformers import PreTrainedModel
 
         self.whisper_device = device
         self.whisper_processor = WhisperProcessor.from_pretrained(
