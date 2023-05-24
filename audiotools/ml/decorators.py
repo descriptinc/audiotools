@@ -329,7 +329,7 @@ class Tracker:
                         v = torch.tensor([v])
                     if not torch.is_tensor(v):
                         continue
-                    if ddp_active:  # pragma: no cover
+                    if ddp_active and v.is_cuda:  # pragma: no cover
                         dist.all_reduce(v, op=op)
                     output[k] = v.detach()
                     if torch.numel(v) == 1:
