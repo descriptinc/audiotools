@@ -9,45 +9,6 @@ import torch
 from IPython.display import HTML
 
 
-def audio_zip(audio_dict: dict, zip_path: str, **kwargs):
-    """Creates a zip file based on a dictionary of audio signals
-    with both waveforms and spectrogram images in it. The dictionary
-    can be constructed (for example) like this:
-
-    >>> audio_dict = defaultdict(lambda: [])
-    >>> audio_signals = ... # some list of audio signals
-    >>> models = ... # some list of models
-    >>> for signal in audio_signals:
-    >>>     audio_dict["input"].append(signal.clone())
-    >>>     for i, model in enumerate(models):
-    >>>         output = model(signal)
-    >>>         audio_dict[f"model_{i}"].append(output.clone())
-    >>> audiotools.post.audio_zip(audio_dict, "samples.zip")
-
-    Then, the zip file can be easily shared.
-
-    Parameters
-    ----------
-    audio_dict : dict
-        Dictionary containing keys which will be folders in the zip file,
-        and lists of AudioSignals which will be written to the folders
-        in the zip file.
-    zip_path : str
-        Path to place the zip file.
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        with zipfile.ZipFile(zip_path, "w") as zip_file:
-            for k, signals in audio_dict.items():
-                for i, signal in enumerate(signals):
-                    with open(tmpdir / "out.wav", "w") as f:
-                        signal.write(f.name)
-                        zip_file.write(f.name, Path(k) / f"sample_{i}.wav")
-                    with open(tmpdir / "out.png", "w") as f:
-                        signal.save_image(f.name, **kwargs)
-                        zip_file.write(f.name, Path(k) / f"sample_{i}.png")
-
-
 def audio_table(
     audio_dict: dict,
     first_column: str = None,
