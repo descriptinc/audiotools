@@ -56,8 +56,8 @@ def test_hz_to_bin():
 
 
 def test_find_audio():
-    audio_files = util.find_audio("tests/", ["wav"])
-    for a in audio_files:
+    wav_files = util.find_audio("tests/", ["wav"])
+    for a in wav_files:
         assert "wav" in str(a)
 
     audio_files = util.find_audio("tests/", ["flac"])
@@ -65,6 +65,10 @@ def test_find_audio():
 
     # Make sure it works with single audio files
     audio_files = util.find_audio("tests/audio/spk//f10_script4_produced.wav")
+
+    # Make sure it works with globs
+    audio_files = util.find_audio("tests/**/*.wav")
+    assert len(audio_files) == len(wav_files)
 
 
 def test_chdir():
