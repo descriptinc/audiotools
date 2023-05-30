@@ -66,6 +66,7 @@ setup(
             "line_profiler",
             "pesq",
             "gradio>=3.32.0",
+            "transformers",
         ],
         "docs": [
             "sphinx",

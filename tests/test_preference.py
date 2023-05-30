@@ -6,7 +6,7 @@ from pathlib import Path
 
 import gradio as gr
 import numpy as np
-import scipy
+from scipy import io
 
 from audiotools import preference as pr
 
@@ -47,7 +47,7 @@ def create_data(path):
             sample_path = path / name / f"sample_{j}.wav"
             sample_path.parent.mkdir(exist_ok=True, parents=True)
             audio, sr = random_sine(hz[j] * (2**i))
-            scipy.io.wavfile.write(sample_path, sr, audio.astype(np.int16))
+            io.wavfile.write(sample_path, sr, audio.astype(np.int16))
 
 
 def _test_mushra(app, config):
