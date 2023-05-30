@@ -65,6 +65,7 @@ setup(
             "pytest-cov",
             "line_profiler",
             "pesq",
+            "gradio>=3.32.0",
         ],
         "docs": [
             "sphinx",
