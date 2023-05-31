@@ -31,7 +31,7 @@ block {
 }
 
 #wave-timeline {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.8);
 }
 
 .head.svelte-1cl284s {
