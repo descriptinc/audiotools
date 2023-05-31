@@ -282,7 +282,7 @@ class Player:
 ### Keeping track of users, and CSS for the progress bar ###
 ############################################################
 
-load_tracker = """
+load_tracker = lambda name: """
 function load_name() {
     function setCookie(name, value, exp_days) {
         var d = new Date();
@@ -307,16 +307,18 @@ function load_name() {
         return "";
     }
 
-    name = getCookie("name");
+    name = getCookie("{name}");
     if (name == "") {
         name = Math.random().toString(36).slice(2);
         console.log(name);
         setCookie("name", name, 30);
     }
-    name = getCookie("name");
+    name = getCookie("{name}");
     return name;
 }
-"""
+""".replace(
+    "{name}", name
+)
 
 # Progress bar
 
@@ -364,9 +366,9 @@ progress_template = """
 """
 
 
-def create_tracker(app):
+def create_tracker(app, cookie_name="name"):
     user = gr.Text(label="user", interactive=True, visible=False, elem_id="user")
-    app.load(_js=load_tracker, outputs=user)
+    app.load(_js=load_tracker(cookie_name), outputs=user)
     return user
 
 
