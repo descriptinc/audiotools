@@ -17,6 +17,7 @@ AudioTools
     :maxdepth: 1
 
     tutorials/transforms.md
+    tutorials/listening_tests.md
 
 .. toctree::
     :caption: API Documentation
@@ -27,6 +28,7 @@ AudioTools
     source/audiotools.metrics
     source/audiotools.ml
     source/audiotools.post
+    source/audiotools.preference
 
 
 Indices and tables

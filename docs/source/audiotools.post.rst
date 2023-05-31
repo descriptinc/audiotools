@@ -1,5 +1,5 @@
-Utilities for sharing samples
------------------------------
+Tools for sharing audio
+-----------------------
 
 .. automodule:: audiotools.post
    :members:
