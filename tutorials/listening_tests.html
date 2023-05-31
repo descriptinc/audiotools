@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creating listening tests &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="AudioSignal" href="../source/audiotools.core.html" />
+    <link rel="prev" title="Transforms" href="transforms.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="transforms.html">Transforms</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Creating listening tests</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#folder-structure">Folder structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-the-data">Loading the data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-the-player">Adding the Player</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tracking-users">Tracking users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#abx-preference-script">ABX Preference script</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mushra-listening-test">MUSHRA listening test</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Creating listening tests</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/listening_tests.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="creating-listening-tests">
+<h1>Creating listening tests<a class="headerlink" href="#creating-listening-tests" title="Permalink to this heading"></a></h1>
+<p>AudioTools comes up with a few utilities for creating
+preference tests with best practices for audio playback. The
+purpose of this tutorial is to teach you how to use them to create
+your own listening tests on your data, and analyze the results.</p>
+<section id="folder-structure">
+<h2>Folder structure<a class="headerlink" href="#folder-structure" title="Permalink to this heading"></a></h2>
+<p>The utilities below assume the following folder structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">folder</span>
+  <span class="n">condition_a</span><span class="o">/</span>
+    <span class="n">sample_0</span><span class="o">.</span><span class="n">wav</span>
+    <span class="n">sample_1</span><span class="o">.</span><span class="n">wav</span>
+    <span class="o">...</span>
+  <span class="n">condition_b</span><span class="o">/</span>
+    <span class="n">sample_0</span><span class="o">.</span><span class="n">wav</span>
+    <span class="n">sample_1</span><span class="o">.</span><span class="n">wav</span>
+    <span class="o">...</span>
+  <span class="n">some_other_name</span><span class="o">/</span>
+    <span class="n">sample_0</span><span class="o">.</span><span class="n">wav</span>
+    <span class="n">sample_1</span><span class="o">.</span><span class="n">wav</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>That is, audio files are kept organized inside the folder such that each subfolder corresponds to a different condition (e.g. output from a model). Samples names are kept consistent such that the same sample name corresponds to the same underlying audio across all conditions.</p>
+<p>Let’s make some dummy data that follows the rules here, and also import everything we need to make tests:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">gradio</span> <span class="k">as</span> <span class="nn">gr</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">soundfile</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">rich</span>
+
+<span class="kn">from</span> <span class="nn">audiotools</span> <span class="kn">import</span> <span class="n">preference</span> <span class="k">as</span> <span class="n">pr</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+    <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;results.csv&quot;</span>
+    <span class="n">conditions</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">reference</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">def</span> <span class="nf">random_sine</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="n">fs</span> <span class="o">=</span> <span class="mi">44100</span>  <span class="c1"># sampling rate, Hz, must be integer</span>
+    <span class="n">duration</span> <span class="o">=</span> <span class="mf">5.0</span>  <span class="c1"># in seconds, may be float</span>
+
+    <span class="c1"># generate samples, note conversion to float32 array</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">num_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">duration</span><span class="p">)</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">volume</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">f</span> <span class="o">/</span> <span class="n">fs</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_samples</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">samples</span><span class="p">,</span> <span class="n">fs</span>
+
+<span class="k">def</span> <span class="nf">create_data</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">hz</span> <span class="o">=</span> <span class="p">[</span><span class="mi">110</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">180</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;condition_</span><span class="si">{</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_lowercase</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">sample_path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">/</span> <span class="n">name</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;sample_</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">.wav&quot;</span>
+            <span class="n">sample_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">audio</span><span class="p">,</span> <span class="n">sr</span> <span class="o">=</span> <span class="n">random_sine</span><span class="p">(</span><span class="n">hz</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">i</span><span class="p">))</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">sample_path</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">sr</span><span class="p">)</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span>
+    <span class="n">folder</span><span class="o">=</span><span class="s2">&quot;/tmp/pref/audio/&quot;</span><span class="p">,</span>
+    <span class="n">save_path</span><span class="o">=</span><span class="s2">&quot;/tmp/pref/results.csv&quot;</span><span class="p">,</span>
+    <span class="n">conditions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;condition_a&quot;</span><span class="p">,</span> <span class="s2">&quot;condition_b&quot;</span><span class="p">],</span>
+    <span class="n">reference</span><span class="o">=</span><span class="s2">&quot;condition_c&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">create_data</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="loading-the-data">
+<h2>Loading the data<a class="headerlink" href="#loading-the-data" title="Permalink to this heading"></a></h2>
+<p>Now that we have some data in a folder, we’ll
+use the <code class="docutils literal notranslate"><span class="pre">Samples</span></code> object in <code class="docutils literal notranslate"><span class="pre">audiotools.preference</span></code> to find all the audio, and
+organize it by condition.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">audiotools</span> <span class="kn">import</span> <span class="n">preference</span> <span class="k">as</span> <span class="n">pr</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">Samples</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Inside <code class="docutils literal notranslate"><span class="pre">data</span></code> is a dictionary containing all the audio samples, organized
+by condition, as well as a list of sample names which the test will iterate through. The samples are shuffled by default.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">rich</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">samples</span><span class="p">)</span>
+<span class="n">rich</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">defaultdict</span><span style="font-weight: bold">(&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">function</span><span style="color: #000000; text-decoration-color: #000000"> Samples.__init__.&lt;locals&gt;.&lt;lambda&gt; at </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0x7fabe8e0f280</span><span style="font-weight: bold">&gt;</span>, <span style="font-weight: bold">{</span>
+    <span style="color: #008000; text-decoration-color: #008000">'sample_1.wav'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">defaultdict</span><span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span>, <span style="font-weight: bold">{</span>
+        <span style="color: #008000; text-decoration-color: #008000">'condition_a'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_a/sample_1.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_f'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_f/sample_1.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_c'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_c/sample_1.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_d'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_d/sample_1.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_e'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_e/sample_1.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_b'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_b/sample_1.wav'</span><span style="font-weight: bold">)</span>
+    <span style="font-weight: bold">})</span>,
+    <span style="color: #008000; text-decoration-color: #008000">'sample_0.wav'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">defaultdict</span><span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span>, <span style="font-weight: bold">{</span>
+        <span style="color: #008000; text-decoration-color: #008000">'condition_a'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_a/sample_0.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_f'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_f/sample_0.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_c'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_c/sample_0.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_d'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_d/sample_0.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_e'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_e/sample_0.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_b'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_b/sample_0.wav'</span><span style="font-weight: bold">)</span>
+    <span style="font-weight: bold">})</span>,
+    <span style="color: #008000; text-decoration-color: #008000">'sample_2.wav'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">defaultdict</span><span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span>, <span style="font-weight: bold">{</span>
+        <span style="color: #008000; text-decoration-color: #008000">'condition_a'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_a/sample_2.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_f'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_f/sample_2.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_c'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_c/sample_2.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_d'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_d/sample_2.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_e'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_e/sample_2.wav'</span><span style="font-weight: bold">)</span>,
+        <span style="color: #008000; text-decoration-color: #008000">'condition_b'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PosixPath</span><span style="font-weight: bold">(</span><span style="color: #008000; text-decoration-color: #008000">'/tmp/pref/audio/condition_b/sample_2.wav'</span><span style="font-weight: bold">)</span>
+    <span style="font-weight: bold">})</span>
+<span style="font-weight: bold">})</span>
+</pre>
+</div><div class="output text_html"><pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">[</span><span style="color: #008000; text-decoration-color: #008000">'sample_1.wav'</span>, <span style="color: #008000; text-decoration-color: #008000">'sample_2.wav'</span>, <span style="color: #008000; text-decoration-color: #008000">'sample_0.wav'</span><span style="font-weight: bold">]</span>
+</pre>
+</div></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Samples</span></code> object also contains information about the state of the test, such
+as the current sample, and has utilities for getting the next sample, etc.</p>
+</section>
+<section id="adding-the-player">
+<h2>Adding the Player<a class="headerlink" href="#adding-the-player" title="Permalink to this heading"></a></h2>
+<p>The Player object lets you easily create an audio player with play buttons for every audio file, region selection, and looping. The player audio requires
+a Gradio <code class="docutils literal notranslate"><span class="pre">app</span></code> object to be passed to it on initialization.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">()</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="n">player</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">Player</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>This instantiates the player, and adds relevant Javascript and CSS to the Gradio
+app. Next, let’s actually create the player, and add buttons for playback:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">()</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="n">player</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">Player</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;Play Reference&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>This created a player, added it to the app, and then added a button called “Play Reference”, with an underlying (invisible) audio element. To actually set the audio for the element, we can do this:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">()</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="n">player</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">Player</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;Play Reference&quot;</span><span class="p">)</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">to_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="s2">&quot;sample_0.wav&quot;</span><span class="p">][</span><span class="s2">&quot;condition_a&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Now, when you hit play, it’ll play back that audio file. The order of audio files is always the order in which they were added to the player.</p>
+</section>
+<section id="tracking-users">
+<h2>Tracking users<a class="headerlink" href="#tracking-users" title="Permalink to this heading"></a></h2>
+<p>We can track users of the app by using the <code class="docutils literal notranslate"><span class="pre">create_tracker</span></code> function. This function creates a hidden text box with a user id in it that is saved as a
+cookie in the user’s browser. Enable it like this:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">()</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">create_tracker</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Then, you can just use <code class="docutils literal notranslate"><span class="pre">user</span></code> as an input to any Gradio function, and it will contain the value of the cookie.</p>
+</section>
+<section id="abx-preference-script">
+<h2>ABX Preference script<a class="headerlink" href="#abx-preference-script" title="Permalink to this heading"></a></h2>
+<p>Let’s put everything together to create a simple ABX-based preference test.
+Copy paste the code below and launch it to see the preference test.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">gradio</span> <span class="k">as</span> <span class="nn">gr</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">soundfile</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">rich</span>
+
+<span class="kn">from</span> <span class="nn">audiotools</span> <span class="kn">import</span> <span class="n">preference</span> <span class="k">as</span> <span class="n">pr</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+    <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;results.csv&quot;</span>
+    <span class="n">conditions</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">reference</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">def</span> <span class="nf">random_sine</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="n">fs</span> <span class="o">=</span> <span class="mi">44100</span>  <span class="c1"># sampling rate, Hz, must be integer</span>
+    <span class="n">duration</span> <span class="o">=</span> <span class="mf">5.0</span>  <span class="c1"># in seconds, may be float</span>
+
+    <span class="c1"># generate samples, note conversion to float32 array</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">num_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">duration</span><span class="p">)</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">volume</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">f</span> <span class="o">/</span> <span class="n">fs</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_samples</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">samples</span><span class="p">,</span> <span class="n">fs</span>
+
+<span class="k">def</span> <span class="nf">create_data</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">hz</span> <span class="o">=</span> <span class="p">[</span><span class="mi">110</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">180</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;condition_</span><span class="si">{</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_lowercase</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">sample_path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">/</span> <span class="n">name</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;sample_</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">.wav&quot;</span>
+            <span class="n">sample_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">audio</span><span class="p">,</span> <span class="n">sr</span> <span class="o">=</span> <span class="n">random_sine</span><span class="p">(</span><span class="n">hz</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">i</span><span class="p">))</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">sample_path</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">sr</span><span class="p">)</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span>
+    <span class="n">folder</span><span class="o">=</span><span class="s2">&quot;/tmp/pref/audio/&quot;</span><span class="p">,</span>
+    <span class="n">save_path</span><span class="o">=</span><span class="s2">&quot;/tmp/pref/results.csv&quot;</span><span class="p">,</span>
+    <span class="n">conditions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;condition_a&quot;</span><span class="p">,</span> <span class="s2">&quot;condition_b&quot;</span><span class="p">],</span>
+    <span class="n">reference</span><span class="o">=</span><span class="s2">&quot;condition_c&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">create_data</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">()</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="n">save_path</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">save_path</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="n">pr</span><span class="o">.</span><span class="n">Samples</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">folder</span><span class="p">))</span>
+
+    <span class="n">reference</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">reference</span>
+    <span class="n">conditions</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">conditions</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">conditions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Preference tests take only two conditions!&quot;</span>
+
+    <span class="n">player</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">Player</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">player</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;Play Reference&quot;</span><span class="p">)</span>
+
+    <span class="n">user</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">create_tracker</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">()</span><span class="o">.</span><span class="n">style</span><span class="p">(</span><span class="n">equal_height</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">conditions</span><span class="p">)):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_uppercase</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Play </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">rating</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Slider</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">gr</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="n">pr</span><span class="o">.</span><span class="n">slider_abx</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">rating</span><span class="p">):</span>
+        <span class="n">samples</span><span class="o">.</span><span class="n">filter_completed</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+
+        <span class="c1"># Write results to CSV</span>
+        <span class="k">if</span> <span class="n">samples</span><span class="o">.</span><span class="n">current</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">start_idx</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">samples</span><span class="o">.</span><span class="n">current</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;sample&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">}</span>
+
+            <span class="n">result</span><span class="p">[</span><span class="n">samples</span><span class="o">.</span><span class="n">order</span><span class="p">[</span><span class="n">start_idx</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">rating</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">samples</span><span class="o">.</span><span class="n">order</span><span class="p">[</span><span class="n">start_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">rating</span>
+            <span class="n">pr</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+
+        <span class="n">updates</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">pbar</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">get_next_sample</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">conditions</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">updates</span> <span class="o">+</span> <span class="p">[</span><span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span> <span class="n">done</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">pbar</span><span class="p">]</span>
+
+    <span class="n">progress</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">HTML</span><span class="p">()</span>
+    <span class="n">begin</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Submit&quot;</span><span class="p">,</span> <span class="n">elem_id</span><span class="o">=</span><span class="s2">&quot;start-survey&quot;</span><span class="p">)</span>
+    <span class="n">begin</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+        <span class="n">fn</span><span class="o">=</span><span class="n">build</span><span class="p">,</span>
+        <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">user</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">rating</span><span class="p">],</span>
+        <span class="n">outputs</span><span class="o">=</span><span class="n">player</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="n">rating</span><span class="p">,</span> <span class="n">begin</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">progress</span><span class="p">],</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">_js</span><span class="o">=</span><span class="n">pr</span><span class="o">.</span><span class="n">reset_player</span><span class="p">)</span>
+
+    <span class="c1"># Comment this back in to actually launch the script.</span>
+    <span class="c1"># app.launch()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="mushra-listening-test">
+<h2>MUSHRA listening test<a class="headerlink" href="#mushra-listening-test" title="Permalink to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">gradio</span> <span class="k">as</span> <span class="nn">gr</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">soundfile</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">rich</span>
+
+<span class="kn">from</span> <span class="nn">audiotools</span> <span class="kn">import</span> <span class="n">preference</span> <span class="k">as</span> <span class="n">pr</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+    <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;results.csv&quot;</span>
+    <span class="n">conditions</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">reference</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">def</span> <span class="nf">random_sine</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="n">fs</span> <span class="o">=</span> <span class="mi">44100</span>  <span class="c1"># sampling rate, Hz, must be integer</span>
+    <span class="n">duration</span> <span class="o">=</span> <span class="mf">5.0</span>  <span class="c1"># in seconds, may be float</span>
+
+    <span class="c1"># generate samples, note conversion to float32 array</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">num_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">duration</span><span class="p">)</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">volume</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">f</span> <span class="o">/</span> <span class="n">fs</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_samples</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">samples</span><span class="p">,</span> <span class="n">fs</span>
+
+<span class="k">def</span> <span class="nf">create_data</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">hz</span> <span class="o">=</span> <span class="p">[</span><span class="mi">110</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">180</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;condition_</span><span class="si">{</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_lowercase</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">sample_path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">/</span> <span class="n">name</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;sample_</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">.wav&quot;</span>
+            <span class="n">sample_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">audio</span><span class="p">,</span> <span class="n">sr</span> <span class="o">=</span> <span class="n">random_sine</span><span class="p">(</span><span class="n">hz</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">i</span><span class="p">))</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">sample_path</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">sr</span><span class="p">)</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span>
+    <span class="n">folder</span><span class="o">=</span><span class="s2">&quot;/tmp/pref/audio/&quot;</span><span class="p">,</span>
+    <span class="n">save_path</span><span class="o">=</span><span class="s2">&quot;/tmp/pref/results.csv&quot;</span><span class="p">,</span>
+    <span class="n">conditions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;condition_a&quot;</span><span class="p">,</span> <span class="s2">&quot;condition_b&quot;</span><span class="p">],</span>
+    <span class="n">reference</span><span class="o">=</span><span class="s2">&quot;condition_c&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">create_data</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">()</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="n">save_path</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">save_path</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="n">pr</span><span class="o">.</span><span class="n">Samples</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">folder</span><span class="p">))</span>
+
+    <span class="n">reference</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">reference</span>
+    <span class="n">conditions</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">conditions</span>
+
+    <span class="n">player</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">Player</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">player</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">player</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;Play Reference&quot;</span><span class="p">)</span>
+
+    <span class="n">user</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">create_tracker</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">ratings</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">():</span>
+        <span class="n">gr</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">9</span><span class="p">):</span>
+            <span class="n">gr</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="n">pr</span><span class="o">.</span><span class="n">slider_mushra</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">conditions</span><span class="p">)):</span>
+        <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">()</span><span class="o">.</span><span class="n">style</span><span class="p">(</span><span class="n">equal_height</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_uppercase</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Play </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">9</span><span class="p">):</span>
+                <span class="n">ratings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gr</span><span class="o">.</span><span class="n">Slider</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="o">*</span><span class="n">ratings</span><span class="p">):</span>
+        <span class="c1"># Filter out samples user has done already, by looking in the CSV.</span>
+        <span class="n">samples</span><span class="o">.</span><span class="n">filter_completed</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+
+        <span class="c1"># Write results to CSV</span>
+        <span class="k">if</span> <span class="n">samples</span><span class="o">.</span><span class="n">current</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">start_idx</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">samples</span><span class="o">.</span><span class="n">current</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;sample&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">}</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">order</span><span class="p">[</span><span class="n">start_idx</span><span class="p">:],</span> <span class="n">ratings</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+            <span class="n">pr</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+
+        <span class="n">updates</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">pbar</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">get_next_sample</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">conditions</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">updates</span> <span class="o">+</span> <span class="p">[</span><span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">ratings</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">done</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">pbar</span><span class="p">]</span>
+
+    <span class="n">progress</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">HTML</span><span class="p">()</span>
+    <span class="n">begin</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Submit&quot;</span><span class="p">,</span> <span class="n">elem_id</span><span class="o">=</span><span class="s2">&quot;start-survey&quot;</span><span class="p">)</span>
+    <span class="n">begin</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+        <span class="n">fn</span><span class="o">=</span><span class="n">build</span><span class="p">,</span>
+        <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">user</span><span class="p">,</span> <span class="n">samples</span><span class="p">]</span> <span class="o">+</span> <span class="n">ratings</span><span class="p">,</span>
+        <span class="n">outputs</span><span class="o">=</span><span class="n">player</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span> <span class="o">+</span> <span class="n">ratings</span> <span class="o">+</span> <span class="p">[</span><span class="n">begin</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">progress</span><span class="p">],</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">_js</span><span class="o">=</span><span class="n">pr</span><span class="o">.</span><span class="n">reset_player</span><span class="p">)</span>
+
+    <span class="c1"># Comment this back in to actually launch the script.</span>
+    <span class="c1"># app.launch()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Feel free to mix and match stuff from the scripts above to create one suited for your own needs!</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="transforms.html" class="btn btn-neutral float-left" title="Transforms" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../source/audiotools.core.html" class="btn btn-neutral float-right" title="AudioSignal" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

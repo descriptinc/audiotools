@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.data.datasets &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.data.datasets</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.data.datasets</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">SequentialSampler</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data.distributed</span> <span class="kn">import</span> <span class="n">DistributedSampler</span>
+
+<span class="kn">from</span> <span class="nn">..core</span> <span class="kn">import</span> <span class="n">AudioSignal</span>
+<span class="kn">from</span> <span class="nn">..core</span> <span class="kn">import</span> <span class="n">util</span>
+
+
+<div class="viewcode-block" id="AudioLoader"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.AudioLoader">[docs]</a><span class="k">class</span> <span class="nc">AudioLoader</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Loads audio endlessly from a list of audio sources</span>
+<span class="sd">    containing paths to audio files. Audio sources can be</span>
+<span class="sd">    folders full of audio files (which are found via file</span>
+<span class="sd">    extension) or by providing a CSV file which contains paths</span>
+<span class="sd">    to audio files.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sources : List[str], optional</span>
+<span class="sd">        Sources containing folders, or CSVs with</span>
+<span class="sd">        paths to audio files, by default None</span>
+<span class="sd">    weights : List[float], optional</span>
+<span class="sd">        Weights to sample audio files from each source, by default None</span>
+<span class="sd">    relative_path : str, optional</span>
+<span class="sd">        Path audio should be loaded relative to, by default &quot;&quot;</span>
+<span class="sd">    transform : Callable, optional</span>
+<span class="sd">        Transform to instantiate alongside audio sample,</span>
+<span class="sd">        by default None</span>
+<span class="sd">    ext : List[str]</span>
+<span class="sd">        List of extensions to find audio within each source by. Can</span>
+<span class="sd">        also be a file name (e.g. &quot;vocals.wav&quot;). by default</span>
+<span class="sd">        ``[&#39;.wav&#39;, &#39;.flac&#39;, &#39;.mp3&#39;, &#39;.mp4&#39;]``.</span>
+<span class="sd">    shuffle: bool</span>
+<span class="sd">        Whether to shuffle the files within the dataloader. Defaults to True.</span>
+<span class="sd">    shuffle_state: int</span>
+<span class="sd">        State to use to seed the shuffle of the files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sources</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">relative_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">ext</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">AUDIO_EXTENSIONS</span><span class="p">,</span>
+        <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">shuffle_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_lists</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">read_sources</span><span class="p">(</span>
+            <span class="n">sources</span><span class="p">,</span> <span class="n">relative_path</span><span class="o">=</span><span class="n">relative_path</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="n">ext</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_indices</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">src_idx</span><span class="p">,</span> <span class="n">item_idx</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">src_idx</span><span class="p">,</span> <span class="n">src</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_lists</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">item_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">src</span><span class="p">))</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">shuffle</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">random_state</span><span class="p">(</span><span class="n">shuffle_state</span><span class="p">)</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_indices</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sources</span> <span class="o">=</span> <span class="n">sources</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">,</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">loudness_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mi">40</span><span class="p">,</span>
+        <span class="n">num_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">source_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">item_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">global_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">source_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">item_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">audio_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_lists</span><span class="p">[</span><span class="n">source_idx</span><span class="p">][</span><span class="n">item_idx</span><span class="p">]</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">audio_info</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="n">global_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">source_idx</span><span class="p">,</span> <span class="n">item_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_indices</span><span class="p">[</span>
+                <span class="n">global_idx</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_indices</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="n">audio_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_lists</span><span class="p">[</span><span class="n">source_idx</span><span class="p">][</span><span class="n">item_idx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">audio_info</span><span class="p">,</span> <span class="n">source_idx</span><span class="p">,</span> <span class="n">item_idx</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">choose_from_list_of_lists</span><span class="p">(</span>
+                <span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_lists</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span>
+            <span class="p">)</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">audio_info</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">]</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">duration</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">,</span> <span class="n">num_channels</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">path</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">signal</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="o">.</span><span class="n">salient_excerpt</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span>
+                    <span class="n">duration</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span>
+                    <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
+                    <span class="n">loudness_cutoff</span><span class="o">=</span><span class="n">loudness_cutoff</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">signal</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span>
+                    <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span>
+                    <span class="n">duration</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">num_channels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">to_mono</span><span class="p">()</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">sample_rate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">signal</span><span class="o">.</span><span class="n">duration</span> <span class="o">&lt;</span> <span class="n">duration</span><span class="p">:</span>
+            <span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">zero_pad_to</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">duration</span> <span class="o">*</span> <span class="n">sample_rate</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">audio_info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+
+        <span class="n">item</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;signal&quot;</span><span class="p">:</span> <span class="n">signal</span><span class="p">,</span>
+            <span class="s2">&quot;source_idx&quot;</span><span class="p">:</span> <span class="n">source_idx</span><span class="p">,</span>
+            <span class="s2">&quot;item_idx&quot;</span><span class="p">:</span> <span class="n">item_idx</span><span class="p">,</span>
+            <span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source_idx</span><span class="p">]),</span>
+            <span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">&quot;transform_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">signal</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">item</span></div>
+
+
+<div class="viewcode-block" id="default_matcher"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.default_matcher">[docs]</a><span class="k">def</span> <span class="nf">default_matcher</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span> <span class="o">==</span> <span class="n">Path</span><span class="p">(</span><span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span></div>
+
+
+<div class="viewcode-block" id="align_lists"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.align_lists">[docs]</a><span class="k">def</span> <span class="nf">align_lists</span><span class="p">(</span><span class="n">lists</span><span class="p">,</span> <span class="n">matcher</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">default_matcher</span><span class="p">):</span>
+    <span class="n">longest_list</span> <span class="o">=</span> <span class="n">lists</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lists</span><span class="p">])]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">longest_list</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lists</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
+                <span class="n">l</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">})</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">matcher</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;path&quot;</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">]):</span>
+                <span class="n">l</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">lists</span></div>
+
+
+<div class="viewcode-block" id="AudioDataset"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.AudioDataset">[docs]</a><span class="k">class</span> <span class="nc">AudioDataset</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Loads audio from multiple loaders (with associated transforms)</span>
+<span class="sd">    for a specified number of samples. Excerpts are drawn randomly</span>
+<span class="sd">    of the specified duration, above a specified loudness threshold</span>
+<span class="sd">    and are resampled on the fly to the desired sample rate</span>
+<span class="sd">    (if it is different from the audio source sample rate).</span>
+
+<span class="sd">    This takes either a single AudioLoader object,</span>
+<span class="sd">    a dictionary of AudioLoader objects, or a dictionary of AudioLoader</span>
+<span class="sd">    objects. Each AudioLoader is called by the dataset, and the</span>
+<span class="sd">    result is placed in the output dictionary. A transform can also be</span>
+<span class="sd">    specified for the entire dataset, rather than for each specific</span>
+<span class="sd">    loader. This transform can be applied to the output of all the</span>
+<span class="sd">    loaders if desired.</span>
+
+<span class="sd">    AudioLoader objects can be specified as aligned, which means the</span>
+<span class="sd">    loaders correspond to multitrack audio (e.g. a vocals, bass,</span>
+<span class="sd">    drums, and other loader for multitrack music mixtures).</span>
+
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    loaders : Union[AudioLoader, List[AudioLoader], Dict[str, AudioLoader]]</span>
+<span class="sd">        AudioLoaders to sample audio from.</span>
+<span class="sd">    sample_rate : int</span>
+<span class="sd">        Desired sample rate.</span>
+<span class="sd">    n_examples : int, optional</span>
+<span class="sd">        Number of examples (length of dataset), by default 1000</span>
+<span class="sd">    duration : float, optional</span>
+<span class="sd">        Duration of audio samples, by default 0.5</span>
+<span class="sd">    loudness_cutoff : float, optional</span>
+<span class="sd">        Loudness cutoff threshold for audio samples, by default -40</span>
+<span class="sd">    num_channels : int, optional</span>
+<span class="sd">        Number of channels in output audio, by default 1</span>
+<span class="sd">    transform : Callable, optional</span>
+<span class="sd">        Transform to instantiate alongside each dataset item, by default None</span>
+<span class="sd">    aligned : bool, optional</span>
+<span class="sd">        Whether the loaders should be sampled in an aligned manner (e.g. same</span>
+<span class="sd">        offset, duration, and matched file name), by default False</span>
+<span class="sd">    shuffle_loaders : bool, optional</span>
+<span class="sd">        Whether to shuffle the loaders before sampling from them, by default False</span>
+<span class="sd">    matcher : Callable</span>
+<span class="sd">        How to match files from adjacent audio lists (e.g. for a multitrack audio loader),</span>
+<span class="sd">        by default uses the parent directory of each file.</span>
+<span class="sd">    without_replacement : bool</span>
+<span class="sd">        Whether to choose files with or without replacement, by default True.</span>
+
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from audiotools.data.datasets import AudioLoader</span>
+<span class="sd">    &gt;&gt;&gt; from audiotools.data.datasets import AudioDataset</span>
+<span class="sd">    &gt;&gt;&gt; from audiotools import transforms as tfm</span>
+<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; loaders = [</span>
+<span class="sd">    &gt;&gt;&gt;     AudioLoader(</span>
+<span class="sd">    &gt;&gt;&gt;         sources=[f&quot;tests/audio/spk&quot;],</span>
+<span class="sd">    &gt;&gt;&gt;         transform=tfm.Equalizer(),</span>
+<span class="sd">    &gt;&gt;&gt;         ext=[&quot;wav&quot;],</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;     for i in range(5)</span>
+<span class="sd">    &gt;&gt;&gt; ]</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; dataset = AudioDataset(</span>
+<span class="sd">    &gt;&gt;&gt;     loaders = loaders,</span>
+<span class="sd">    &gt;&gt;&gt;     sample_rate = 44100,</span>
+<span class="sd">    &gt;&gt;&gt;     duration = 1.0,</span>
+<span class="sd">    &gt;&gt;&gt;     transform = tfm.RescaleAudio(),</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; item = dataset[np.random.randint(len(dataset))]</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; for i in range(len(loaders)):</span>
+<span class="sd">    &gt;&gt;&gt;     item[i][&quot;signal&quot;] = loaders[i].transform(</span>
+<span class="sd">    &gt;&gt;&gt;         item[i][&quot;signal&quot;], **item[i][&quot;transform_args&quot;]</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;     item[i][&quot;signal&quot;].widget(i)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; mix = sum([item[i][&quot;signal&quot;] for i in range(len(loaders))])</span>
+<span class="sd">    &gt;&gt;&gt; mix = dataset.transform(mix, **item[&quot;transform_args&quot;])</span>
+<span class="sd">    &gt;&gt;&gt; mix.widget(&quot;mix&quot;)</span>
+
+<span class="sd">    Below is an example of how one could load MUSDB multitrack data:</span>
+
+<span class="sd">    &gt;&gt;&gt; import audiotools as at</span>
+<span class="sd">    &gt;&gt;&gt; from pathlib import Path</span>
+<span class="sd">    &gt;&gt;&gt; from audiotools import transforms as tfm</span>
+<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">    &gt;&gt;&gt; import torch</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; def build_dataset(</span>
+<span class="sd">    &gt;&gt;&gt;     sample_rate: int = 44100,</span>
+<span class="sd">    &gt;&gt;&gt;     duration: float = 5.0,</span>
+<span class="sd">    &gt;&gt;&gt;     musdb_path: str = &quot;~/.data/musdb/&quot;,</span>
+<span class="sd">    &gt;&gt;&gt; ):</span>
+<span class="sd">    &gt;&gt;&gt;     musdb_path = Path(musdb_path).expanduser()</span>
+<span class="sd">    &gt;&gt;&gt;     loaders = {</span>
+<span class="sd">    &gt;&gt;&gt;         src: at.datasets.AudioLoader(</span>
+<span class="sd">    &gt;&gt;&gt;             sources=[musdb_path],</span>
+<span class="sd">    &gt;&gt;&gt;             transform=tfm.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;                 tfm.VolumeNorm((&quot;uniform&quot;, -20, -10)),</span>
+<span class="sd">    &gt;&gt;&gt;                 tfm.Silence(prob=0.1),</span>
+<span class="sd">    &gt;&gt;&gt;             ),</span>
+<span class="sd">    &gt;&gt;&gt;             ext=[f&quot;{src}.wav&quot;],</span>
+<span class="sd">    &gt;&gt;&gt;         )</span>
+<span class="sd">    &gt;&gt;&gt;         for src in [&quot;vocals&quot;, &quot;bass&quot;, &quot;drums&quot;, &quot;other&quot;]</span>
+<span class="sd">    &gt;&gt;&gt;     }</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt;     dataset = at.datasets.AudioDataset(</span>
+<span class="sd">    &gt;&gt;&gt;         loaders=loaders,</span>
+<span class="sd">    &gt;&gt;&gt;         sample_rate=sample_rate,</span>
+<span class="sd">    &gt;&gt;&gt;         duration=duration,</span>
+<span class="sd">    &gt;&gt;&gt;         num_channels=1,</span>
+<span class="sd">    &gt;&gt;&gt;         aligned=True,</span>
+<span class="sd">    &gt;&gt;&gt;         transform=tfm.RescaleAudio(),</span>
+<span class="sd">    &gt;&gt;&gt;         shuffle_loaders=True,</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;     return dataset, list(loaders.keys())</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; train_data, sources = build_dataset()</span>
+<span class="sd">    &gt;&gt;&gt; dataloader = torch.utils.data.DataLoader(</span>
+<span class="sd">    &gt;&gt;&gt;     train_data,</span>
+<span class="sd">    &gt;&gt;&gt;     batch_size=16,</span>
+<span class="sd">    &gt;&gt;&gt;     num_workers=0,</span>
+<span class="sd">    &gt;&gt;&gt;     collate_fn=train_data.collate,</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt; batch = next(iter(dataloader))</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; for k in sources:</span>
+<span class="sd">    &gt;&gt;&gt;     src = batch[k]</span>
+<span class="sd">    &gt;&gt;&gt;     src[&quot;transformed&quot;] = train_data.loaders[k].transform(</span>
+<span class="sd">    &gt;&gt;&gt;         src[&quot;signal&quot;].clone(), **src[&quot;transform_args&quot;]</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; mixture = sum(batch[k][&quot;transformed&quot;] for k in sources)</span>
+<span class="sd">    &gt;&gt;&gt; mixture = train_data.transform(mixture, **batch[&quot;transform_args&quot;])</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; # Say a model takes the mix and gives back (n_batch, n_src, n_time).</span>
+<span class="sd">    &gt;&gt;&gt; # Construct the targets:</span>
+<span class="sd">    &gt;&gt;&gt; targets = at.AudioSignal.batch([batch[k][&quot;transformed&quot;] for k in sources], dim=1)</span>
+
+<span class="sd">    Similarly, here&#39;s example code for loading Slakh data:</span>
+
+<span class="sd">    &gt;&gt;&gt; import audiotools as at</span>
+<span class="sd">    &gt;&gt;&gt; from pathlib import Path</span>
+<span class="sd">    &gt;&gt;&gt; from audiotools import transforms as tfm</span>
+<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">    &gt;&gt;&gt; import torch</span>
+<span class="sd">    &gt;&gt;&gt; import glob</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; def build_dataset(</span>
+<span class="sd">    &gt;&gt;&gt;     sample_rate: int = 16000,</span>
+<span class="sd">    &gt;&gt;&gt;     duration: float = 10.0,</span>
+<span class="sd">    &gt;&gt;&gt;     slakh_path: str = &quot;~/.data/slakh/&quot;,</span>
+<span class="sd">    &gt;&gt;&gt; ):</span>
+<span class="sd">    &gt;&gt;&gt;     slakh_path = Path(slakh_path).expanduser()</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt;     # Find the max number of sources in Slakh</span>
+<span class="sd">    &gt;&gt;&gt;     src_names = [x.name for x in list(slakh_path.glob(&quot;**/*.wav&quot;))  if &quot;S&quot; in str(x.name)]</span>
+<span class="sd">    &gt;&gt;&gt;     n_sources = len(list(set(src_names)))</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt;     loaders = {</span>
+<span class="sd">    &gt;&gt;&gt;         f&quot;S{i:02d}&quot;: at.datasets.AudioLoader(</span>
+<span class="sd">    &gt;&gt;&gt;             sources=[slakh_path],</span>
+<span class="sd">    &gt;&gt;&gt;             transform=tfm.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;                 tfm.VolumeNorm((&quot;uniform&quot;, -20, -10)),</span>
+<span class="sd">    &gt;&gt;&gt;                 tfm.Silence(prob=0.1),</span>
+<span class="sd">    &gt;&gt;&gt;             ),</span>
+<span class="sd">    &gt;&gt;&gt;             ext=[f&quot;S{i:02d}.wav&quot;],</span>
+<span class="sd">    &gt;&gt;&gt;         )</span>
+<span class="sd">    &gt;&gt;&gt;         for i in range(n_sources)</span>
+<span class="sd">    &gt;&gt;&gt;     }</span>
+<span class="sd">    &gt;&gt;&gt;     dataset = at.datasets.AudioDataset(</span>
+<span class="sd">    &gt;&gt;&gt;         loaders=loaders,</span>
+<span class="sd">    &gt;&gt;&gt;         sample_rate=sample_rate,</span>
+<span class="sd">    &gt;&gt;&gt;         duration=duration,</span>
+<span class="sd">    &gt;&gt;&gt;         num_channels=1,</span>
+<span class="sd">    &gt;&gt;&gt;         aligned=True,</span>
+<span class="sd">    &gt;&gt;&gt;         transform=tfm.RescaleAudio(),</span>
+<span class="sd">    &gt;&gt;&gt;         shuffle_loaders=False,</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt;     return dataset, list(loaders.keys())</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; train_data, sources = build_dataset()</span>
+<span class="sd">    &gt;&gt;&gt; dataloader = torch.utils.data.DataLoader(</span>
+<span class="sd">    &gt;&gt;&gt;     train_data,</span>
+<span class="sd">    &gt;&gt;&gt;     batch_size=16,</span>
+<span class="sd">    &gt;&gt;&gt;     num_workers=0,</span>
+<span class="sd">    &gt;&gt;&gt;     collate_fn=train_data.collate,</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt; batch = next(iter(dataloader))</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; for k in sources:</span>
+<span class="sd">    &gt;&gt;&gt;     src = batch[k]</span>
+<span class="sd">    &gt;&gt;&gt;     src[&quot;transformed&quot;] = train_data.loaders[k].transform(</span>
+<span class="sd">    &gt;&gt;&gt;         src[&quot;signal&quot;].clone(), **src[&quot;transform_args&quot;]</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; mixture = sum(batch[k][&quot;transformed&quot;] for k in sources)</span>
+<span class="sd">    &gt;&gt;&gt; mixture = train_data.transform(mixture, **batch[&quot;transform_args&quot;])</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">loaders</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AudioLoader</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">AudioLoader</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AudioLoader</span><span class="p">]],</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">n_examples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">loudness_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mi">40</span><span class="p">,</span>
+        <span class="n">num_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">aligned</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">shuffle_loaders</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">matcher</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">default_matcher</span><span class="p">,</span>
+        <span class="n">without_replacement</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Internally we convert loaders to a dictionary</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">loaders</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">loaders</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">l</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">loaders</span><span class="p">)}</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">loaders</span><span class="p">,</span> <span class="n">AudioLoader</span><span class="p">):</span>
+            <span class="n">loaders</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="n">loaders</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span> <span class="o">=</span> <span class="n">loaders</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loudness_cutoff</span> <span class="o">=</span> <span class="n">loudness_cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="o">=</span> <span class="n">num_channels</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="n">n_examples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">duration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aligned</span> <span class="o">=</span> <span class="n">aligned</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shuffle_loaders</span> <span class="o">=</span> <span class="n">shuffle_loaders</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">without_replacement</span> <span class="o">=</span> <span class="n">without_replacement</span>
+
+        <span class="k">if</span> <span class="n">aligned</span><span class="p">:</span>
+            <span class="n">loaders_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">loaders</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">loaders_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">audio_lists</span><span class="p">)):</span>
+                <span class="n">input_lists</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="o">.</span><span class="n">audio_lists</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">loaders_list</span><span class="p">]</span>
+                <span class="c1"># Alignment happens in-place</span>
+                <span class="n">align_lists</span><span class="p">(</span><span class="n">input_lists</span><span class="p">,</span> <span class="n">matcher</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">random_state</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loaders</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shuffle_loaders</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+
+        <span class="n">loader_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;state&quot;</span><span class="p">:</span> <span class="n">state</span><span class="p">,</span>
+            <span class="s2">&quot;sample_rate&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">,</span>
+            <span class="s2">&quot;loudness_cutoff&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">loudness_cutoff</span><span class="p">,</span>
+            <span class="s2">&quot;num_channels&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span>
+            <span class="s2">&quot;global_idx&quot;</span><span class="p">:</span> <span class="n">idx</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">without_replacement</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Draw item from first loader</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">item</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">loader</span><span class="p">(</span><span class="o">**</span><span class="n">loader_kwargs</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aligned</span><span class="p">:</span>
+                <span class="c1"># Path mapper takes the current loader + everything</span>
+                <span class="c1"># returned by the first loader.</span>
+                <span class="n">offset</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="s2">&quot;signal&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span>
+                <span class="n">loader_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;offset&quot;</span><span class="p">:</span> <span class="n">offset</span><span class="p">,</span>
+                        <span class="s2">&quot;source_idx&quot;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="s2">&quot;source_idx&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;item_idx&quot;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="s2">&quot;item_idx&quot;</span><span class="p">],</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+            <span class="n">item</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">loader</span><span class="p">(</span><span class="o">**</span><span class="n">loader_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Sort dictionary back into original order</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loaders</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">}</span>
+
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;idx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">&quot;transform_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span>
+                <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="s2">&quot;signal&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="c1"># If there&#39;s only one loader, pop it up</span>
+        <span class="c1"># to the main dictionary, instead of keeping it</span>
+        <span class="c1"># nested.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+        <span class="k">return</span> <span class="n">item</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
+
+<div class="viewcode-block" id="AudioDataset.collate"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.AudioDataset.collate">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">collate</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">n_splits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Collates items drawn from this dataset. Uses</span>
+<span class="sd">        :py:func:`audiotools.core.util.collate`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        list_of_dicts : typing.Union[list, dict]</span>
+<span class="sd">            Data drawn from each item.</span>
+<span class="sd">        n_splits : int</span>
+<span class="sd">            Number of splits to make when creating the batches (split into</span>
+<span class="sd">            sub-batches). Useful for things like gradient accumulation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary of batched data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">util</span><span class="o">.</span><span class="n">collate</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">,</span> <span class="n">n_splits</span><span class="o">=</span><span class="n">n_splits</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ConcatDataset"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.ConcatDataset">[docs]</a><span class="k">class</span> <span class="nc">ConcatDataset</span><span class="p">(</span><span class="n">AudioDataset</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datasets</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span> <span class="o">=</span> <span class="n">datasets</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">idx</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">dataset</span><span class="p">[</span><span class="n">idx</span> <span class="o">//</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="ResumableDistributedSampler"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.ResumableDistributedSampler">[docs]</a><span class="k">class</span> <span class="nc">ResumableDistributedSampler</span><span class="p">(</span><span class="n">DistributedSampler</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+    <span class="sd">&quot;&quot;&quot;Distributed sampler that can be resumed from a given start index.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">start_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># Start index, allows to resume an experiment at the index it was</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_idx</span> <span class="o">=</span> <span class="n">start_idx</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_replicas</span> <span class="k">if</span> <span class="n">start_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_idx</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">idx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_idx</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># set the index back to 0 so for the next epoch</span></div>
+
+
+<div class="viewcode-block" id="ResumableSequentialSampler"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.datasets.ResumableSequentialSampler">[docs]</a><span class="k">class</span> <span class="nc">ResumableSequentialSampler</span><span class="p">(</span><span class="n">SequentialSampler</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+    <span class="sd">&quot;&quot;&quot;Sequential sampler that can be resumed from a given start index.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">start_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># Start index, allows to resume an experiment at the index it was</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_idx</span> <span class="o">=</span> <span class="n">start_idx</span> <span class="k">if</span> <span class="n">start_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_idx</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">idx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_idx</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># set the index back to 0 so for the next epoch</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

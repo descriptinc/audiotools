@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.core.effects &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.core.effects</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.core.effects</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">typing</span>
+
+<span class="kn">import</span> <span class="nn">julius</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torchaudio</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span>
+
+
+<div class="viewcode-block" id="EffectMixin"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin">[docs]</a><span class="k">class</span> <span class="nc">EffectMixin</span><span class="p">:</span>
+    <span class="n">GAIN_FACTOR</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">/</span> <span class="mi">20</span>
+    <span class="sd">&quot;&quot;&quot;Gain factor for converting between amplitude and decibels.&quot;&quot;&quot;</span>
+    <span class="n">CODEC_PRESETS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;8-bit&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;wav&quot;</span><span class="p">,</span> <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="s2">&quot;ULAW&quot;</span><span class="p">,</span> <span class="s2">&quot;bits_per_sample&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">},</span>
+        <span class="s2">&quot;GSM-FR&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;gsm&quot;</span><span class="p">},</span>
+        <span class="s2">&quot;MP3&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;mp3&quot;</span><span class="p">,</span> <span class="s2">&quot;compression&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">9</span><span class="p">},</span>
+        <span class="s2">&quot;Vorbis&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;vorbis&quot;</span><span class="p">,</span> <span class="s2">&quot;compression&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span>
+        <span class="s2">&quot;Ogg&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;ogg&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;compression&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;Amr-nb&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;amr-nb&quot;</span><span class="p">},</span>
+    <span class="p">}</span>
+    <span class="sd">&quot;&quot;&quot;Presets for applying codecs via torchaudio.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="EffectMixin.mix"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.mix">[docs]</a>    <span class="k">def</span> <span class="nf">mix</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">other</span><span class="p">,</span>
+        <span class="n">snr</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">other_eq</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Mixes noise with signal at specified</span>
+<span class="sd">        signal-to-noise ratio. Optionally, the</span>
+<span class="sd">        other signal can be equalized in-place.</span>
+
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        other : AudioSignal</span>
+<span class="sd">            AudioSignal object to mix with.</span>
+<span class="sd">        snr : typing.Union[torch.Tensor, np.ndarray, float], optional</span>
+<span class="sd">            Signal to noise ratio, by default 10</span>
+<span class="sd">        other_eq : typing.Union[torch.Tensor, np.ndarray], optional</span>
+<span class="sd">            EQ curve to apply to other signal, if any, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            In-place modification of AudioSignal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">snr</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">pad_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">signal_length</span><span class="p">)</span>
+        <span class="n">other</span><span class="o">.</span><span class="n">zero_pad</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">pad_len</span><span class="p">)</span>
+        <span class="n">other</span><span class="o">.</span><span class="n">truncate_samples</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">other_eq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">other</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">equalizer</span><span class="p">(</span><span class="n">other_eq</span><span class="p">)</span>
+
+        <span class="n">tgt_loudness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loudness</span><span class="p">()</span> <span class="o">-</span> <span class="n">snr</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">tgt_loudness</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">audio_data</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.convolve"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.convolve">[docs]</a>    <span class="k">def</span> <span class="nf">convolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">start_at_max</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convolves self with other.</span>
+<span class="sd">        This function uses FFTs to do the convolution.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        other : AudioSignal</span>
+<span class="sd">            Signal to convolve with.</span>
+<span class="sd">        start_at_max : bool, optional</span>
+<span class="sd">            Whether to start at the max value of other signal, to</span>
+<span class="sd">            avoid inducing delays, by default True</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Convolved signal, in-place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">AudioSignal</span>
+
+        <span class="n">pad_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">signal_length</span>
+
+        <span class="k">if</span> <span class="n">pad_len</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">other</span><span class="o">.</span><span class="n">zero_pad</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">pad_len</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">other</span><span class="o">.</span><span class="n">truncate_samples</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">start_at_max</span><span class="p">:</span>
+            <span class="c1"># Use roll to rotate over the max for every item</span>
+            <span class="c1"># so that the impulse responses don&#39;t induce any</span>
+            <span class="c1"># delay.</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">irs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">audio_data</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">batch_size</span><span class="p">):</span>
+                <span class="n">irs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="o">-</span><span class="n">idx</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">other</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span><span class="n">irs</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">audio_data</span><span class="p">)</span>
+        <span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span>
+        <span class="n">delta_fft</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+        <span class="n">other_fft</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+        <span class="n">self_fft</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+
+        <span class="n">convolved_fft</span> <span class="o">=</span> <span class="n">other_fft</span> <span class="o">*</span> <span class="n">self_fft</span>
+        <span class="n">convolved_audio</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">convolved_fft</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+
+        <span class="n">delta_convolved_fft</span> <span class="o">=</span> <span class="n">other_fft</span> <span class="o">*</span> <span class="n">delta_fft</span>
+        <span class="n">delta_audio</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">delta_convolved_fft</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+
+        <span class="c1"># Use the delta to rescale the audio exactly as needed.</span>
+        <span class="n">delta_max</span> <span class="o">=</span> <span class="n">delta_audio</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">delta_max</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mf">1e-5</span><span class="p">)</span>
+        <span class="n">convolved_audio</span> <span class="o">=</span> <span class="n">convolved_audio</span> <span class="o">*</span> <span class="n">scale</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">convolved_audio</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.apply_ir"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.apply_ir">[docs]</a>    <span class="k">def</span> <span class="nf">apply_ir</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ir</span><span class="p">,</span>
+        <span class="n">drr</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ir_eq</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">use_original_phase</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Applies an impulse response to the signal. If ` is`ir_eq``</span>
+<span class="sd">        is specified, the impulse response is equalized before</span>
+<span class="sd">        it is applied, using the given curve.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ir : AudioSignal</span>
+<span class="sd">            Impulse response to convolve with.</span>
+<span class="sd">        drr : typing.Union[torch.Tensor, np.ndarray, float], optional</span>
+<span class="sd">            Direct-to-reverberant ratio that impulse response will be</span>
+<span class="sd">            altered to, if specified, by default None</span>
+<span class="sd">        ir_eq : typing.Union[torch.Tensor, np.ndarray], optional</span>
+<span class="sd">            Equalization that will be applied to impulse response</span>
+<span class="sd">            if specified, by default None</span>
+<span class="sd">        use_original_phase : bool, optional</span>
+<span class="sd">            Whether to use the original phase, instead of the convolved</span>
+<span class="sd">            phase, by default False</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Signal with impulse response applied to it</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ir_eq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ir</span> <span class="o">=</span> <span class="n">ir</span><span class="o">.</span><span class="n">equalizer</span><span class="p">(</span><span class="n">ir_eq</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">drr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ir</span> <span class="o">=</span> <span class="n">ir</span><span class="o">.</span><span class="n">alter_drr</span><span class="p">(</span><span class="n">drr</span><span class="p">)</span>
+
+        <span class="c1"># Save the peak before</span>
+        <span class="n">max_spk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+
+        <span class="c1"># Augment the impulse response to simulate microphone effects</span>
+        <span class="c1"># and with varying direct-to-reverberant ratio.</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">ir</span><span class="p">)</span>
+
+        <span class="c1"># Use the input phase</span>
+        <span class="k">if</span> <span class="n">use_original_phase</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnitude</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">phase</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">istft</span><span class="p">()</span>
+
+        <span class="c1"># Rescale to the input&#39;s amplitude</span>
+        <span class="n">max_transformed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">max_spk</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mf">1e-8</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_transformed</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mf">1e-8</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">self</span> <span class="o">*</span> <span class="n">scale_factor</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.ensure_max_of_audio"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.ensure_max_of_audio">[docs]</a>    <span class="k">def</span> <span class="nf">ensure_max_of_audio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensures that ``abs(audio_data) &lt;= max``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        max : float, optional</span>
+<span class="sd">            Max absolute value of signal, by default 1.0</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Signal with values scaled between -max and max.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">peak</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">peak_gain</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">peak</span><span class="p">)</span>
+        <span class="n">peak_gain</span><span class="p">[</span><span class="n">peak</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span> <span class="o">/</span> <span class="n">peak</span><span class="p">[</span><span class="n">peak</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">*</span> <span class="n">peak_gain</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.normalize"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">24.0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Normalizes the signal&#39;s volume to the specified db, in LUFS.</span>
+<span class="sd">        This is GPU-compatible, making for very fast loudness normalization.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        db : typing.Union[torch.Tensor, np.ndarray, float], optional</span>
+<span class="sd">            Loudness to normalize to, by default -24.0</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Normalized audio signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">ref_db</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loudness</span><span class="p">()</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">db</span> <span class="o">-</span> <span class="n">ref_db</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">gain</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">GAIN_FACTOR</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">*</span> <span class="n">gain</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.volume_change"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.volume_change">[docs]</a>    <span class="k">def</span> <span class="nf">volume_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;Change volume of signal by some amount, in dB.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        db : typing.Union[torch.Tensor, np.ndarray, float]</span>
+<span class="sd">            Amount to change volume by.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Signal at new volume.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">db</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">GAIN_FACTOR</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">*</span> <span class="n">gain</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="k">def</span> <span class="nf">_to_2d</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">waveform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">waveform</span>
+
+    <span class="k">def</span> <span class="nf">_to_3d</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">waveform</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">waveform</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EffectMixin.pitch_shift"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.pitch_shift">[docs]</a>    <span class="k">def</span> <span class="nf">pitch_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_semitones</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">quick</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pitch shift the signal. All items in the batch</span>
+<span class="sd">        get the same pitch shift.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_semitones : int</span>
+<span class="sd">            How many semitones to shift the signal by.</span>
+<span class="sd">        quick : bool, optional</span>
+<span class="sd">            Using quick pitch shifting, by default True</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Pitch shifted audio signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span>
+        <span class="n">effects</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="s2">&quot;pitch&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">n_semitones</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)],</span>
+            <span class="p">[</span><span class="s2">&quot;rate&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)],</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">quick</span><span class="p">:</span>
+            <span class="n">effects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;-q&quot;</span><span class="p">)</span>
+
+        <span class="n">waveform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_2d</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+        <span class="n">waveform</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">torchaudio</span><span class="o">.</span><span class="n">sox_effects</span><span class="o">.</span><span class="n">apply_effects_tensor</span><span class="p">(</span>
+            <span class="n">waveform</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">effects</span><span class="p">,</span> <span class="n">channels_first</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_3d</span><span class="p">(</span><span class="n">waveform</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EffectMixin.time_stretch"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.time_stretch">[docs]</a>    <span class="k">def</span> <span class="nf">time_stretch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">quick</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Time stretch the audio signal.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        factor : float</span>
+<span class="sd">            Factor by which to stretch the AudioSignal. Typically</span>
+<span class="sd">            between 0.8 and 1.2.</span>
+<span class="sd">        quick : bool, optional</span>
+<span class="sd">            Whether to use quick time stretching, by default True</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Time-stretched AudioSignal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span>
+        <span class="n">effects</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="s2">&quot;tempo&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">factor</span><span class="p">)],</span>
+            <span class="p">[</span><span class="s2">&quot;rate&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)],</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">quick</span><span class="p">:</span>
+            <span class="n">effects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;-q&quot;</span><span class="p">)</span>
+
+        <span class="n">waveform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_2d</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+        <span class="n">waveform</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">torchaudio</span><span class="o">.</span><span class="n">sox_effects</span><span class="o">.</span><span class="n">apply_effects_tensor</span><span class="p">(</span>
+            <span class="n">waveform</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">effects</span><span class="p">,</span> <span class="n">channels_first</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_3d</span><span class="p">(</span><span class="n">waveform</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EffectMixin.apply_codec"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.apply_codec">[docs]</a>    <span class="k">def</span> <span class="nf">apply_codec</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">preset</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;wav&quot;</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bits_per_sample</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">compression</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+        <span class="sd">&quot;&quot;&quot;Applies an audio codec to the signal.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        preset : str, optional</span>
+<span class="sd">            One of the keys in ``self.CODEC_PRESETS``, by default None</span>
+<span class="sd">        format : str, optional</span>
+<span class="sd">            Format for audio codec, by default &quot;wav&quot;</span>
+<span class="sd">        encoding : str, optional</span>
+<span class="sd">            Encoding to use, by default None</span>
+<span class="sd">        bits_per_sample : int, optional</span>
+<span class="sd">            How many bits per sample, by default None</span>
+<span class="sd">        compression : int, optional</span>
+<span class="sd">            Compression amount of codec, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with codec applied.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If preset is not in ``self.CODEC_PRESETS``, an error</span>
+<span class="sd">            is thrown.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">torchaudio_version_070</span> <span class="o">=</span> <span class="s2">&quot;0.7&quot;</span> <span class="ow">in</span> <span class="n">torchaudio</span><span class="o">.</span><span class="n">__version__</span>
+        <span class="k">if</span> <span class="n">torchaudio_version_070</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="nb">format</span><span class="p">,</span>
+            <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="n">encoding</span><span class="p">,</span>
+            <span class="s2">&quot;bits_per_sample&quot;</span><span class="p">:</span> <span class="n">bits_per_sample</span><span class="p">,</span>
+            <span class="s2">&quot;compression&quot;</span><span class="p">:</span> <span class="n">compression</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">preset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">preset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">CODEC_PRESETS</span><span class="p">:</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CODEC_PRESETS</span><span class="p">[</span><span class="n">preset</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unknown preset: </span><span class="si">{</span><span class="n">preset</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Known presets: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CODEC_PRESETS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="n">waveform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_2d</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;format&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;vorbis&quot;</span><span class="p">,</span> <span class="s2">&quot;mp3&quot;</span><span class="p">,</span> <span class="s2">&quot;ogg&quot;</span><span class="p">,</span> <span class="s2">&quot;amr-nb&quot;</span><span class="p">]:</span>
+            <span class="c1"># Apply it in a for loop</span>
+            <span class="n">augmented</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">torchaudio</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">apply_codec</span><span class="p">(</span>
+                        <span class="n">waveform</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+                    <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">waveform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="p">],</span>
+                <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">augmented</span> <span class="o">=</span> <span class="n">torchaudio</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">apply_codec</span><span class="p">(</span>
+                <span class="n">waveform</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+        <span class="n">augmented</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_3d</span><span class="p">(</span><span class="n">augmented</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">augmented</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.mel_filterbank"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.mel_filterbank">[docs]</a>    <span class="k">def</span> <span class="nf">mel_filterbank</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_bands</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Breaks signal into mel bands.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_bands : int</span>
+<span class="sd">            Number of mel bands to use.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Mel-filtered bands, with last axis being the band index.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">filterbank</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">julius</span><span class="o">.</span><span class="n">SplitBands</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">n_bands</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">filtered</span> <span class="o">=</span> <span class="n">filterbank</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">filtered</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EffectMixin.equalizer"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.equalizer">[docs]</a>    <span class="k">def</span> <span class="nf">equalizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;Applies a mel-spaced equalizer to the audio signal.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        db : typing.Union[torch.Tensor, np.ndarray]</span>
+<span class="sd">            EQ curve to apply.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with equalization applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+        <span class="n">n_bands</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">fbank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mel_filterbank</span><span class="p">(</span><span class="n">n_bands</span><span class="p">)</span>
+
+        <span class="c1"># If there&#39;s a batch dimension, make sure it&#39;s the same.</span>
+        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="n">db</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">fbank</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="n">db</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="n">fbank</span> <span class="o">=</span> <span class="n">fbank</span> <span class="o">*</span> <span class="n">weights</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">eq_audio_data</span> <span class="o">=</span> <span class="n">fbank</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">eq_audio_data</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.clip_distortion"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.clip_distortion">[docs]</a>    <span class="k">def</span> <span class="nf">clip_distortion</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">clip_percentile</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clips the signal at a given percentile. The higher it is,</span>
+<span class="sd">        the lower the threshold for clipping.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        clip_percentile : typing.Union[torch.Tensor, np.ndarray, float]</span>
+<span class="sd">            Values are between 0.0 to 1.0. Typical values are 0.1 or below.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Audio signal with clipped audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">clip_percentile</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">clip_percentile</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">min_thresh</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">clip_percentile</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">max_thresh</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">clip_percentile</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">nc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">min_thresh</span> <span class="o">=</span> <span class="n">min_thresh</span><span class="p">[:,</span> <span class="p">:</span><span class="n">nc</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">max_thresh</span> <span class="o">=</span> <span class="n">max_thresh</span><span class="p">[:,</span> <span class="p">:</span><span class="n">nc</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">min_thresh</span><span class="p">,</span> <span class="n">max_thresh</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.quantization"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.quantization">[docs]</a>    <span class="k">def</span> <span class="nf">quantization</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">quantization_channels</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Applies quantization to the input waveform.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        quantization_channels : typing.Union[torch.Tensor, np.ndarray, int]</span>
+<span class="sd">            Number of evenly spaced quantization channels to quantize</span>
+<span class="sd">            to.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Quantized AudioSignal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">quantization_channels</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">quantization_channels</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">quantization_channels</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">floor</span><span class="p">()</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="n">quantization_channels</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">x</span> <span class="o">-</span> <span class="mi">1</span>
+
+        <span class="n">residual</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">-</span> <span class="n">residual</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="EffectMixin.mulaw_quantization"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.EffectMixin.mulaw_quantization">[docs]</a>    <span class="k">def</span> <span class="nf">mulaw_quantization</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">quantization_channels</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Applies mu-law quantization to the input waveform.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        quantization_channels : typing.Union[torch.Tensor, np.ndarray, int]</span>
+<span class="sd">            Number of mu-law spaced quantization channels to quantize</span>
+<span class="sd">            to.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Quantized AudioSignal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">quantization_channels</span> <span class="o">-</span> <span class="mf">1.0</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span>
+
+        <span class="c1"># quantize</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">mu</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">/</span> <span class="n">torch</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">mu</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+        <span class="c1"># unquantize</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">mu</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mf">1.0</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">mu</span><span class="p">))</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">mu</span>
+
+        <span class="n">residual</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">-</span> <span class="n">residual</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="k">def</span> <span class="fm">__matmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">other</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ImpulseResponseMixin"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.ImpulseResponseMixin">[docs]</a><span class="k">class</span> <span class="nc">ImpulseResponseMixin</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;These functions are generally only used with AudioSignals that are derived</span>
+<span class="sd">    from impulse responses, not other sources like music or speech. These methods</span>
+<span class="sd">    are used to replicate the data augmentation described in [1].</span>
+
+<span class="sd">    1.  Bryan, Nicholas J. &quot;Impulse response data augmentation and deep</span>
+<span class="sd">        neural networks for blind room acoustic parameter estimation.&quot;</span>
+<span class="sd">        ICASSP 2020-2020 IEEE International Conference on Acoustics,</span>
+<span class="sd">        Speech and Signal Processing (ICASSP). IEEE, 2020.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ImpulseResponseMixin.decompose_ir"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.ImpulseResponseMixin.decompose_ir">[docs]</a>    <span class="k">def</span> <span class="nf">decompose_ir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decomposes an impulse response into early and late</span>
+<span class="sd">        field responses.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Equations 1 and 2</span>
+        <span class="c1"># -----------------</span>
+        <span class="c1"># Breaking up into early</span>
+        <span class="c1"># response + late field response.</span>
+
+        <span class="n">td</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">*</span> <span class="mf">0.0025</span><span class="p">)</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">early_idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">idx</span> <span class="o">&gt;=</span> <span class="n">td</span> <span class="o">-</span> <span class="n">t0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">idx</span> <span class="o">&lt;=</span> <span class="n">td</span> <span class="o">+</span> <span class="n">t0</span><span class="p">)</span>
+
+        <span class="n">early_response</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">early_response</span><span class="p">[</span><span class="n">early_idx</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="n">early_idx</span><span class="p">]</span>
+
+        <span class="n">late_idx</span> <span class="o">=</span> <span class="o">~</span><span class="n">early_idx</span>
+        <span class="n">late_field</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">late_field</span><span class="p">[</span><span class="n">late_idx</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="n">late_idx</span><span class="p">]</span>
+
+        <span class="c1"># Equation 4</span>
+        <span class="c1"># ----------</span>
+        <span class="c1"># Decompose early response into windowed</span>
+        <span class="c1"># direct path and windowed residual.</span>
+
+        <span class="n">window</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">):</span>
+            <span class="n">window_idx</span> <span class="o">=</span> <span class="n">early_idx</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span>
+            <span class="n">window</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="n">window_idx</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window</span><span class="p">(</span>
+                <span class="s2">&quot;hann&quot;</span><span class="p">,</span> <span class="n">window_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">early_response</span><span class="p">,</span> <span class="n">late_field</span><span class="p">,</span> <span class="n">window</span></div>
+
+<div class="viewcode-block" id="ImpulseResponseMixin.measure_drr"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.ImpulseResponseMixin.measure_drr">[docs]</a>    <span class="k">def</span> <span class="nf">measure_drr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Measures the direct-to-reverberant ratio of the impulse</span>
+<span class="sd">        response.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Direct-to-reverberant ratio</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">early_response</span><span class="p">,</span> <span class="n">late_field</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decompose_ir</span><span class="p">()</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="n">early_response</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">den</span> <span class="o">=</span> <span class="p">(</span><span class="n">late_field</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">drr</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">num</span> <span class="o">/</span> <span class="n">den</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">drr</span></div>
+
+<div class="viewcode-block" id="ImpulseResponseMixin.solve_alpha"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.ImpulseResponseMixin.solve_alpha">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">solve_alpha</span><span class="p">(</span><span class="n">early_response</span><span class="p">,</span> <span class="n">late_field</span><span class="p">,</span> <span class="n">wd</span><span class="p">,</span> <span class="n">target_drr</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Used to solve for the alpha value, which is used</span>
+<span class="sd">        to alter the drr.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Equation 5</span>
+        <span class="c1"># ----------</span>
+        <span class="c1"># Apply the good ol&#39; quadratic formula.</span>
+
+        <span class="n">wd_sq</span> <span class="o">=</span> <span class="n">wd</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">wd_sq_1</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">wd</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">e_sq</span> <span class="o">=</span> <span class="n">early_response</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">l_sq</span> <span class="o">=</span> <span class="n">late_field</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">wd_sq</span> <span class="o">*</span> <span class="n">e_sq</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">wd</span><span class="p">)</span> <span class="o">*</span> <span class="n">wd</span> <span class="o">*</span> <span class="n">e_sq</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">wd_sq_1</span> <span class="o">*</span> <span class="n">e_sq</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">torch</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">target_drr</span> <span class="o">/</span> <span class="mi">10</span><span class="p">)</span> <span class="o">*</span> <span class="n">l_sq</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span>
+        <span class="p">)</span>
+
+        <span class="n">expr</span> <span class="o">=</span> <span class="p">((</span><span class="n">b</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">a</span> <span class="o">*</span> <span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+            <span class="p">(</span><span class="o">-</span><span class="n">b</span> <span class="o">-</span> <span class="n">expr</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">a</span><span class="p">),</span>
+            <span class="p">(</span><span class="o">-</span><span class="n">b</span> <span class="o">+</span> <span class="n">expr</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">a</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">alpha</span></div>
+
+<div class="viewcode-block" id="ImpulseResponseMixin.alter_drr"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.effects.ImpulseResponseMixin.alter_drr">[docs]</a>    <span class="k">def</span> <span class="nf">alter_drr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">drr</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;Alters the direct-to-reverberant ratio of the impulse response.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        drr : typing.Union[torch.Tensor, np.ndarray, float]</span>
+<span class="sd">            Direct-to-reverberant ratio that impulse response will be</span>
+<span class="sd">            altered to, if specified, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Altered impulse response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">drr</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">drr</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">early_response</span><span class="p">,</span> <span class="n">late_field</span><span class="p">,</span> <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decompose_ir</span><span class="p">()</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">solve_alpha</span><span class="p">(</span><span class="n">early_response</span><span class="p">,</span> <span class="n">late_field</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">drr</span><span class="p">)</span>
+        <span class="n">min_alpha</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">late_field</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">early_response</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">min_alpha</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="n">aug_ir_data</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">alpha</span> <span class="o">*</span> <span class="n">window</span> <span class="o">*</span> <span class="n">early_response</span>
+            <span class="o">+</span> <span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">window</span><span class="p">)</span> <span class="o">*</span> <span class="n">early_response</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">late_field</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">aug_ir_data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ensure_max_of_audio</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

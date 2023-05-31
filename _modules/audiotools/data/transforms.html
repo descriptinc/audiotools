@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.data.transforms &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.data.transforms</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.data.transforms</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">signature</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">flatten_dict</span> <span class="kn">import</span> <span class="n">flatten</span>
+<span class="kn">from</span> <span class="nn">flatten_dict</span> <span class="kn">import</span> <span class="n">unflatten</span>
+<span class="kn">from</span> <span class="nn">numpy.random</span> <span class="kn">import</span> <span class="n">RandomState</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">ml</span>
+<span class="kn">from</span> <span class="nn">..core</span> <span class="kn">import</span> <span class="n">AudioSignal</span>
+<span class="kn">from</span> <span class="nn">..core</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">.datasets</span> <span class="kn">import</span> <span class="n">AudioLoader</span>
+
+<span class="n">tt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span>
+<span class="sd">&quot;&quot;&quot;Shorthand for converting things to torch.tensor.&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="BaseTransform"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.BaseTransform">[docs]</a><span class="k">class</span> <span class="nc">BaseTransform</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;This is the base class for all transforms that are implemented</span>
+<span class="sd">    in this library. Transforms have two main operations: ``transform``</span>
+<span class="sd">    and ``instantiate``.</span>
+
+<span class="sd">    ``instantiate`` sets the parameters randomly</span>
+<span class="sd">    from distribution tuples for each parameter. For example, for the</span>
+<span class="sd">    ``BackgroundNoise`` transform, the signal-to-noise ratio (``snr``)</span>
+<span class="sd">    is chosen randomly by instantiate. By default, it chosen uniformly</span>
+<span class="sd">    between 10.0 and 30.0 (the tuple is set to ``(&quot;uniform&quot;, 10.0, 30.0)``).</span>
+
+<span class="sd">    ``transform`` applies the transform using the instantiated parameters.</span>
+<span class="sd">    A simple example is as follows:</span>
+
+<span class="sd">    &gt;&gt;&gt; seed = 0</span>
+<span class="sd">    &gt;&gt;&gt; signal = ...</span>
+<span class="sd">    &gt;&gt;&gt; transform = transforms.NoiseFloor(db = (&quot;uniform&quot;, -50.0, -30.0))</span>
+<span class="sd">    &gt;&gt;&gt; kwargs = transform.instantiate()</span>
+<span class="sd">    &gt;&gt;&gt; output = transform(signal.clone(), **kwargs)</span>
+
+<span class="sd">    By breaking apart the instantiation of parameters from the actual audio</span>
+<span class="sd">    processing of the transform, we can make things more reproducible, while</span>
+<span class="sd">    also applying the transform on batches of data efficiently on GPU,</span>
+<span class="sd">    rather than on individual audio samples.</span>
+
+<span class="sd">    ..  note::</span>
+<span class="sd">        We call ``signal.clone()`` for the input to the ``transform`` function</span>
+<span class="sd">        because signals are modified in-place! If you don&#39;t clone the signal,</span>
+<span class="sd">        you will lose the original data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    keys : list, optional</span>
+<span class="sd">        Keys that the transform looks for when</span>
+<span class="sd">        calling ``self.transform``, by default []. In general this is</span>
+<span class="sd">        set automatically, and you won&#39;t need to manipulate this argument.</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    &gt;&gt;&gt; seed = 0</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; audio_path = &quot;tests/audio/spk/f10_script4_produced.wav&quot;</span>
+<span class="sd">    &gt;&gt;&gt; signal = AudioSignal(audio_path, offset=10, duration=2)</span>
+<span class="sd">    &gt;&gt;&gt; transform = tfm.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;     [</span>
+<span class="sd">    &gt;&gt;&gt;         tfm.RoomImpulseResponse(sources=[&quot;tests/audio/irs.csv&quot;]),</span>
+<span class="sd">    &gt;&gt;&gt;         tfm.BackgroundNoise(sources=[&quot;tests/audio/noises.csv&quot;]),</span>
+<span class="sd">    &gt;&gt;&gt;     ],</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; kwargs = transform.instantiate(seed, signal)</span>
+<span class="sd">    &gt;&gt;&gt; output = transform(signal, **kwargs)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keys</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="c1"># Get keys from the _transform signature.</span>
+        <span class="n">tfm_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_transform</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="c1"># Filter out signal and kwargs keys.</span>
+        <span class="n">ignore_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;signal&quot;</span><span class="p">,</span> <span class="s2">&quot;kwargs&quot;</span><span class="p">]</span>
+        <span class="n">tfm_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">tfm_keys</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ignore_keys</span><span class="p">]</span>
+
+        <span class="c1"># Combine keys specified by the child class, the keys found in</span>
+        <span class="c1"># _transform signature, and the mask key.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keys</span> <span class="o">=</span> <span class="n">keys</span> <span class="o">+</span> <span class="n">tfm_keys</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prob</span> <span class="o">=</span> <span class="n">prob</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span> <span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">sub_batch</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">sub_batch</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> not in batch&quot;</span>
+
+        <span class="k">return</span> <span class="n">sub_batch</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="BaseTransform.apply_mask"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.BaseTransform.apply_mask">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">apply_mask</span><span class="p">(</span><span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Applies a mask to the batch.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        batch : dict</span>
+<span class="sd">            Batch whose values will be masked in the ``transform`` pass.</span>
+<span class="sd">        mask : torch.Tensor</span>
+<span class="sd">            Mask to apply to batch.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            A dictionary that contains values only where ``mask = True``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">masked_batch</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">flatten</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="n">unflatten</span><span class="p">(</span><span class="n">masked_batch</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BaseTransform.transform"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.BaseTransform.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Apply the transform to the audio signal,</span>
+<span class="sd">        with given keyword arguments.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        signal : AudioSignal</span>
+<span class="sd">            Signal that will be modified by the transforms in-place.</span>
+<span class="sd">        kwargs: dict</span>
+<span class="sd">            Keyword arguments to the specific transforms ``self._transform``</span>
+<span class="sd">            function.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Transformed AudioSignal.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        &gt;&gt;&gt; for seed in range(10):</span>
+<span class="sd">        &gt;&gt;&gt;     kwargs = transform.instantiate(seed, signal)</span>
+<span class="sd">        &gt;&gt;&gt;     output = transform(signal.clone(), **kwargs)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tfm_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">tfm_kwargs</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
+            <span class="n">tfm_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_mask</span><span class="p">(</span><span class="n">tfm_kwargs</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+            <span class="n">tfm_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tfm_kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;mask&quot;</span><span class="p">}</span>
+            <span class="n">signal</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform</span><span class="p">(</span><span class="n">signal</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="o">**</span><span class="n">tfm_kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">signal</span></div>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseTransform.instantiate"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.BaseTransform.instantiate">[docs]</a>    <span class="k">def</span> <span class="nf">instantiate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instantiates parameters for the transform.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        state : RandomState, optional</span>
+<span class="sd">            _description_, by default None</span>
+<span class="sd">        signal : AudioSignal, optional</span>
+<span class="sd">            _description_, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Dictionary containing instantiated arguments for every keyword</span>
+<span class="sd">            argument to ``self._transform``.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        &gt;&gt;&gt; for seed in range(10):</span>
+<span class="sd">        &gt;&gt;&gt;     kwargs = transform.instantiate(seed, signal)</span>
+<span class="sd">        &gt;&gt;&gt;     output = transform(signal.clone(), **kwargs)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">random_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+
+        <span class="c1"># Not all instantiates need the signal. Check if signal</span>
+        <span class="c1"># is needed before passing it in, so that the end-user</span>
+        <span class="c1"># doesn&#39;t need to have variables they&#39;re not using flowing</span>
+        <span class="c1"># into their function.</span>
+        <span class="n">needs_signal</span> <span class="o">=</span> <span class="s2">&quot;signal&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instantiate</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">needs_signal</span><span class="p">:</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;signal&quot;</span><span class="p">:</span> <span class="n">signal</span><span class="p">}</span>
+
+        <span class="c1"># Instantiate the parameters for the transform.</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instantiate</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="n">AudioSignal</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
+                <span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">tt</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prob</span>
+        <span class="n">params</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tt</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+
+        <span class="c1"># Put the params into a nested dictionary that will be</span>
+        <span class="c1"># used later when calling the transform. This is to avoid</span>
+        <span class="c1"># collisions in the dictionary.</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">params</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">params</span></div>
+
+<div class="viewcode-block" id="BaseTransform.batch_instantiate"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.BaseTransform.batch_instantiate">[docs]</a>    <span class="k">def</span> <span class="nf">batch_instantiate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">states</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instantiates arguments for every item in a batch,</span>
+<span class="sd">        given a list of states. Each state in the list</span>
+<span class="sd">        corresponds to one item in the batch.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        states : list, optional</span>
+<span class="sd">            List of states, by default None</span>
+<span class="sd">        signal : AudioSignal, optional</span>
+<span class="sd">            AudioSignal to pass to the ``self.instantiate`` section</span>
+<span class="sd">            if it is needed for this transform, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Collated dictionary of arguments.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        &gt;&gt;&gt; batch_size = 4</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(audio_path, offset=10, duration=2)</span>
+<span class="sd">        &gt;&gt;&gt; signal_batch = AudioSignal.batch([signal.clone() for _ in range(batch_size)])</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; states = [seed + idx for idx in list(range(batch_size))]</span>
+<span class="sd">        &gt;&gt;&gt; kwargs = transform.batch_instantiate(states, signal_batch)</span>
+<span class="sd">        &gt;&gt;&gt; batch_output = transform(signal_batch, **kwargs)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">states</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">signal</span><span class="p">))</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">collate</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div></div>
+
+
+<div class="viewcode-block" id="Identity"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Identity">[docs]</a><span class="k">class</span> <span class="nc">Identity</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This transform just returns the original signal.&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="SpectralTransform"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.SpectralTransform">[docs]</a><span class="k">class</span> <span class="nc">SpectralTransform</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Spectral transforms require STFT data to exist, since manipulations</span>
+<span class="sd">    of the STFT require the spectrogram. This just calls ``stft`` before</span>
+<span class="sd">    the transform is called, and calls ``istft`` after the transform is</span>
+<span class="sd">    called so that the audio data is written to after the spectral</span>
+<span class="sd">    manipulation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SpectralTransform.transform"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.SpectralTransform.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">stft</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">istft</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">signal</span></div></div>
+
+
+<div class="viewcode-block" id="Compose"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Compose">[docs]</a><span class="k">class</span> <span class="nc">Compose</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compose applies transforms in sequence, one after the other. The</span>
+<span class="sd">    transforms are passed in as positional arguments or as a list like so:</span>
+
+<span class="sd">    &gt;&gt;&gt; transform = tfm.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;     [</span>
+<span class="sd">    &gt;&gt;&gt;         tfm.RoomImpulseResponse(sources=[&quot;tests/audio/irs.csv&quot;]),</span>
+<span class="sd">    &gt;&gt;&gt;         tfm.BackgroundNoise(sources=[&quot;tests/audio/noises.csv&quot;]),</span>
+<span class="sd">    &gt;&gt;&gt;     ],</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+
+<span class="sd">    This will convolve the signal with a room impulse response, and then</span>
+<span class="sd">    add background noise to the signal. Instantiate instantiates</span>
+<span class="sd">    all the parameters for every transform in the transform list so the</span>
+<span class="sd">    interface for using the Compose transform is the same as everything</span>
+<span class="sd">    else:</span>
+
+<span class="sd">    &gt;&gt;&gt; kwargs = transform.instantiate()</span>
+<span class="sd">    &gt;&gt;&gt; output = transform(signal.clone(), **kwargs)</span>
+
+<span class="sd">    Under the hood, the transform maps each transform to a unique name</span>
+<span class="sd">    under the hood of the form ``{position}.{name}``, where ``position``</span>
+<span class="sd">    is the index of the transform in the list. ``Compose`` can nest</span>
+<span class="sd">    within other ``Compose`` transforms, like so:</span>
+
+<span class="sd">    &gt;&gt;&gt; preprocess = transforms.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.GlobalVolumeNorm(),</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.CrossTalk(),</span>
+<span class="sd">    &gt;&gt;&gt;     name=&quot;preprocess&quot;,</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt; augment = transforms.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.RoomImpulseResponse(),</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.BackgroundNoise(),</span>
+<span class="sd">    &gt;&gt;&gt;     name=&quot;augment&quot;,</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt; postprocess = transforms.Compose(</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.VolumeChange(),</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.RescaleAudio(),</span>
+<span class="sd">    &gt;&gt;&gt;     tfm.ShiftPhase(),</span>
+<span class="sd">    &gt;&gt;&gt;     name=&quot;postprocess&quot;,</span>
+<span class="sd">    &gt;&gt;&gt; )</span>
+<span class="sd">    &gt;&gt;&gt; transform = transforms.Compose(preprocess, augment, postprocess),</span>
+
+<span class="sd">    This defines 3 composed transforms, and then composes them in sequence</span>
+<span class="sd">    with one another.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    *transforms : list</span>
+<span class="sd">        List of transforms to apply</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">transforms</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transforms</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">transforms</span> <span class="o">=</span> <span class="n">transforms</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tfm</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">transforms</span><span class="p">):</span>
+            <span class="n">tfm</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">tfm</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfm</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">tfm</span> <span class="ow">in</span> <span class="n">transforms</span><span class="p">]</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transforms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms_to_apply</span> <span class="o">=</span> <span class="n">keys</span>
+
+<div class="viewcode-block" id="Compose.filter"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Compose.filter">[docs]</a>    <span class="nd">@contextmanager</span>
+    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This can be used to skip transforms entirely when applying</span>
+<span class="sd">        the sequence of transforms to a signal. For example, take</span>
+<span class="sd">        the following transforms with the names ``preprocess, augment, postprocess``.</span>
+
+<span class="sd">        &gt;&gt;&gt; preprocess = transforms.Compose(</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.GlobalVolumeNorm(),</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.CrossTalk(),</span>
+<span class="sd">        &gt;&gt;&gt;     name=&quot;preprocess&quot;,</span>
+<span class="sd">        &gt;&gt;&gt; )</span>
+<span class="sd">        &gt;&gt;&gt; augment = transforms.Compose(</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.RoomImpulseResponse(),</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.BackgroundNoise(),</span>
+<span class="sd">        &gt;&gt;&gt;     name=&quot;augment&quot;,</span>
+<span class="sd">        &gt;&gt;&gt; )</span>
+<span class="sd">        &gt;&gt;&gt; postprocess = transforms.Compose(</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.VolumeChange(),</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.RescaleAudio(),</span>
+<span class="sd">        &gt;&gt;&gt;     tfm.ShiftPhase(),</span>
+<span class="sd">        &gt;&gt;&gt;     name=&quot;postprocess&quot;,</span>
+<span class="sd">        &gt;&gt;&gt; )</span>
+<span class="sd">        &gt;&gt;&gt; transform = transforms.Compose(preprocess, augment, postprocess)</span>
+
+<span class="sd">        If we wanted to apply all 3 to a signal, we do:</span>
+
+<span class="sd">        &gt;&gt;&gt; kwargs = transform.instantiate()</span>
+<span class="sd">        &gt;&gt;&gt; output = transform(signal.clone(), **kwargs)</span>
+
+<span class="sd">        But if we only wanted to apply the ``preprocess`` and ``postprocess``</span>
+<span class="sd">        transforms to the signal, we do:</span>
+
+<span class="sd">        &gt;&gt;&gt; with transform_fn.filter(&quot;preprocess&quot;, &quot;postprocess&quot;):</span>
+<span class="sd">        &gt;&gt;&gt;     output = transform(signal.clone(), **kwargs)</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        *names : list</span>
+<span class="sd">            List of transforms, identified by name, to apply to signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">old_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms_to_apply</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms_to_apply</span> <span class="o">=</span> <span class="n">names</span>
+        <span class="k">yield</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms_to_apply</span> <span class="o">=</span> <span class="n">old_transforms</span></div>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">x</span> <span class="ow">in</span> <span class="n">transform</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms_to_apply</span><span class="p">]):</span>
+                <span class="n">signal</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">signal</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+            <span class="n">parameters</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">signal</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">parameters</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">transform</span></div>
+
+
+<div class="viewcode-block" id="Choose"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Choose">[docs]</a><span class="k">class</span> <span class="nc">Choose</span><span class="p">(</span><span class="n">Compose</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Choose logic is the same as :py:func:`audiotools.data.transforms.Compose`,</span>
+<span class="sd">    but instead of applying all the transforms in sequence, it applies just a single transform,</span>
+<span class="sd">    which is chosen for each item in the batch.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    *transforms : list</span>
+<span class="sd">        List of transforms to apply</span>
+<span class="sd">    weights : list</span>
+<span class="sd">        Probability of choosing any specific transform.</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    &gt;&gt;&gt; transforms.Choose(tfm.LowPass(), tfm.HighPass())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">transforms</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">transforms</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">)</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="o">/</span> <span class="n">_len</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">_len</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_instantiate</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">signal</span><span class="p">)</span>
+        <span class="n">tfm_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">)))</span>
+        <span class="n">tfm_idx</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">tfm_idx</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)</span>
+        <span class="n">one_hot</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">item</span><span class="p">():</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tt</span><span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="n">tfm_idx</span><span class="p">)</span>
+            <span class="n">one_hot</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s2">&quot;mask&quot;</span><span class="p">])</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;one_hot&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">one_hot</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+
+<div class="viewcode-block" id="Repeat"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Repeat">[docs]</a><span class="k">class</span> <span class="nc">Repeat</span><span class="p">(</span><span class="n">Compose</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Repeatedly applies a given transform ``n_repeat`` times.&quot;</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    transform : BaseTransform</span>
+<span class="sd">        Transform to repeat.</span>
+<span class="sd">    n_repeat : int, optional</span>
+<span class="sd">        Number of times to repeat transform, by default 1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">,</span>
+        <span class="n">n_repeat</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_repeat</span><span class="p">)]</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_repeat</span> <span class="o">=</span> <span class="n">n_repeat</span></div>
+
+
+<div class="viewcode-block" id="RepeatUpTo"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.RepeatUpTo">[docs]</a><span class="k">class</span> <span class="nc">RepeatUpTo</span><span class="p">(</span><span class="n">Choose</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Repeatedly applies a given transform up to ``max_repeat`` times.&quot;</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    transform : BaseTransform</span>
+<span class="sd">        Transform to repeat.</span>
+<span class="sd">    max_repeat : int, optional</span>
+<span class="sd">        Max number of times to repeat transform, by default 1</span>
+<span class="sd">    weights : list</span>
+<span class="sd">        Probability of choosing any specific number up to ``max_repeat``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">,</span>
+        <span class="n">max_repeat</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_repeat</span><span class="p">):</span>
+            <span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Repeat</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">n_repeat</span><span class="o">=</span><span class="n">n</span><span class="p">))</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_repeat</span> <span class="o">=</span> <span class="n">max_repeat</span></div>
+
+
+<div class="viewcode-block" id="ClippingDistortion"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.ClippingDistortion">[docs]</a><span class="k">class</span> <span class="nc">ClippingDistortion</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Adds clipping distortion to signal. Corresponds</span>
+<span class="sd">    to :py:func:`audiotools.core.effects.EffectMixin.clip_distortion`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    perc : tuple, optional</span>
+<span class="sd">        Clipping percentile. Values are between 0.0 to 1.0.</span>
+<span class="sd">        Typical values are 0.1 or below, by default (&quot;uniform&quot;, 0.0, 0.1)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">perc</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">perc</span> <span class="o">=</span> <span class="n">perc</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;perc&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">perc</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">perc</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">clip_distortion</span><span class="p">(</span><span class="n">perc</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equalizer"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Equalizer">[docs]</a><span class="k">class</span> <span class="nc">Equalizer</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies an equalization curve to the audio signal. Corresponds</span>
+<span class="sd">    to :py:func:`audiotools.core.effects.EffectMixin.equalizer`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    eq_amount : tuple, optional</span>
+<span class="sd">        The maximum dB cut to apply to the audio in any band,</span>
+<span class="sd">        by default (&quot;const&quot;, 1.0 dB)</span>
+<span class="sd">    n_bands : int, optional</span>
+<span class="sd">        Number of bands in EQ, by default 6</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">eq_amount</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">n_bands</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq_amount</span> <span class="o">=</span> <span class="n">eq_amount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bands</span> <span class="o">=</span> <span class="n">n_bands</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="n">eq_amount</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eq_amount</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">eq</span> <span class="o">=</span> <span class="o">-</span><span class="n">eq_amount</span> <span class="o">*</span> <span class="n">state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bands</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;eq&quot;</span><span class="p">:</span> <span class="n">eq</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">eq</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">equalizer</span><span class="p">(</span><span class="n">eq</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Quantization"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Quantization">[docs]</a><span class="k">class</span> <span class="nc">Quantization</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies quantization to the input waveform. Corresponds</span>
+<span class="sd">    to :py:func:`audiotools.core.effects.EffectMixin.quantization`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    channels : tuple, optional</span>
+<span class="sd">        Number of evenly spaced quantization channels to quantize</span>
+<span class="sd">        to, by default (&quot;choice&quot;, [8, 32, 128, 256, 1024])</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">channels</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;choice&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">1024</span><span class="p">]),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="n">channels</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;channels&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">channels</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">quantization</span><span class="p">(</span><span class="n">channels</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MuLawQuantization"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.MuLawQuantization">[docs]</a><span class="k">class</span> <span class="nc">MuLawQuantization</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies mu-law quantization to the input waveform. Corresponds</span>
+<span class="sd">    to :py:func:`audiotools.core.effects.EffectMixin.mulaw_quantization`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    channels : tuple, optional</span>
+<span class="sd">        Number of mu-law spaced quantization channels to quantize</span>
+<span class="sd">        to, by default (&quot;choice&quot;, [8, 32, 128, 256, 1024])</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">channels</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;choice&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">1024</span><span class="p">]),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="n">channels</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;channels&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">channels</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">mulaw_quantization</span><span class="p">(</span><span class="n">channels</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NoiseFloor"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.NoiseFloor">[docs]</a><span class="k">class</span> <span class="nc">NoiseFloor</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Adds a noise floor of Gaussian noise to the signal at a specified</span>
+<span class="sd">    dB.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    db : tuple, optional</span>
+<span class="sd">        Level of noise to add to signal, by default (&quot;const&quot;, -50.0)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">db</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">50.0</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">):</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">signal_length</span><span class="p">)</span>
+        <span class="n">nz_signal</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+        <span class="n">nz_signal</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;nz_signal&quot;</span><span class="p">:</span> <span class="n">nz_signal</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">nz_signal</span><span class="p">):</span>
+        <span class="c1"># Clone bg_signal so that transform can be repeatedly applied</span>
+        <span class="c1"># to different signals with the same effect.</span>
+        <span class="k">return</span> <span class="n">signal</span> <span class="o">+</span> <span class="n">nz_signal</span></div>
+
+
+<div class="viewcode-block" id="BackgroundNoise"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.BackgroundNoise">[docs]</a><span class="k">class</span> <span class="nc">BackgroundNoise</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Adds background noise from audio specified by a set of CSV files.</span>
+<span class="sd">    A valid CSV file looks like, and is typically generated by</span>
+<span class="sd">    :py:func:`audiotools.data.preprocess.create_csv`:</span>
+
+<span class="sd">    ..  csv-table::</span>
+<span class="sd">        :header: path</span>
+
+<span class="sd">        room_tone/m6_script2_clean.wav</span>
+<span class="sd">        room_tone/m6_script2_cleanraw.wav</span>
+<span class="sd">        room_tone/m6_script2_ipad_balcony1.wav</span>
+<span class="sd">        room_tone/m6_script2_ipad_bedroom1.wav</span>
+<span class="sd">        room_tone/m6_script2_ipad_confroom1.wav</span>
+<span class="sd">        room_tone/m6_script2_ipad_confroom2.wav</span>
+<span class="sd">        room_tone/m6_script2_ipad_livingroom1.wav</span>
+<span class="sd">        room_tone/m6_script2_ipad_office1.wav</span>
+
+<span class="sd">    ..  note::</span>
+<span class="sd">        All paths are relative to an environment variable called ``PATH_TO_DATA``,</span>
+<span class="sd">        so that CSV files are portable across machines where data may be</span>
+<span class="sd">        located in different places.</span>
+
+<span class="sd">    This transform calls :py:func:`audiotools.core.effects.EffectMixin.mix`</span>
+<span class="sd">    and :py:func:`audiotools.core.effects.EffectMixin.equalizer` under the</span>
+<span class="sd">    hood.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    snr : tuple, optional</span>
+<span class="sd">        Signal-to-noise ratio, by default (&quot;uniform&quot;, 10.0, 30.0)</span>
+<span class="sd">    sources : List[str], optional</span>
+<span class="sd">        Sources containing folders, or CSVs with paths to audio files,</span>
+<span class="sd">        by default None</span>
+<span class="sd">    weights : List[float], optional</span>
+<span class="sd">        Weights to sample audio files from each source, by default None</span>
+<span class="sd">    eq_amount : tuple, optional</span>
+<span class="sd">        Amount of equalization to apply, by default (&quot;const&quot;, 1.0)</span>
+<span class="sd">    n_bands : int, optional</span>
+<span class="sd">        Number of bands in equalizer, by default 3</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    loudness_cutoff : float, optional</span>
+<span class="sd">        Loudness cutoff when loading from audio files, by default None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">snr</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">),</span>
+        <span class="n">sources</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">eq_amount</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">n_bands</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">loudness_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">snr</span> <span class="o">=</span> <span class="n">snr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq_amount</span> <span class="o">=</span> <span class="n">eq_amount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bands</span> <span class="o">=</span> <span class="n">n_bands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">AudioLoader</span><span class="p">(</span><span class="n">sources</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loudness_cutoff</span> <span class="o">=</span> <span class="n">loudness_cutoff</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">):</span>
+        <span class="n">eq_amount</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eq_amount</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">eq</span> <span class="o">=</span> <span class="o">-</span><span class="n">eq_amount</span> <span class="o">*</span> <span class="n">state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bands</span><span class="p">)</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+        <span class="n">bg_signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loader</span><span class="p">(</span>
+            <span class="n">state</span><span class="p">,</span>
+            <span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="n">duration</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">signal_duration</span><span class="p">,</span>
+            <span class="n">loudness_cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loudness_cutoff</span><span class="p">,</span>
+            <span class="n">num_channels</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span>
+        <span class="p">)[</span><span class="s2">&quot;signal&quot;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;eq&quot;</span><span class="p">:</span> <span class="n">eq</span><span class="p">,</span> <span class="s2">&quot;bg_signal&quot;</span><span class="p">:</span> <span class="n">bg_signal</span><span class="p">,</span> <span class="s2">&quot;snr&quot;</span><span class="p">:</span> <span class="n">snr</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">bg_signal</span><span class="p">,</span> <span class="n">snr</span><span class="p">,</span> <span class="n">eq</span><span class="p">):</span>
+        <span class="c1"># Clone bg_signal so that transform can be repeatedly applied</span>
+        <span class="c1"># to different signals with the same effect.</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">mix</span><span class="p">(</span><span class="n">bg_signal</span><span class="o">.</span><span class="n">clone</span><span class="p">(),</span> <span class="n">snr</span><span class="p">,</span> <span class="n">eq</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CrossTalk"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.CrossTalk">[docs]</a><span class="k">class</span> <span class="nc">CrossTalk</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Adds crosstalk between speakers, whose audio is drawn from a CSV file</span>
+<span class="sd">    that was produced via :py:func:`audiotools.data.preprocess.create_csv`.</span>
+
+<span class="sd">    This transform calls :py:func:`audiotools.core.effects.EffectMixin.mix`</span>
+<span class="sd">    under the hood.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    snr : tuple, optional</span>
+<span class="sd">        How loud cross-talk speaker is relative to original signal in dB,</span>
+<span class="sd">        by default (&quot;uniform&quot;, 0.0, 10.0)</span>
+<span class="sd">    sources : List[str], optional</span>
+<span class="sd">        Sources containing folders, or CSVs with paths to audio files,</span>
+<span class="sd">        by default None</span>
+<span class="sd">    weights : List[float], optional</span>
+<span class="sd">        Weights to sample audio files from each source, by default None</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    loudness_cutoff : float, optional</span>
+<span class="sd">        Loudness cutoff when loading from audio files, by default -40</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">snr</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+        <span class="n">sources</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">loudness_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mi">40</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">snr</span> <span class="o">=</span> <span class="n">snr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">AudioLoader</span><span class="p">(</span><span class="n">sources</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loudness_cutoff</span> <span class="o">=</span> <span class="n">loudness_cutoff</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">):</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">crosstalk_signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loader</span><span class="p">(</span>
+            <span class="n">state</span><span class="p">,</span>
+            <span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="n">duration</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">signal_duration</span><span class="p">,</span>
+            <span class="n">loudness_cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loudness_cutoff</span><span class="p">,</span>
+            <span class="n">num_channels</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span>
+        <span class="p">)[</span><span class="s2">&quot;signal&quot;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;crosstalk_signal&quot;</span><span class="p">:</span> <span class="n">crosstalk_signal</span><span class="p">,</span> <span class="s2">&quot;snr&quot;</span><span class="p">:</span> <span class="n">snr</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">crosstalk_signal</span><span class="p">,</span> <span class="n">snr</span><span class="p">):</span>
+        <span class="c1"># Clone bg_signal so that transform can be repeatedly applied</span>
+        <span class="c1"># to different signals with the same effect.</span>
+        <span class="n">loudness</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">loudness</span><span class="p">()</span>
+        <span class="n">mix</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">mix</span><span class="p">(</span><span class="n">crosstalk_signal</span><span class="o">.</span><span class="n">clone</span><span class="p">(),</span> <span class="n">snr</span><span class="p">)</span>
+        <span class="n">mix</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">loudness</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mix</span></div>
+
+
+<div class="viewcode-block" id="RoomImpulseResponse"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.RoomImpulseResponse">[docs]</a><span class="k">class</span> <span class="nc">RoomImpulseResponse</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convolves signal with a room impulse response, at a specified</span>
+<span class="sd">    direct-to-reverberant ratio, with equalization applied. Room impulse</span>
+<span class="sd">    response data is drawn from a CSV file that was produced via</span>
+<span class="sd">    :py:func:`audiotools.data.preprocess.create_csv`.</span>
+
+<span class="sd">    This transform calls :py:func:`audiotools.core.effects.EffectMixin.apply_ir`</span>
+<span class="sd">    under the hood.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    drr : tuple, optional</span>
+<span class="sd">        _description_, by default (&quot;uniform&quot;, 0.0, 30.0)</span>
+<span class="sd">    sources : List[str], optional</span>
+<span class="sd">        Sources containing folders, or CSVs with paths to audio files,</span>
+<span class="sd">        by default None</span>
+<span class="sd">    weights : List[float], optional</span>
+<span class="sd">        Weights to sample audio files from each source, by default None</span>
+<span class="sd">    eq_amount : tuple, optional</span>
+<span class="sd">        Amount of equalization to apply, by default (&quot;const&quot;, 1.0)</span>
+<span class="sd">    n_bands : int, optional</span>
+<span class="sd">        Number of bands in equalizer, by default 6</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    use_original_phase : bool, optional</span>
+<span class="sd">        Whether or not to use the original phase, by default False</span>
+<span class="sd">    offset : float, optional</span>
+<span class="sd">        Offset from each impulse response file to use, by default 0.0</span>
+<span class="sd">    duration : float, optional</span>
+<span class="sd">        Duration of each impulse response, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">drr</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">),</span>
+        <span class="n">sources</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">eq_amount</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">n_bands</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">use_original_phase</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">drr</span> <span class="o">=</span> <span class="n">drr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq_amount</span> <span class="o">=</span> <span class="n">eq_amount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bands</span> <span class="o">=</span> <span class="n">n_bands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_original_phase</span> <span class="o">=</span> <span class="n">use_original_phase</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">AudioLoader</span><span class="p">(</span><span class="n">sources</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">duration</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">eq_amount</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eq_amount</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">eq</span> <span class="o">=</span> <span class="o">-</span><span class="n">eq_amount</span> <span class="o">*</span> <span class="n">state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bands</span><span class="p">)</span>
+        <span class="n">drr</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">drr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+        <span class="n">ir_signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loader</span><span class="p">(</span>
+            <span class="n">state</span><span class="p">,</span>
+            <span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="n">offset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">,</span>
+            <span class="n">duration</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">,</span>
+            <span class="n">loudness_cutoff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">num_channels</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span>
+        <span class="p">)[</span><span class="s2">&quot;signal&quot;</span><span class="p">]</span>
+        <span class="n">ir_signal</span><span class="o">.</span><span class="n">zero_pad_to</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;eq&quot;</span><span class="p">:</span> <span class="n">eq</span><span class="p">,</span> <span class="s2">&quot;ir_signal&quot;</span><span class="p">:</span> <span class="n">ir_signal</span><span class="p">,</span> <span class="s2">&quot;drr&quot;</span><span class="p">:</span> <span class="n">drr</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">ir_signal</span><span class="p">,</span> <span class="n">drr</span><span class="p">,</span> <span class="n">eq</span><span class="p">):</span>
+        <span class="c1"># Clone ir_signal so that transform can be repeatedly applied</span>
+        <span class="c1"># to different signals with the same effect.</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">apply_ir</span><span class="p">(</span>
+            <span class="n">ir_signal</span><span class="o">.</span><span class="n">clone</span><span class="p">(),</span> <span class="n">drr</span><span class="p">,</span> <span class="n">eq</span><span class="p">,</span> <span class="n">use_original_phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_original_phase</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VolumeChange"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.VolumeChange">[docs]</a><span class="k">class</span> <span class="nc">VolumeChange</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Changes the volume of the input signal.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.effects.EffectMixin.volume_change`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    db : tuple, optional</span>
+<span class="sd">        Change in volume in decibels, by default (&quot;uniform&quot;, -12.0, 0.0)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">db</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">12.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;db&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">db</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">volume_change</span><span class="p">(</span><span class="n">db</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VolumeNorm"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.VolumeNorm">[docs]</a><span class="k">class</span> <span class="nc">VolumeNorm</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Normalizes the volume of the excerpt to a specified decibel.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.effects.EffectMixin.normalize`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    db : tuple, optional</span>
+<span class="sd">        dB to normalize signal to, by default (&quot;const&quot;, -24)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">db</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">24</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;db&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">db</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">db</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GlobalVolumeNorm"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.GlobalVolumeNorm">[docs]</a><span class="k">class</span> <span class="nc">GlobalVolumeNorm</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Similar to :py:func:`audiotools.data.transforms.VolumeNorm`, this</span>
+<span class="sd">    transform also normalizes the volume of a signal, but it uses</span>
+<span class="sd">    the volume of the entire audio file the loaded excerpt comes from,</span>
+<span class="sd">    rather than the volume of just the excerpt. The volume of the</span>
+<span class="sd">    entire audio file is expected in ``signal.metadata[&quot;loudness&quot;]``.</span>
+<span class="sd">    If loading audio from a CSV generated by :py:func:`audiotools.data.preprocess.create_csv`</span>
+<span class="sd">    with ``loudness = True``, like the following:</span>
+
+<span class="sd">    ..  csv-table::</span>
+<span class="sd">        :header: path,loudness</span>
+
+<span class="sd">        daps/produced/f1_script1_produced.wav,-16.299999237060547</span>
+<span class="sd">        daps/produced/f1_script2_produced.wav,-16.600000381469727</span>
+<span class="sd">        daps/produced/f1_script3_produced.wav,-17.299999237060547</span>
+<span class="sd">        daps/produced/f1_script4_produced.wav,-16.100000381469727</span>
+<span class="sd">        daps/produced/f1_script5_produced.wav,-16.700000762939453</span>
+<span class="sd">        daps/produced/f3_script1_produced.wav,-16.5</span>
+
+<span class="sd">    The ``AudioLoader`` will automatically load the loudness column into</span>
+<span class="sd">    the metadata of the signal.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.effects.EffectMixin.volume_change`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    db : tuple, optional</span>
+<span class="sd">        dB to normalize signal to, by default (&quot;const&quot;, -24)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">db</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">24</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;loudness&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">:</span>
+            <span class="n">db_change</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">elif</span> <span class="nb">float</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;loudness&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">):</span>
+            <span class="n">db_change</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+            <span class="n">db_change</span> <span class="o">=</span> <span class="n">db</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;loudness&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;db&quot;</span><span class="p">:</span> <span class="n">db_change</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">db</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">volume_change</span><span class="p">(</span><span class="n">db</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Silence"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Silence">[docs]</a><span class="k">class</span> <span class="nc">Silence</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Zeros out the signal with some probability.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 0.1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">):</span>
+        <span class="n">_loudness</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">_loudness</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">audio_data</span><span class="p">),</span>
+            <span class="n">sample_rate</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="n">stft_params</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">stft_params</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># So that the amound of noise added is as if it wasn&#39;t silenced.</span>
+        <span class="c1"># TODO: improve this hack</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="n">_loudness</span>
+
+        <span class="k">return</span> <span class="n">signal</span></div>
+
+
+<div class="viewcode-block" id="LowPass"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.LowPass">[docs]</a><span class="k">class</span> <span class="nc">LowPass</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies a LowPass filter.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.low_pass`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cutoff : tuple, optional</span>
+<span class="sd">        Cutoff frequency distribution,</span>
+<span class="sd">        by default ``(&quot;choice&quot;, [4000, 8000, 16000])``</span>
+<span class="sd">    zeros : int, optional</span>
+<span class="sd">        Number of zero-crossings in filter, argument to</span>
+<span class="sd">        ``julius.LowPassFilters``, by default 51</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;choice&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4000</span><span class="p">,</span> <span class="mi">8000</span><span class="p">,</span> <span class="mi">16000</span><span class="p">]),</span>
+        <span class="n">zeros</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">51</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zeros</span> <span class="o">=</span> <span class="n">zeros</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;cutoff&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">low_pass</span><span class="p">(</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">zeros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">zeros</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HighPass"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.HighPass">[docs]</a><span class="k">class</span> <span class="nc">HighPass</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies a HighPass filter.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.high_pass`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cutoff : tuple, optional</span>
+<span class="sd">        Cutoff frequency distribution,</span>
+<span class="sd">        by default ``(&quot;choice&quot;, [50, 100, 250, 500, 1000])``</span>
+<span class="sd">    zeros : int, optional</span>
+<span class="sd">        Number of zero-crossings in filter, argument to</span>
+<span class="sd">        ``julius.LowPassFilters``, by default 51</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;choice&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]),</span>
+        <span class="n">zeros</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">51</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zeros</span> <span class="o">=</span> <span class="n">zeros</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;cutoff&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">high_pass</span><span class="p">(</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">zeros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">zeros</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RescaleAudio"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.RescaleAudio">[docs]</a><span class="k">class</span> <span class="nc">RescaleAudio</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Rescales the audio so it is in between ``-val`` and ``val``</span>
+<span class="sd">    only if the original audio exceeds those bounds. Useful if</span>
+<span class="sd">    transforms have caused the audio to clip.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.effects.EffectMixin.ensure_max_of_audio`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    val : float, optional</span>
+<span class="sd">        Max absolute value of signal, by default 1.0</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">val</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">ensure_max_of_audio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ShiftPhase"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.ShiftPhase">[docs]</a><span class="k">class</span> <span class="nc">ShiftPhase</span><span class="p">(</span><span class="n">SpectralTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Shifts the phase of the audio.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.shift)phase`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    shift : tuple, optional</span>
+<span class="sd">        How much to shift phase by, by default (&quot;uniform&quot;, -np.pi, np.pi)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">shift</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shift</span> <span class="o">=</span> <span class="n">shift</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;shift&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">shift</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">shift_phase</span><span class="p">(</span><span class="n">shift</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InvertPhase"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.InvertPhase">[docs]</a><span class="k">class</span> <span class="nc">InvertPhase</span><span class="p">(</span><span class="n">ShiftPhase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Inverts the phase of the audio.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.shift_phase`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">shift</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CorruptPhase"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.CorruptPhase">[docs]</a><span class="k">class</span> <span class="nc">CorruptPhase</span><span class="p">(</span><span class="n">SpectralTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Corrupts the phase of the audio.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.corrupt_phase`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    scale : tuple, optional</span>
+<span class="sd">        How much to corrupt phase by, by default (&quot;uniform&quot;, 0, np.pi)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">corruption</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;corruption&quot;</span><span class="p">:</span> <span class="n">corruption</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">corruption</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">shift_phase</span><span class="p">(</span><span class="n">shift</span><span class="o">=</span><span class="n">corruption</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FrequencyMask"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.FrequencyMask">[docs]</a><span class="k">class</span> <span class="nc">FrequencyMask</span><span class="p">(</span><span class="n">SpectralTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Masks a band of frequencies at a center frequency</span>
+<span class="sd">    from the audio.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.mask_frequencies`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    f_center : tuple, optional</span>
+<span class="sd">        Center frequency between 0.0 and 1.0 (Nyquist), by default (&quot;uniform&quot;, 0.0, 1.0)</span>
+<span class="sd">    f_width : tuple, optional</span>
+<span class="sd">        Width of zero&#39;d out band, by default (&quot;const&quot;, 0.1)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">f_center</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">f_width</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_center</span> <span class="o">=</span> <span class="n">f_center</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_width</span> <span class="o">=</span> <span class="n">f_width</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">):</span>
+        <span class="n">f_center</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_center</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">f_width</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_width</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+        <span class="n">fmin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">f_center</span> <span class="o">-</span> <span class="p">(</span><span class="n">f_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">fmax</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">f_center</span> <span class="o">+</span> <span class="p">(</span><span class="n">f_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="n">fmin_hz</span> <span class="o">=</span> <span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">fmin</span>
+        <span class="n">fmax_hz</span> <span class="o">=</span> <span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">fmax</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;fmin_hz&quot;</span><span class="p">:</span> <span class="n">fmin_hz</span><span class="p">,</span> <span class="s2">&quot;fmax_hz&quot;</span><span class="p">:</span> <span class="n">fmax_hz</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">fmin_hz</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fmax_hz</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">mask_frequencies</span><span class="p">(</span><span class="n">fmin_hz</span><span class="o">=</span><span class="n">fmin_hz</span><span class="p">,</span> <span class="n">fmax_hz</span><span class="o">=</span><span class="n">fmax_hz</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TimeMask"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.TimeMask">[docs]</a><span class="k">class</span> <span class="nc">TimeMask</span><span class="p">(</span><span class="n">SpectralTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Masks out contiguous time-steps from signal.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.mask_timesteps`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_center : tuple, optional</span>
+<span class="sd">        Center time in terms of 0.0 and 1.0 (duration of signal),</span>
+<span class="sd">        by default (&quot;uniform&quot;, 0.0, 1.0)</span>
+<span class="sd">    t_width : tuple, optional</span>
+<span class="sd">        Width of dropped out portion, by default (&quot;const&quot;, 0.025)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">t_center</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">t_width</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">0.025</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_center</span> <span class="o">=</span> <span class="n">t_center</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_width</span> <span class="o">=</span> <span class="n">t_width</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">):</span>
+        <span class="n">t_center</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t_center</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">t_width</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t_width</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+        <span class="n">tmin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">t_center</span> <span class="o">-</span> <span class="p">(</span><span class="n">t_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">tmax</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">t_center</span> <span class="o">+</span> <span class="p">(</span><span class="n">t_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="n">tmin_s</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">signal_duration</span> <span class="o">*</span> <span class="n">tmin</span>
+        <span class="n">tmax_s</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">signal_duration</span> <span class="o">*</span> <span class="n">tmax</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;tmin_s&quot;</span><span class="p">:</span> <span class="n">tmin_s</span><span class="p">,</span> <span class="s2">&quot;tmax_s&quot;</span><span class="p">:</span> <span class="n">tmax_s</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">tmin_s</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">tmax_s</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">mask_timesteps</span><span class="p">(</span><span class="n">tmin_s</span><span class="o">=</span><span class="n">tmin_s</span><span class="p">,</span> <span class="n">tmax_s</span><span class="o">=</span><span class="n">tmax_s</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MaskLowMagnitudes"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.MaskLowMagnitudes">[docs]</a><span class="k">class</span> <span class="nc">MaskLowMagnitudes</span><span class="p">(</span><span class="n">SpectralTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Masks low magnitude regions out of signal.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.dsp.DSPMixin.mask_low_magnitudes`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    db_cutoff : tuple, optional</span>
+<span class="sd">        Decibel value for which things below it will be masked away,</span>
+<span class="sd">        by default (&quot;uniform&quot;, -10, 10)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">db_cutoff</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_cutoff</span> <span class="o">=</span> <span class="n">db_cutoff</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;db_cutoff&quot;</span><span class="p">:</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_cutoff</span><span class="p">,</span> <span class="n">state</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">db_cutoff</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">mask_low_magnitudes</span><span class="p">(</span><span class="n">db_cutoff</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Smoothing"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.Smoothing">[docs]</a><span class="k">class</span> <span class="nc">Smoothing</span><span class="p">(</span><span class="n">BaseTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convolves the signal with a smoothing window.</span>
+
+<span class="sd">    Uses :py:func:`audiotools.core.effects.EffectMixin.convolve`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    window_type : tuple, optional</span>
+<span class="sd">        Type of window to use, by default (&quot;const&quot;, &quot;average&quot;)</span>
+<span class="sd">    window_length : tuple, optional</span>
+<span class="sd">        Length of smoothing window, by</span>
+<span class="sd">        default (&quot;choice&quot;, [8, 16, 32, 64, 128, 256, 512])</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">window_type</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="s2">&quot;average&quot;</span><span class="p">),</span>
+        <span class="n">window_length</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;choice&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">512</span><span class="p">]),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window_type</span> <span class="o">=</span> <span class="n">window_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window_length</span> <span class="o">=</span> <span class="n">window_length</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">AudioSignal</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">window_type</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_type</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">window_length</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_length</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">get_window</span><span class="p">(</span>
+            <span class="n">window_type</span><span class="o">=</span><span class="n">window_type</span><span class="p">,</span> <span class="n">window_length</span><span class="o">=</span><span class="n">window_length</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;window&quot;</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)}</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">window</span><span class="p">):</span>
+        <span class="n">sscale</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">sscale</span><span class="p">[</span><span class="n">sscale</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+
+        <span class="n">oscale</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">oscale</span><span class="p">[</span><span class="n">oscale</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">*</span> <span class="p">(</span><span class="n">sscale</span> <span class="o">/</span> <span class="n">oscale</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="TimeNoise"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.TimeNoise">[docs]</a><span class="k">class</span> <span class="nc">TimeNoise</span><span class="p">(</span><span class="n">TimeMask</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Similar to :py:func:`audiotools.data.transforms.TimeMask`, but</span>
+<span class="sd">    replaces with noise instead of zeros.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_center : tuple, optional</span>
+<span class="sd">        Center time in terms of 0.0 and 1.0 (duration of signal),</span>
+<span class="sd">        by default (&quot;uniform&quot;, 0.0, 1.0)</span>
+<span class="sd">    t_width : tuple, optional</span>
+<span class="sd">        Width of dropped out portion, by default (&quot;const&quot;, 0.025)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">t_center</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">t_width</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">0.025</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">t_center</span><span class="o">=</span><span class="n">t_center</span><span class="p">,</span> <span class="n">t_width</span><span class="o">=</span><span class="n">t_width</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">tmin_s</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">tmax_s</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">mask_timesteps</span><span class="p">(</span><span class="n">tmin_s</span><span class="o">=</span><span class="n">tmin_s</span><span class="p">,</span> <span class="n">tmax_s</span><span class="o">=</span><span class="n">tmax_s</span><span class="p">,</span> <span class="n">val</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">mag</span><span class="p">,</span> <span class="n">phase</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">magnitude</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">phase</span>
+
+        <span class="n">mag_r</span><span class="p">,</span> <span class="n">phase_r</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">mag</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">mag</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">phase</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="n">mag</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">mag_r</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">phase</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase_r</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="n">signal</span><span class="o">.</span><span class="n">magnitude</span> <span class="o">=</span> <span class="n">mag</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span>
+        <span class="k">return</span> <span class="n">signal</span></div>
+
+
+<div class="viewcode-block" id="FrequencyNoise"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.FrequencyNoise">[docs]</a><span class="k">class</span> <span class="nc">FrequencyNoise</span><span class="p">(</span><span class="n">FrequencyMask</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Similar to :py:func:`audiotools.data.transforms.FrequencyMask`, but</span>
+<span class="sd">    replaces with noise instead of zeros.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    f_center : tuple, optional</span>
+<span class="sd">        Center frequency between 0.0 and 1.0 (Nyquist), by default (&quot;uniform&quot;, 0.0, 1.0)</span>
+<span class="sd">    f_width : tuple, optional</span>
+<span class="sd">        Width of zero&#39;d out band, by default (&quot;const&quot;, 0.1)</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">f_center</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">f_width</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">f_center</span><span class="o">=</span><span class="n">f_center</span><span class="p">,</span> <span class="n">f_width</span><span class="o">=</span><span class="n">f_width</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">fmin_hz</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fmax_hz</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">mask_frequencies</span><span class="p">(</span><span class="n">fmin_hz</span><span class="o">=</span><span class="n">fmin_hz</span><span class="p">,</span> <span class="n">fmax_hz</span><span class="o">=</span><span class="n">fmax_hz</span><span class="p">)</span>
+        <span class="n">mag</span><span class="p">,</span> <span class="n">phase</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">magnitude</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">phase</span>
+
+        <span class="n">mag_r</span><span class="p">,</span> <span class="n">phase_r</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">mag</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">mag</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">phase</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="n">mag</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">mag_r</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">phase</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase_r</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="n">signal</span><span class="o">.</span><span class="n">magnitude</span> <span class="o">=</span> <span class="n">mag</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span>
+        <span class="k">return</span> <span class="n">signal</span></div>
+
+
+<div class="viewcode-block" id="SpectralDenoising"><a class="viewcode-back" href="../../../source/audiotools.data.html#audiotools.data.transforms.SpectralDenoising">[docs]</a><span class="k">class</span> <span class="nc">SpectralDenoising</span><span class="p">(</span><span class="n">Equalizer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies denoising algorithm detailed in</span>
+<span class="sd">    :py:func:`audiotools.ml.layers.spectral_gate.SpectralGate`,</span>
+<span class="sd">    using a randomly generated noise signal for denoising.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    eq_amount : tuple, optional</span>
+<span class="sd">        Amount of eq to apply to noise signal, by default (&quot;const&quot;, 1.0)</span>
+<span class="sd">    denoise_amount : tuple, optional</span>
+<span class="sd">        Amount to denoise by, by default (&quot;uniform&quot;, 0.8, 1.0)</span>
+<span class="sd">    nz_volume : float, optional</span>
+<span class="sd">        Volume of noise to denoise with, by default -40</span>
+<span class="sd">    n_bands : int, optional</span>
+<span class="sd">        Number of bands in equalizer, by default 6</span>
+<span class="sd">    n_freq : int, optional</span>
+<span class="sd">        Number of frequency bins to smooth by, by default 3</span>
+<span class="sd">    n_time : int, optional</span>
+<span class="sd">        Number of time bins to smooth by, by default 5</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        Name of this transform, used to identify it in the dictionary</span>
+<span class="sd">        produced by ``self.instantiate``, by default None</span>
+<span class="sd">    prob : float, optional</span>
+<span class="sd">        Probability of applying this transform, by default 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">eq_amount</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;const&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">denoise_amount</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">nz_volume</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mi">40</span><span class="p">,</span>
+        <span class="n">n_bands</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="n">n_freq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">n_time</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">prob</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">eq_amount</span><span class="o">=</span><span class="n">eq_amount</span><span class="p">,</span> <span class="n">n_bands</span><span class="o">=</span><span class="n">n_bands</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="n">prob</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nz_volume</span> <span class="o">=</span> <span class="n">nz_volume</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">denoise_amount</span> <span class="o">=</span> <span class="n">denoise_amount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spectral_gate</span> <span class="o">=</span> <span class="n">ml</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">SpectralGate</span><span class="p">(</span><span class="n">n_freq</span><span class="p">,</span> <span class="n">n_time</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">nz</span><span class="p">,</span> <span class="n">eq</span><span class="p">,</span> <span class="n">denoise_amount</span><span class="p">):</span>
+        <span class="n">nz</span> <span class="o">=</span> <span class="n">nz</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nz_volume</span><span class="p">)</span><span class="o">.</span><span class="n">equalizer</span><span class="p">(</span><span class="n">eq</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spectral_gate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectral_gate</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectral_gate</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">nz</span><span class="p">,</span> <span class="n">denoise_amount</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">signal</span>
+
+    <span class="k">def</span> <span class="nf">_instantiate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">RandomState</span><span class="p">):</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_instantiate</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;denoise_amount&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">sample_from_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">denoise_amount</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;nz&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">22050</span><span class="p">),</span> <span class="mi">44100</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

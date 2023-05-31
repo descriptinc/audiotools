@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.ml.layers.base &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.ml.layers.base</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.ml.layers.base</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+
+
+<div class="viewcode-block" id="BaseModel"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel">[docs]</a><span class="k">class</span> <span class="nc">BaseModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is a class that adds useful save/load functionality to a</span>
+<span class="sd">    ``torch.nn.Module`` object. ``BaseModel`` objects can be saved</span>
+<span class="sd">    as ``torch.package`` easily, making them super easy to port between</span>
+<span class="sd">    machines without requiring a ton of dependencies. Files can also be</span>
+<span class="sd">    saved as just weights, in the standard way.</span>
+
+<span class="sd">    &gt;&gt;&gt; class Model(ml.BaseModel):</span>
+<span class="sd">    &gt;&gt;&gt;     def __init__(self, arg1: float = 1.0):</span>
+<span class="sd">    &gt;&gt;&gt;         super().__init__()</span>
+<span class="sd">    &gt;&gt;&gt;         self.arg1 = arg1</span>
+<span class="sd">    &gt;&gt;&gt;         self.linear = nn.Linear(1, 1)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt;     def forward(self, x):</span>
+<span class="sd">    &gt;&gt;&gt;         return self.linear(x)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; model1 = Model()</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; with tempfile.NamedTemporaryFile(suffix=&quot;.pth&quot;) as f:</span>
+<span class="sd">    &gt;&gt;&gt;     model1.save(</span>
+<span class="sd">    &gt;&gt;&gt;         f.name,</span>
+<span class="sd">    &gt;&gt;&gt;     )</span>
+<span class="sd">    &gt;&gt;&gt;     model2 = Model.load(f.name)</span>
+<span class="sd">    &gt;&gt;&gt;     out2 = seed_and_run(model2, x)</span>
+<span class="sd">    &gt;&gt;&gt;     assert torch.allclose(out1, out2)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt;     model1.save(f.name, package=True)</span>
+<span class="sd">    &gt;&gt;&gt;     model2 = Model.load(f.name)</span>
+<span class="sd">    &gt;&gt;&gt;     model2.save(f.name, package=False)</span>
+<span class="sd">    &gt;&gt;&gt;     model3 = Model.load(f.name)</span>
+<span class="sd">    &gt;&gt;&gt;     out3 = seed_and_run(model3, x)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; with tempfile.TemporaryDirectory() as d:</span>
+<span class="sd">    &gt;&gt;&gt;     model1.save_to_folder(d, {&quot;data&quot;: 1.0})</span>
+<span class="sd">    &gt;&gt;&gt;     Model.load_from_folder(d)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">EXTERN</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;audiotools.**&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tqdm&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;__main__&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;numpy.**&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;julius.**&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;torchaudio.**&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scipy.**&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;einops&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="sd">&quot;&quot;&quot;Names of libraries that are external to the torch.package saving mechanism.</span>
+<span class="sd">    Source code from these libraries will not be packaged into the model. This can</span>
+<span class="sd">    be edited by the user of this class by editing ``model.EXTERN``.&quot;&quot;&quot;</span>
+    <span class="n">INTERN</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="sd">&quot;&quot;&quot;Names of libraries that are internal to the torch.package saving mechanism.</span>
+<span class="sd">    Source code from these libraries will be saved alongside the model.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BaseModel.save"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">package</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">intern</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">extern</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">mock</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[],</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Saves the model, either as a torch package, or just as</span>
+<span class="sd">        weights, alongside some specified metadata.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        path : str</span>
+<span class="sd">            Path to save model to.</span>
+<span class="sd">        metadata : dict, optional</span>
+<span class="sd">            Any metadata to save alongside the model,</span>
+<span class="sd">            by default None</span>
+<span class="sd">        package : bool, optional</span>
+<span class="sd">            Whether to use ``torch.package`` to save the model in</span>
+<span class="sd">            a format that is portable, by default True</span>
+<span class="sd">        intern : list, optional</span>
+<span class="sd">            List of additional libraries that are internal</span>
+<span class="sd">            to the model, used with torch.package, by default []</span>
+<span class="sd">        extern : list, optional</span>
+<span class="sd">            List of additional libraries that are external to</span>
+<span class="sd">            the model, used with torch.package, by default []</span>
+<span class="sd">        mock : list, optional</span>
+<span class="sd">            List of libraries to mock, used with torch.package,</span>
+<span class="sd">            by default []</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Path to saved model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">arg_val</span> <span class="o">=</span> <span class="n">val</span><span class="o">.</span><span class="n">default</span>
+            <span class="k">if</span> <span class="n">arg_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">args</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg_val</span>
+
+        <span class="c1"># Look up attibutes in self, and if any of them are in args,</span>
+        <span class="c1"># overwrite them in args.</span>
+        <span class="k">for</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+                <span class="n">args</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">)</span>
+
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">metadata</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">package</span><span class="p">:</span>
+            <span class="n">state_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;state_dict&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">metadata</span><span class="p">}</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_package</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">intern</span><span class="o">=</span><span class="n">intern</span><span class="p">,</span> <span class="n">extern</span><span class="o">=</span><span class="n">extern</span><span class="p">,</span> <span class="n">mock</span><span class="o">=</span><span class="n">mock</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">path</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">device</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the device the model is on by looking at the device of</span>
+<span class="sd">        the first parameter. May not be valid if model is split across</span>
+<span class="sd">        multiple devices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">device</span>
+
+<div class="viewcode-block" id="BaseModel.load"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.load">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">location</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">package_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load model from a path. Tries first to load as a package, and if</span>
+<span class="sd">        that fails, tries to load as weights. The arguments to the class are</span>
+<span class="sd">        specified inside the model weights file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        location : str</span>
+<span class="sd">            Path to file.</span>
+<span class="sd">        package_name : str, optional</span>
+<span class="sd">            Name of package, by default ``cls.__name__``.</span>
+<span class="sd">        strict : bool, optional</span>
+<span class="sd">            Ignore unmatched keys, by default False</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            Additional keyword arguments to the model instantiation, if</span>
+<span class="sd">            not loading from package.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        BaseModel</span>
+<span class="sd">            A model that inherits from BaseModel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_load_package</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">package_name</span><span class="o">=</span><span class="n">package_name</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">model_dict</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="n">model_dict</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span>
+            <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+            <span class="n">class_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">class_keys</span><span class="p">:</span>
+                    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">])</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">[</span><span class="s2">&quot;state_dict&quot;</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">)</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata</span>
+
+        <span class="k">return</span> <span class="n">model</span></div>
+
+    <span class="k">def</span> <span class="nf">_save_package</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">intern</span><span class="o">=</span><span class="p">[],</span> <span class="n">extern</span><span class="o">=</span><span class="p">[],</span> <span class="n">mock</span><span class="o">=</span><span class="p">[],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">package_name</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">resource_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.pth&quot;</span>
+
+        <span class="c1"># Below is for loading and re-saving a package.</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;importer&quot;</span><span class="p">):</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;importer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">importer</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">package</span><span class="o">.</span><span class="n">sys_importer</span><span class="p">)</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">importer</span>
+
+        <span class="c1"># Why do we use a tempfile, you ask?</span>
+        <span class="c1"># It&#39;s so we can load a packaged model and then re-save</span>
+        <span class="c1"># it to the same location. torch.package throws an</span>
+        <span class="c1"># error if it&#39;s loading and writing to the same</span>
+        <span class="c1"># file (this is undocumented).</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.pth&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">package</span><span class="o">.</span><span class="n">PackageExporter</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">intern</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">INTERN</span> <span class="o">+</span> <span class="n">intern</span><span class="p">)</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">mock</span><span class="p">(</span><span class="n">mock</span><span class="p">)</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">extern</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">EXTERN</span> <span class="o">+</span> <span class="n">extern</span><span class="p">)</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">save_pickle</span><span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">resource_name</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">):</span>
+                    <span class="n">exp</span><span class="o">.</span><span class="n">save_pickle</span><span class="p">(</span>
+                        <span class="n">package_name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">package_name</span><span class="si">}</span><span class="s2">.metadata&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span>
+                    <span class="p">)</span>
+
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+
+        <span class="c1"># Must reset the importer back to `self` if it existed</span>
+        <span class="c1"># so that you can save the model again!</span>
+        <span class="k">if</span> <span class="s2">&quot;importer&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">importer</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;importer&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_load_package</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">package_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">package_name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">if</span> <span class="n">package_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">package_name</span>
+        <span class="n">resource_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">package_name</span><span class="si">}</span><span class="s2">.pth&quot;</span>
+
+        <span class="n">imp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">package</span><span class="o">.</span><span class="n">PackageImporter</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">load_pickle</span><span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">resource_name</span><span class="p">,</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">imp</span><span class="o">.</span><span class="n">load_pickle</span><span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">package_name</span><span class="si">}</span><span class="s2">.metadata&quot;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="k">pass</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">importer</span> <span class="o">=</span> <span class="n">imp</span>
+
+        <span class="k">return</span> <span class="n">model</span>
+
+<div class="viewcode-block" id="BaseModel.save_to_folder"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.save_to_folder">[docs]</a>    <span class="k">def</span> <span class="nf">save_to_folder</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">folder</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">extra_data</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dumps a model into a folder, as both a package</span>
+<span class="sd">        and as weights, as well as anything specified in</span>
+<span class="sd">        ``extra_data``. ``extra_data`` is a dictionary of other</span>
+<span class="sd">        pickleable files, with the keys being the paths</span>
+<span class="sd">        to save them in. The model is saved under a subfolder</span>
+<span class="sd">        specified by the name of the class (e.g. ``folder/generator/[package, weights].pth``</span>
+<span class="sd">        if the model name was ``Generator``).</span>
+
+<span class="sd">        &gt;&gt;&gt; with tempfile.TemporaryDirectory() as d:</span>
+<span class="sd">        &gt;&gt;&gt;     extra_data = {</span>
+<span class="sd">        &gt;&gt;&gt;         &quot;optimizer.pth&quot;: optimizer.state_dict()</span>
+<span class="sd">        &gt;&gt;&gt;     }</span>
+<span class="sd">        &gt;&gt;&gt;     model.save_to_folder(d, extra_data)</span>
+<span class="sd">        &gt;&gt;&gt;     Model.load_from_folder(d)</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        folder : typing.Union[str, Path]</span>
+<span class="sd">            _description_</span>
+<span class="sd">        extra_data : dict, optional</span>
+<span class="sd">            _description_, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Path to folder</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">extra_data</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">extra_data</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">extra_data</span>
+        <span class="n">model_name</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">target_base</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">folder</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">)</span>
+        <span class="n">target_base</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">package_path</span> <span class="o">=</span> <span class="n">target_base</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;package.pth&quot;</span>
+        <span class="n">weights_path</span> <span class="o">=</span> <span class="n">target_base</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;weights.pth&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">package_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">weights_path</span><span class="p">,</span> <span class="n">package</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">extra_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">target_base</span> <span class="o">/</span> <span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">target_base</span></div>
+
+<div class="viewcode-block" id="BaseModel.load_from_folder"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.load_from_folder">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load_from_folder</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">folder</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">package</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads the model from a folder generated by</span>
+<span class="sd">        :py:func:`audiotools.ml.layers.base.BaseModel.save_to_folder`.</span>
+<span class="sd">        Like that function, this one looks for a subfolder that has</span>
+<span class="sd">        the name of the class (e.g. ``folder/generator/[package, weights].pth`` if the</span>
+<span class="sd">        model name was ``Generator``).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        folder : typing.Union[str, Path]</span>
+<span class="sd">            _description_</span>
+<span class="sd">        package : bool, optional</span>
+<span class="sd">            Whether to use ``torch.package`` to load the model,</span>
+<span class="sd">            loading the model from ``package.pth``.</span>
+<span class="sd">        strict : bool, optional</span>
+<span class="sd">            Ignore unmatched keys, by default False</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple</span>
+<span class="sd">            tuple of model and extra data as saved by</span>
+<span class="sd">            :py:func:`audiotools.ml.layers.base.BaseModel.save_to_folder`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="o">/</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">model_pth</span> <span class="o">=</span> <span class="s2">&quot;package.pth&quot;</span> <span class="k">if</span> <span class="n">package</span> <span class="k">else</span> <span class="s2">&quot;weights.pth&quot;</span>
+        <span class="n">model_pth</span> <span class="o">=</span> <span class="n">folder</span> <span class="o">/</span> <span class="n">model_pth</span>
+
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">model_pth</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">)</span>
+        <span class="n">extra_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">excluded</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;package.pth&quot;</span><span class="p">,</span> <span class="s2">&quot;weights.pth&quot;</span><span class="p">]</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">folder</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">excluded</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">extra_data</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">extra_data</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

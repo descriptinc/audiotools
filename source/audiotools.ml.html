@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Machine learning &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Layers" href="audiotools.ml.layers.html" />
+    <link rel="prev" title="Metrics for audio similarity" href="audiotools.metrics.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Machine learning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiotools.ml.layers.html">Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-audiotools.ml.accelerator">ML Accelerator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator"><code class="docutils literal notranslate"><span class="pre">Accelerator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.autocast"><code class="docutils literal notranslate"><span class="pre">Accelerator.autocast()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.backward"><code class="docutils literal notranslate"><span class="pre">Accelerator.backward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.prepare_dataloader"><code class="docutils literal notranslate"><span class="pre">Accelerator.prepare_dataloader()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.prepare_model"><code class="docutils literal notranslate"><span class="pre">Accelerator.prepare_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.step"><code class="docutils literal notranslate"><span class="pre">Accelerator.step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.unwrap"><code class="docutils literal notranslate"><span class="pre">Accelerator.unwrap()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.update"><code class="docutils literal notranslate"><span class="pre">Accelerator.update()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-audiotools.ml.decorators">ML Loggers / decorators</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.decorators.Mean"><code class="docutils literal notranslate"><span class="pre">Mean</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Mean.reset"><code class="docutils literal notranslate"><span class="pre">Mean.reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Mean.update"><code class="docutils literal notranslate"><span class="pre">Mean.update()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.decorators.Tracker"><code class="docutils literal notranslate"><span class="pre">Tracker</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.metrics"><code class="docutils literal notranslate"><span class="pre">Tracker.metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.history"><code class="docutils literal notranslate"><span class="pre">Tracker.history</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.writer"><code class="docutils literal notranslate"><span class="pre">Tracker.writer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.rank"><code class="docutils literal notranslate"><span class="pre">Tracker.rank</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.step"><code class="docutils literal notranslate"><span class="pre">Tracker.step</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.tasks"><code class="docutils literal notranslate"><span class="pre">Tracker.tasks</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.pbar"><code class="docutils literal notranslate"><span class="pre">Tracker.pbar</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.consoles"><code class="docutils literal notranslate"><span class="pre">Tracker.consoles</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.live"><code class="docutils literal notranslate"><span class="pre">Tracker.live</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.print"><code class="docutils literal notranslate"><span class="pre">Tracker.print()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.update"><code class="docutils literal notranslate"><span class="pre">Tracker.update()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.done"><code class="docutils literal notranslate"><span class="pre">Tracker.done()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.track"><code class="docutils literal notranslate"><span class="pre">Tracker.track()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.log"><code class="docutils literal notranslate"><span class="pre">Tracker.log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.is_best"><code class="docutils literal notranslate"><span class="pre">Tracker.is_best()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.state_dict"><code class="docutils literal notranslate"><span class="pre">Tracker.state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.decorators.Tracker.load_state_dict"><code class="docutils literal notranslate"><span class="pre">Tracker.load_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">Tracker.done()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">Tracker.is_best()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">Tracker.load_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">Tracker.log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">Tracker.print()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">Tracker.state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">Tracker.track()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">Tracker.update()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.decorators.default_list"><code class="docutils literal notranslate"><span class="pre">default_list()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.decorators.timer"><code class="docutils literal notranslate"><span class="pre">timer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.decorators.when"><code class="docutils literal notranslate"><span class="pre">when()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-audiotools.ml.experiment">Experiment tracking/saving</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.ml.experiment.Experiment"><code class="docutils literal notranslate"><span class="pre">Experiment</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.experiment.Experiment.generate_exp_name"><code class="docutils literal notranslate"><span class="pre">Experiment.generate_exp_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.experiment.Experiment.snapshot"><code class="docutils literal notranslate"><span class="pre">Experiment.snapshot()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Machine learning</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/audiotools.ml.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="machine-learning">
+<h1>Machine learning<a class="headerlink" href="#machine-learning" title="Permalink to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.ml.layers.html">Layers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiotools.ml.layers.html#module-audiotools.ml.layers.base">Base layers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel"><code class="docutils literal notranslate"><span class="pre">BaseModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.EXTERN"><code class="docutils literal notranslate"><span class="pre">BaseModel.EXTERN</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.INTERN"><code class="docutils literal notranslate"><span class="pre">BaseModel.INTERN</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.device"><code class="docutils literal notranslate"><span class="pre">BaseModel.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.load"><code class="docutils literal notranslate"><span class="pre">BaseModel.load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.load_from_folder"><code class="docutils literal notranslate"><span class="pre">BaseModel.load_from_folder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.save"><code class="docutils literal notranslate"><span class="pre">BaseModel.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.save_to_folder"><code class="docutils literal notranslate"><span class="pre">BaseModel.save_to_folder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.base.BaseModel.training"><code class="docutils literal notranslate"><span class="pre">BaseModel.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="audiotools.ml.layers.html#module-audiotools.ml.layers.spectral_gate">Spectral gate</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.spectral_gate.SpectralGate"><code class="docutils literal notranslate"><span class="pre">SpectralGate</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.spectral_gate.SpectralGate.forward"><code class="docutils literal notranslate"><span class="pre">SpectralGate.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="audiotools.ml.layers.html#audiotools.ml.layers.spectral_gate.SpectralGate.training"><code class="docutils literal notranslate"><span class="pre">SpectralGate.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="module-audiotools.ml.accelerator">
+<span id="ml-accelerator"></span><h2>ML Accelerator<a class="headerlink" href="#module-audiotools.ml.accelerator" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.ml.accelerator.</span></span><span class="sig-name descname"><span class="pre">Accelerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">amp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class is used to prepare models and dataloaders for
+usage with DDP or DP. Use the functions prepare_model, prepare_dataloader to
+prepare the respective objects. In the case of models, they are moved to
+the appropriate GPU and SyncBatchNorm is applied to them. In the case of
+dataloaders, a sampler is created and the dataloader is initialized with
+that sampler.</p>
+<p>If the world size is 1, prepare_model and prepare_dataloader are
+no-ops. If the environment variable <code class="docutils literal notranslate"><span class="pre">LOCAL_RANK</span></code> is not set, then the
+script was launched without <code class="docutils literal notranslate"><span class="pre">torchrun</span></code>, and <code class="docutils literal notranslate"><span class="pre">DataParallel</span></code>
+will be used instead of <code class="docutils literal notranslate"><span class="pre">DistributedDataParallel</span></code> (not recommended), if
+the world size (number of GPUs) is greater than 1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>amp</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether or not to enable automatic mixed precision, by default False</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.autocast">
+<span class="sig-name descname"><span class="pre">autocast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.autocast"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.autocast" title="Permalink to this definition"></a></dt>
+<dd><p>Context manager for autocasting. Arguments
+go to <code class="docutils literal notranslate"><span class="pre">torch.cuda.amp.autocast</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.backward">
+<span class="sig-name descname"><span class="pre">backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.backward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.backward" title="Permalink to this definition"></a></dt>
+<dd><p>Backwards pass, after scaling the loss if <code class="docutils literal notranslate"><span class="pre">amp</span></code> is
+enabled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>loss</strong> (<em>torch.Tensor</em>) – Loss value.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.prepare_dataloader">
+<span class="sig-name descname"><span class="pre">prepare_dataloader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.prepare_dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.prepare_dataloader" title="Permalink to this definition"></a></dt>
+<dd><p>Wraps a dataset with a DataLoader, using the correct sampler if DDP is
+enabled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<em>Iterable</em>) – Dataset to build Dataloader around.</p></li>
+<li><p><strong>start_idx</strong> (<em>int</em><em>, </em><em>optional</em>) – Start index of sampler, useful if resuming from some epoch,
+by default None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.prepare_model">
+<span class="sig-name descname"><span class="pre">prepare_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Module</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.prepare_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.prepare_model" title="Permalink to this definition"></a></dt>
+<dd><p>Prepares model for DDP or DP. The model is moved to
+the device of the correct rank.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>model</strong> (<em>torch.nn.Module</em>) – Model that is converted for DDP or DP.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Wrapped model, or original model if DDP and DP are turned off.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.nn.Module</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optimizer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.step" title="Permalink to this definition"></a></dt>
+<dd><p>Steps the optimizer, using a <code class="docutils literal notranslate"><span class="pre">scaler</span></code> if <code class="docutils literal notranslate"><span class="pre">amp</span></code> is
+enabled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>optimizer</strong> (<em>torch.optim.Optimizer</em>) – Optimizer to step forward.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.unwrap">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">unwrap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.unwrap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.unwrap" title="Permalink to this definition"></a></dt>
+<dd><p>Unwraps the model if it was wrapped in DDP or DP, otherwise
+just returns the model. Use this to unwrap the model returned by
+<a class="reference internal" href="#audiotools.ml.accelerator.Accelerator.prepare_model" title="audiotools.ml.accelerator.Accelerator.prepare_model"><code class="xref py py-func docutils literal notranslate"><span class="pre">audiotools.ml.accelerator.Accelerator.prepare_model()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.accelerator.Accelerator.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/accelerator.html#Accelerator.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.accelerator.Accelerator.update" title="Permalink to this definition"></a></dt>
+<dd><p>Updates the scale factor.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-audiotools.ml.decorators">
+<span id="ml-loggers-decorators"></span><h2>ML Loggers / decorators<a class="headerlink" href="#module-audiotools.ml.decorators" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Mean">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.ml.decorators.</span></span><span class="sig-name descname"><span class="pre">Mean</span></span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Mean"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Mean" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Keeps track of the running mean, along with the latest
+value.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Mean.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Mean.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Mean.reset" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Mean.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Mean.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Mean.update" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.ml.decorators.</span></span><span class="sig-name descname"><span class="pre">Tracker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">writer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">SummaryWriter</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">console_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A tracker class that helps to monitor the progress of training and logging the metrics.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.metrics">
+<span class="sig-name descname"><span class="pre">metrics</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.metrics" title="Permalink to this definition"></a></dt>
+<dd><p>A dictionary containing the metrics for each label.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.history">
+<span class="sig-name descname"><span class="pre">history</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.history" title="Permalink to this definition"></a></dt>
+<dd><p>A dictionary containing the history of metrics for each label.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.writer">
+<span class="sig-name descname"><span class="pre">writer</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.writer" title="Permalink to this definition"></a></dt>
+<dd><p>A SummaryWriter object for logging the metrics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>SummaryWriter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.rank">
+<span class="sig-name descname"><span class="pre">rank</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.rank" title="Permalink to this definition"></a></dt>
+<dd><p>The rank of the current process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.step">
+<span class="sig-name descname"><span class="pre">step</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.step" title="Permalink to this definition"></a></dt>
+<dd><p>The current step of the training.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.tasks">
+<span class="sig-name descname"><span class="pre">tasks</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.tasks" title="Permalink to this definition"></a></dt>
+<dd><p>A dictionary containing the progress bars and tables for each label.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.pbar">
+<span class="sig-name descname"><span class="pre">pbar</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.pbar" title="Permalink to this definition"></a></dt>
+<dd><p>A progress bar object for displaying the progress.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>Progress</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.consoles">
+<span class="sig-name descname"><span class="pre">consoles</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.consoles" title="Permalink to this definition"></a></dt>
+<dd><p>A list of console objects for logging.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.live">
+<span class="sig-name descname"><span class="pre">live</span></span><a class="headerlink" href="#audiotools.ml.decorators.Tracker.live" title="Permalink to this definition"></a></dt>
+<dd><p>A Live object for updating the display live.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>Live</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.print">
+<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.print"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.print" title="Permalink to this definition"></a></dt>
+<dd><p>Prints the given message to all consoles.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fn_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.update" title="Permalink to this definition"></a></dt>
+<dd><p>Updates the progress bar and table for the given label.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.done">
+<span class="sig-name descname"><span class="pre">done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.done"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.done" title="Permalink to this definition"></a></dt>
+<dd><p>Resets the progress bar and table for the given label and prints the final result.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.track">
+<span class="sig-name descname"><span class="pre">track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">completed:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">op:</span> <span class="pre">dist.ReduceOp</span> <span class="pre">=</span> <span class="pre">dist.ReduceOp.AVG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ddp_active:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">&quot;LOCAL_RANK&quot;</span> <span class="pre">in</span> <span class="pre">os.environ</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.track" title="Permalink to this definition"></a></dt>
+<dd><p>A decorator for tracking the progress and metrics of a function.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'value'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">history</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.log" title="Permalink to this definition"></a></dt>
+<dd><p>A decorator for logging the metrics of a function.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.is_best">
+<span class="sig-name descname"><span class="pre">is_best</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.is_best"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.is_best" title="Permalink to this definition"></a></dt>
+<dd><p>Checks if the latest value of the given key in the label is the best so far.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.state_dict">
+<span class="sig-name descname"><span class="pre">state_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.state_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a dictionary containing the state of the tracker.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.Tracker.load_state_dict">
+<span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#audiotools.ml.decorators.Tracker" title="audiotools.ml.decorators.Tracker"><span class="pre">Tracker</span></a></span></span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.Tracker.load_state_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Loads the state of the tracker from the given state dictionary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.done"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id0" title="Permalink to this definition"></a></dt>
+<dd><p>Resets the progress bar and table for the given label and prints the final result.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – The label of the progress bar and table to be reset.</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – The title to be displayed when printing the final result.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">is_best</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.is_best"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id1" title="Permalink to this definition"></a></dt>
+<dd><p>Checks if the latest value of the given key in the label is the best so far.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – The label of the metrics to be checked.</p></li>
+<li><p><strong>key</strong> (<em>str</em>) – The key of the metric to be checked.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if the latest value is the best so far, otherwise False.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id2" title="Permalink to this definition"></a></dt>
+<dd><p>Loads the state of the tracker from the given state dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>state_dict</strong> (<em>dict</em>) – A dictionary containing the history and step of the tracker.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The tracker object with the loaded state.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#audiotools.ml.decorators.Tracker" title="audiotools.ml.decorators.Tracker">Tracker</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'value'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">history</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id3" title="Permalink to this definition"></a></dt>
+<dd><p>A decorator for logging the metrics of a function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – The label to be associated with the logging.</p></li>
+<li><p><strong>value_type</strong> (<em>str</em><em>, </em><em>optional</em>) – The type of value to be logged, by default “value”.</p></li>
+<li><p><strong>history</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the history of the metrics, by default True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.print"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id4" title="Permalink to this definition"></a></dt>
+<dd><p>Prints the given message to all consoles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>msg</strong> (<em>str</em>) – The message to be printed.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">state_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id5" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a dictionary containing the state of the tracker.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A dictionary containing the history and step of the tracker.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">completed:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">op:</span> <span class="pre">~torch.distributed.distributed_c10d.ReduceOp</span> <span class="pre">=</span> <span class="pre">&lt;RedOpType.AVG:</span> <span class="pre">1&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ddp_active:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id6" title="Permalink to this definition"></a></dt>
+<dd><p>A decorator for tracking the progress and metrics of a function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – The label to be associated with the progress and metrics.</p></li>
+<li><p><strong>length</strong> (<em>int</em>) – The total number of iterations to be completed.</p></li>
+<li><p><strong>completed</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of iterations already completed, by default 0.</p></li>
+<li><p><strong>op</strong> (<em>dist.ReduceOp</em><em>, </em><em>optional</em>) – The reduce operation to be used, by default dist.ReduceOp.AVG.</p></li>
+<li><p><strong>ddp_active</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether the DistributedDataParallel is active, by default “LOCAL_RANK” in os.environ.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fn_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#Tracker.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id7" title="Permalink to this definition"></a></dt>
+<dd><p>Updates the progress bar and table for the given label.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – The label of the progress bar and table to be updated.</p></li>
+<li><p><strong>fn_name</strong> (<em>str</em>) – The name of the function associated with the label.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.default_list">
+<span class="sig-prename descclassname"><span class="pre">audiotools.ml.decorators.</span></span><span class="sig-name descname"><span class="pre">default_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#default_list"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.default_list" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.timer">
+<span class="sig-prename descclassname"><span class="pre">audiotools.ml.decorators.</span></span><span class="sig-name descname"><span class="pre">timer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'time'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#timer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.timer" title="Permalink to this definition"></a></dt>
+<dd><p>Adds execution time to the output dictionary of the decorated
+function. The function decorated by this must output a dictionary.
+The key added will follow the form “[prefix]/[name_of_function]”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>prefix</strong> (<em>str</em><em>, </em><em>optional</em>) – The key added will follow the form “[prefix]/[name_of_function]”,
+by default “time”.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="audiotools.ml.decorators.when">
+<span class="sig-prename descclassname"><span class="pre">audiotools.ml.decorators.</span></span><span class="sig-name descname"><span class="pre">when</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">condition</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/decorators.html#when"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.decorators.when" title="Permalink to this definition"></a></dt>
+<dd><p>Runs a function only when the condition is met. The condition is
+a function that is run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>condition</strong> (<em>Callable</em>) – Function to run to check whether or not to run the decorated
+function.</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<p>Checkpoint only runs every 100 iterations, and only if the
+local rank is 0.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rank</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nd">@when</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">checkpoint</span><span class="p">():</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Saving to /runs/exp1&quot;</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">checkpoint</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-audiotools.ml.experiment">
+<span id="experiment-tracking-saving"></span><h2>Experiment tracking/saving<a class="headerlink" href="#module-audiotools.ml.experiment" title="Permalink to this heading"></a></h2>
+<p>Useful class for Experiment tracking, and ensuring code is
+saved alongside files.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.ml.experiment.Experiment">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.ml.experiment.</span></span><span class="sig-name descname"><span class="pre">Experiment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exp_directory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'runs/'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/experiment.html#Experiment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.experiment.Experiment" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class contains utilities for managing experiments.
+It is a context manager, that when you enter it, changes
+your directory to a specified experiment folder (which
+optionally can have an automatically generated experiment
+name, or a specified one), and changes the CUDA device used
+to the specified device (or devices).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>exp_directory</strong> (<em>str</em>) – Folder where all experiments are saved, by default “runs/”.</p></li>
+<li><p><strong>exp_name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the experiment, by default uses the current time, date, and
+hostname to save.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.experiment.Experiment.generate_exp_name">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">generate_exp_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/experiment.html#Experiment.generate_exp_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.experiment.Experiment.generate_exp_name" title="Permalink to this definition"></a></dt>
+<dd><p>Generates a random experiment name based on the date
+and a randomly generated adjective-noun tuple.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Randomly generated experiment name.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.experiment.Experiment.snapshot">
+<span class="sig-name descname"><span class="pre">snapshot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_fn:</span> <span class="pre">~typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">Experiment.&lt;lambda&gt;&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/experiment.html#Experiment.snapshot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.experiment.Experiment.snapshot" title="Permalink to this definition"></a></dt>
+<dd><p>Captures a full snapshot of all the files tracked by git at the time
+the experiment is run. It also captures the diff against the committed
+code as a separate file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filter_fn</strong> (<em>Callable</em><em>, </em><em>optional</em>) – Function that can be used to exclude some files
+from the snapshot, by default accepts all files</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="audiotools.metrics.html" class="btn btn-neutral float-left" title="Metrics for audio similarity" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="audiotools.ml.layers.html" class="btn btn-neutral float-right" title="Layers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

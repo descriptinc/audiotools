@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Layers &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tools for sharing audio" href="audiotools.post.html" />
+    <link rel="prev" title="Machine learning" href="audiotools.ml.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="audiotools.ml.html">Machine learning</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Layers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-audiotools.ml.layers.base">Base layers</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel"><code class="docutils literal notranslate"><span class="pre">BaseModel</span></code></a><ul>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.EXTERN"><code class="docutils literal notranslate"><span class="pre">BaseModel.EXTERN</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.INTERN"><code class="docutils literal notranslate"><span class="pre">BaseModel.INTERN</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.device"><code class="docutils literal notranslate"><span class="pre">BaseModel.device</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.load"><code class="docutils literal notranslate"><span class="pre">BaseModel.load()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.load_from_folder"><code class="docutils literal notranslate"><span class="pre">BaseModel.load_from_folder()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.save"><code class="docutils literal notranslate"><span class="pre">BaseModel.save()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.save_to_folder"><code class="docutils literal notranslate"><span class="pre">BaseModel.save_to_folder()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.training"><code class="docutils literal notranslate"><span class="pre">BaseModel.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-audiotools.ml.layers.spectral_gate">Spectral gate</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.ml.layers.spectral_gate.SpectralGate"><code class="docutils literal notranslate"><span class="pre">SpectralGate</span></code></a><ul>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.spectral_gate.SpectralGate.forward"><code class="docutils literal notranslate"><span class="pre">SpectralGate.forward()</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="#audiotools.ml.layers.spectral_gate.SpectralGate.training"><code class="docutils literal notranslate"><span class="pre">SpectralGate.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="audiotools.ml.html#module-audiotools.ml.accelerator">ML Accelerator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiotools.ml.html#module-audiotools.ml.decorators">ML Loggers / decorators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiotools.ml.html#module-audiotools.ml.experiment">Experiment tracking/saving</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="audiotools.ml.html">Machine learning</a> &raquo;</li>
+      <li>Layers</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/audiotools.ml.layers.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="layers">
+<h1>Layers<a class="headerlink" href="#layers" title="Permalink to this heading"></a></h1>
+<section id="module-audiotools.ml.layers.base">
+<span id="base-layers"></span><h2>Base layers<a class="headerlink" href="#module-audiotools.ml.layers.base" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.ml.layers.base.</span></span><span class="sig-name descname"><span class="pre">BaseModel</span></span><a class="reference internal" href="../_modules/audiotools/ml/layers/base.html#BaseModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>This is a class that adds useful save/load functionality to a
+<code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code> object. <code class="docutils literal notranslate"><span class="pre">BaseModel</span></code> objects can be saved
+as <code class="docutils literal notranslate"><span class="pre">torch.package</span></code> easily, making them super easy to port between
+machines without requiring a ton of dependencies. Files can also be
+saved as just weights, in the standard way.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">ml</span><span class="o">.</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg1</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="bp">self</span><span class="o">.</span><span class="n">arg1</span> <span class="o">=</span> <span class="n">arg1</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model1</span> <span class="o">=</span> <span class="n">Model</span><span class="p">()</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.pth&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model1</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model2</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">out2</span> <span class="o">=</span> <span class="n">seed_and_run</span><span class="p">(</span><span class="n">model2</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">out1</span><span class="p">,</span> <span class="n">out2</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model1</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">package</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model2</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model2</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">package</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model3</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">out3</span> <span class="o">=</span> <span class="n">seed_and_run</span><span class="p">(</span><span class="n">model3</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model1</span><span class="o">.</span><span class="n">save_to_folder</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">Model</span><span class="o">.</span><span class="n">load_from_folder</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.EXTERN">
+<span class="sig-name descname"><span class="pre">EXTERN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['audiotools.**',</span> <span class="pre">'tqdm',</span> <span class="pre">'__main__',</span> <span class="pre">'numpy.**',</span> <span class="pre">'julius.**',</span> <span class="pre">'torchaudio.**',</span> <span class="pre">'scipy.**',</span> <span class="pre">'einops']</span></em><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.EXTERN" title="Permalink to this definition"></a></dt>
+<dd><p>Names of libraries that are external to the torch.package saving mechanism.
+Source code from these libraries will not be packaged into the model. This can
+be edited by the user of this class by editing <code class="docutils literal notranslate"><span class="pre">model.EXTERN</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.INTERN">
+<span class="sig-name descname"><span class="pre">INTERN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.INTERN" title="Permalink to this definition"></a></dt>
+<dd><p>Names of libraries that are internal to the torch.package saving mechanism.
+Source code from these libraries will be saved alongside the model.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.device">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.device" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the device the model is on by looking at the device of
+the first parameter. May not be valid if model is split across
+multiple devices.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.load">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/layers/base.html#BaseModel.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.load" title="Permalink to this definition"></a></dt>
+<dd><p>Load model from a path. Tries first to load as a package, and if
+that fails, tries to load as weights. The arguments to the class are
+specified inside the model weights file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>location</strong> (<em>str</em>) – Path to file.</p></li>
+<li><p><strong>package_name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of package, by default <code class="docutils literal notranslate"><span class="pre">cls.__name__</span></code>.</p></li>
+<li><p><strong>strict</strong> (<em>bool</em><em>, </em><em>optional</em>) – Ignore unmatched keys, by default False</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – Additional keyword arguments to the model instantiation, if
+not loading from package.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A model that inherits from BaseModel.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#audiotools.ml.layers.base.BaseModel" title="audiotools.ml.layers.base.BaseModel">BaseModel</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.load_from_folder">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Path</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/layers/base.html#BaseModel.load_from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.load_from_folder" title="Permalink to this definition"></a></dt>
+<dd><p>Loads the model from a folder generated by
+<a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.save_to_folder" title="audiotools.ml.layers.base.BaseModel.save_to_folder"><code class="xref py py-func docutils literal notranslate"><span class="pre">audiotools.ml.layers.base.BaseModel.save_to_folder()</span></code></a>.
+Like that function, this one looks for a subfolder that has
+the name of the class (e.g. <code class="docutils literal notranslate"><span class="pre">folder/generator/[package,</span> <span class="pre">weights].pth</span></code> if the
+model name was <code class="docutils literal notranslate"><span class="pre">Generator</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>Path</em><em>]</em>) – _description_</p></li>
+<li><p><strong>package</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to use <code class="docutils literal notranslate"><span class="pre">torch.package</span></code> to load the model,
+loading the model from <code class="docutils literal notranslate"><span class="pre">package.pth</span></code>.</p></li>
+<li><p><strong>strict</strong> (<em>bool</em><em>, </em><em>optional</em>) – Ignore unmatched keys, by default False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tuple of model and extra data as saved by
+<a class="reference internal" href="#audiotools.ml.layers.base.BaseModel.save_to_folder" title="audiotools.ml.layers.base.BaseModel.save_to_folder"><code class="xref py py-func docutils literal notranslate"><span class="pre">audiotools.ml.layers.base.BaseModel.save_to_folder()</span></code></a>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intern</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extern</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mock</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/layers/base.html#BaseModel.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.save" title="Permalink to this definition"></a></dt>
+<dd><p>Saves the model, either as a torch package, or just as
+weights, alongside some specified metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>str</em>) – Path to save model to.</p></li>
+<li><p><strong>metadata</strong> (<em>dict</em><em>, </em><em>optional</em>) – Any metadata to save alongside the model,
+by default None</p></li>
+<li><p><strong>package</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to use <code class="docutils literal notranslate"><span class="pre">torch.package</span></code> to save the model in
+a format that is portable, by default True</p></li>
+<li><p><strong>intern</strong> (<em>list</em><em>, </em><em>optional</em>) – List of additional libraries that are internal
+to the model, used with torch.package, by default []</p></li>
+<li><p><strong>extern</strong> (<em>list</em><em>, </em><em>optional</em>) – List of additional libraries that are external to
+the model, used with torch.package, by default []</p></li>
+<li><p><strong>mock</strong> (<em>list</em><em>, </em><em>optional</em>) – List of libraries to mock, used with torch.package,
+by default []</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Path to saved model.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.save_to_folder">
+<span class="sig-name descname"><span class="pre">save_to_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Path</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/layers/base.html#BaseModel.save_to_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.save_to_folder" title="Permalink to this definition"></a></dt>
+<dd><p>Dumps a model into a folder, as both a package
+and as weights, as well as anything specified in
+<code class="docutils literal notranslate"><span class="pre">extra_data</span></code>. <code class="docutils literal notranslate"><span class="pre">extra_data</span></code> is a dictionary of other
+pickleable files, with the keys being the paths
+to save them in. The model is saved under a subfolder
+specified by the name of the class (e.g. <code class="docutils literal notranslate"><span class="pre">folder/generator/[package,</span> <span class="pre">weights].pth</span></code>
+if the model name was <code class="docutils literal notranslate"><span class="pre">Generator</span></code>).</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">extra_data</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="s2">&quot;optimizer.pth&quot;</span><span class="p">:</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">model</span><span class="o">.</span><span class="n">save_to_folder</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">extra_data</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">Model</span><span class="o">.</span><span class="n">load_from_folder</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>Path</em><em>]</em>) – _description_</p></li>
+<li><p><strong>extra_data</strong> (<em>dict</em><em>, </em><em>optional</em>) – _description_, by default None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Path to folder</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.layers.base.BaseModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#audiotools.ml.layers.base.BaseModel.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-audiotools.ml.layers.spectral_gate">
+<span id="spectral-gate"></span><h2>Spectral gate<a class="headerlink" href="#module-audiotools.ml.layers.spectral_gate" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.ml.layers.spectral_gate.SpectralGate">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.ml.layers.spectral_gate.</span></span><span class="sig-name descname"><span class="pre">SpectralGate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/layers/spectral_gate.html#SpectralGate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.spectral_gate.SpectralGate" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Spectral gating algorithm for noise reduction,
+as in Audacity/Ocenaudio. The steps are as follows:</p>
+<ol class="arabic simple">
+<li><p>An FFT is calculated over the noise audio clip</p></li>
+<li><p>Statistics are calculated over FFT of the the noise
+(in frequency)</p></li>
+<li><p>A threshold is calculated based upon the statistics
+of the noise (and the desired sensitivity of the algorithm)</p></li>
+<li><p>An FFT is calculated over the signal</p></li>
+<li><p>A mask is determined by comparing the signal FFT to the
+threshold</p></li>
+<li><p>The mask is smoothed with a filter over frequency and time</p></li>
+<li><p>The mask is appled to the FFT of the signal, and is inverted</p></li>
+</ol>
+<p>Implementation inspired by Tim Sainburg’s noisereduce:</p>
+<p><a class="reference external" href="https://timsainburg.com/noise-reduction-python.html">https://timsainburg.com/noise-reduction-python.html</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_freq</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of frequency bins to smooth by, by default 3</p></li>
+<li><p><strong>n_time</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of time bins to smooth by, by default 5</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.ml.layers.spectral_gate.SpectralGate.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">audio_signal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">nz_signal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">denoise_amount</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_std</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">win_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hop_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">512</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/ml/layers/spectral_gate.html#SpectralGate.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.ml.layers.spectral_gate.SpectralGate.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Perform noise reduction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>audio_signal</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Audio signal that noise will be removed from.</p></li>
+<li><p><strong>nz_signal</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a><em>, </em><em>optional</em>) – Noise signal to compute noise statistics from.</p></li>
+<li><p><strong>denoise_amount</strong> (<em>float</em><em>, </em><em>optional</em>) – Amount to denoise by, by default 1.0</p></li>
+<li><p><strong>n_std</strong> (<em>float</em><em>, </em><em>optional</em>) – Number of standard deviations above which to consider
+noise, by default 3.0</p></li>
+<li><p><strong>win_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Length of window for STFT, by default 2048</p></li>
+<li><p><strong>hop_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Hop length for STFT, by default 512</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Denoised audio signal.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal">AudioSignal</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.ml.layers.spectral_gate.SpectralGate.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#audiotools.ml.layers.spectral_gate.SpectralGate.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="audiotools.ml.html" class="btn btn-neutral float-left" title="Machine learning" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="audiotools.post.html" class="btn btn-neutral float-right" title="Tools for sharing audio" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

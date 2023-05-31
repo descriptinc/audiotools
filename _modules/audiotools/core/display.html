@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.core.display &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.core.display</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.core.display</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span>
+
+
+<div class="viewcode-block" id="format_figure"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.format_figure">[docs]</a><span class="k">def</span> <span class="nf">format_figure</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator for formatting figures produced by the code below.</span>
+<span class="sd">    See :py:func:`audiotools.core.util.format_figure` for more.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    func : Callable</span>
+<span class="sd">        Plotting function that is decorated by this function.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">f_keys</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">util</span><span class="o">.</span><span class="n">format_figure</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">f_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">f_keys</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="n">f_kwargs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">util</span><span class="o">.</span><span class="n">format_figure</span><span class="p">(</span><span class="o">**</span><span class="n">f_kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
+<div class="viewcode-block" id="DisplayMixin"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.DisplayMixin">[docs]</a><span class="k">class</span> <span class="nc">DisplayMixin</span><span class="p">:</span>
+<div class="viewcode-block" id="DisplayMixin.specshow"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.DisplayMixin.specshow">[docs]</a>    <span class="nd">@format_figure</span>
+    <span class="k">def</span> <span class="nf">specshow</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">preemphasis</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">x_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span><span class="p">,</span>
+        <span class="n">y_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+        <span class="n">n_mels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Displays a spectrogram, using ``librosa.display.specshow``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        preemphasis : bool, optional</span>
+<span class="sd">            Whether or not to apply preemphasis, which makes high</span>
+<span class="sd">            frequency detail easier to see, by default False</span>
+<span class="sd">        x_axis : str, optional</span>
+<span class="sd">            How to label the x axis, by default &quot;time&quot;</span>
+<span class="sd">        y_axis : str, optional</span>
+<span class="sd">            How to label the y axis, by default &quot;linear&quot;</span>
+<span class="sd">        n_mels : int, optional</span>
+<span class="sd">            If displaying a mel spectrogram with ``y_axis = &quot;mel&quot;``,</span>
+<span class="sd">            this controls the number of mels, by default 128.</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to :py:func:`audiotools.core.util.format_figure`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">librosa</span>
+        <span class="kn">import</span> <span class="nn">librosa.display</span>
+
+        <span class="c1"># Always re-compute the STFT data before showing it, in case</span>
+        <span class="c1"># it changed.</span>
+        <span class="n">signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">preemphasis</span><span class="p">:</span>
+            <span class="n">signal</span><span class="o">.</span><span class="n">preemphasis</span><span class="p">()</span>
+
+        <span class="n">ref</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">magnitude</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">log_mag</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">log_magnitude</span><span class="p">(</span><span class="n">ref_value</span><span class="o">=</span><span class="n">ref</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">y_axis</span> <span class="o">==</span> <span class="s2">&quot;mel&quot;</span><span class="p">:</span>
+            <span class="n">log_mag</span> <span class="o">=</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">signal</span><span class="o">.</span><span class="n">mel_spectrogram</span><span class="p">(</span><span class="n">n_mels</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mf">1e-5</span><span class="p">)</span><span class="o">.</span><span class="n">log10</span><span class="p">()</span>
+            <span class="n">log_mag</span> <span class="o">-=</span> <span class="n">log_mag</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+        <span class="n">librosa</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">specshow</span><span class="p">(</span>
+            <span class="n">log_mag</span><span class="o">.</span><span class="n">numpy</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+            <span class="n">x_axis</span><span class="o">=</span><span class="n">x_axis</span><span class="p">,</span>
+            <span class="n">y_axis</span><span class="o">=</span><span class="n">y_axis</span><span class="p">,</span>
+            <span class="n">sr</span><span class="o">=</span><span class="n">signal</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="DisplayMixin.waveplot"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.DisplayMixin.waveplot">[docs]</a>    <span class="nd">@format_figure</span>
+    <span class="k">def</span> <span class="nf">waveplot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Displays a waveform plot, using ``librosa.display.waveshow``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x_axis : str, optional</span>
+<span class="sd">            How to label the x axis, by default &quot;time&quot;</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to :py:func:`audiotools.core.util.format_figure`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">librosa</span>
+        <span class="kn">import</span> <span class="nn">librosa.display</span>
+
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+        <span class="n">plot_fn</span> <span class="o">=</span> <span class="s2">&quot;waveshow&quot;</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">librosa</span><span class="o">.</span><span class="n">display</span><span class="p">,</span> <span class="s2">&quot;waveshow&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;waveplot&quot;</span>
+        <span class="n">wave_plot_fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">librosa</span><span class="o">.</span><span class="n">display</span><span class="p">,</span> <span class="n">plot_fn</span><span class="p">)</span>
+        <span class="n">wave_plot_fn</span><span class="p">(</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">x_axis</span><span class="o">=</span><span class="n">x_axis</span><span class="p">,</span> <span class="n">sr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DisplayMixin.wavespec"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.DisplayMixin.wavespec">[docs]</a>    <span class="nd">@format_figure</span>
+    <span class="k">def</span> <span class="nf">wavespec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Displays a waveform plot, using ``librosa.display.waveshow``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x_axis : str, optional</span>
+<span class="sd">            How to label the x axis, by default &quot;time&quot;</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.gridspec</span> <span class="kn">import</span> <span class="n">GridSpec</span>
+
+        <span class="n">gs</span> <span class="o">=</span> <span class="n">GridSpec</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">waveplot</span><span class="p">(</span><span class="n">x_axis</span><span class="o">=</span><span class="n">x_axis</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">specshow</span><span class="p">(</span><span class="n">x_axis</span><span class="o">=</span><span class="n">x_axis</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DisplayMixin.write_audio_to_tb"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.DisplayMixin.write_audio_to_tb">[docs]</a>    <span class="k">def</span> <span class="nf">write_audio_to_tb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">writer</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">plot_fn</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;specshow&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes a signal and its spectrogram to Tensorboard. Will show up</span>
+<span class="sd">        under the Audio and Images tab in Tensorboard.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        tag : str</span>
+<span class="sd">            Tag to write signal to (e.g. ``clean/sample_0.wav``). The image will be</span>
+<span class="sd">            written to the corresponding ``.png`` file (e.g. ``clean/sample_0.png``).</span>
+<span class="sd">        writer : SummaryWriter</span>
+<span class="sd">            A SummaryWriter object from PyTorch library.</span>
+<span class="sd">        step : int, optional</span>
+<span class="sd">            The step to write the signal to, by default None</span>
+<span class="sd">        plot_fn : typing.Union[typing.Callable, str], optional</span>
+<span class="sd">            How to create the image. Set to ``None`` to avoid plotting, by default &quot;specshow&quot;</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow` or</span>
+<span class="sd">            whatever ``plot_fn`` is set to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+        <span class="n">sample_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">add_audio</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">audio_data</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">plot_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plot_fn</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">plot_fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_fn</span><span class="p">)</span>
+            <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+            <span class="n">plot_fn</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">add_figure</span><span class="p">(</span><span class="n">tag</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;wav&quot;</span><span class="p">,</span> <span class="s2">&quot;png&quot;</span><span class="p">),</span> <span class="n">fig</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DisplayMixin.save_image"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.display.DisplayMixin.save_image">[docs]</a>    <span class="k">def</span> <span class="nf">save_image</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">plot_fn</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">typing</span><span class="o">.</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;specshow&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Save AudioSignal spectrogram (or whatever ``plot_fn`` is set to) to</span>
+<span class="sd">        a specified file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        image_path : str</span>
+<span class="sd">            Where to save the file to.</span>
+<span class="sd">        plot_fn : typing.Union[typing.Callable, str], optional</span>
+<span class="sd">            How to create the image. Set to ``None`` to avoid plotting, by default &quot;specshow&quot;</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to :py:func:`audiotools.core.display.DisplayMixin.specshow` or</span>
+<span class="sd">            whatever ``plot_fn`` is set to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plot_fn</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">plot_fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_fn</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+        <span class="n">plot_fn</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">image_path</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">,</span> <span class="n">pad_inches</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

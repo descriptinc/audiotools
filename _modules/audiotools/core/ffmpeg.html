@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.core.ffmpeg &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.core.ffmpeg</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.core.ffmpeg</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">shlex</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">ffmpy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+
+
+<div class="viewcode-block" id="r128stats"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.ffmpeg.r128stats">[docs]</a><span class="k">def</span> <span class="nf">r128stats</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">quiet</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Takes a path to an audio file, returns a dict with the loudness</span>
+<span class="sd">    stats computed by the ffmpeg ebur128 filter.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filepath : str</span>
+<span class="sd">        Path to compute loudness stats on.</span>
+<span class="sd">    quiet : bool</span>
+<span class="sd">        Whether to show FFMPEG output during computation.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Dictionary containing loudness stats.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ffargs</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;ffmpeg&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;-nostats&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;-i&quot;</span><span class="p">,</span>
+        <span class="n">filepath</span><span class="p">,</span>
+        <span class="s2">&quot;-filter_complex&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ebur128&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;-f&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;null&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;-&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">quiet</span><span class="p">:</span>
+        <span class="n">ffargs</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;-hide_banner&quot;</span><span class="p">]</span>
+    <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">ffargs</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">universal_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">proc</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">summary_index</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s2">&quot;Summary:&quot;</span><span class="p">)</span>
+
+    <span class="n">summary_list</span> <span class="o">=</span> <span class="n">stats</span><span class="p">[</span><span class="n">summary_index</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="n">i_lufs</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">summary_list</span><span class="p">[</span><span class="n">summary_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;I:&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">i_thresh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">summary_list</span><span class="p">[</span><span class="n">summary_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;I:&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="n">lra</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">summary_list</span><span class="p">[</span><span class="n">summary_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;LRA:&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">lra_thresh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">summary_list</span><span class="p">[</span><span class="n">summary_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;LRA:&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="n">lra_low</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">summary_list</span><span class="p">[</span><span class="n">summary_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;low:&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">lra_high</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">summary_list</span><span class="p">[</span><span class="n">summary_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;high:&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">stats_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;I&quot;</span><span class="p">:</span> <span class="n">i_lufs</span><span class="p">,</span>
+        <span class="s2">&quot;I Threshold&quot;</span><span class="p">:</span> <span class="n">i_thresh</span><span class="p">,</span>
+        <span class="s2">&quot;LRA&quot;</span><span class="p">:</span> <span class="n">lra</span><span class="p">,</span>
+        <span class="s2">&quot;LRA Threshold&quot;</span><span class="p">:</span> <span class="n">lra_thresh</span><span class="p">,</span>
+        <span class="s2">&quot;LRA Low&quot;</span><span class="p">:</span> <span class="n">lra_low</span><span class="p">,</span>
+        <span class="s2">&quot;LRA High&quot;</span><span class="p">:</span> <span class="n">lra_high</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">stats_dict</span></div>
+
+
+<div class="viewcode-block" id="ffprobe_offset"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.ffmpeg.ffprobe_offset">[docs]</a><span class="k">def</span> <span class="nf">ffprobe_offset</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">ff</span> <span class="o">=</span> <span class="n">ffmpy</span><span class="o">.</span><span class="n">FFprobe</span><span class="p">(</span>
+        <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="n">path</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+        <span class="n">global_options</span><span class="o">=</span><span class="s2">&quot;-show_entries format=start_time:stream=duration,start_time,codec_type,start_pts,time_base -of json -v quiet&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">streams</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ff</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)[</span><span class="mi">0</span><span class="p">])[</span><span class="s2">&quot;streams&quot;</span><span class="p">]</span>
+    <span class="n">seconds_offset</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="c1"># Get the offset of the first audio stream we find</span>
+    <span class="c1"># and return its start time, if it has one.</span>
+    <span class="k">for</span> <span class="n">stream</span> <span class="ow">in</span> <span class="n">streams</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">stream</span><span class="p">[</span><span class="s2">&quot;codec_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;audio&quot;</span><span class="p">:</span>
+            <span class="n">seconds_offset</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;start_time&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">seconds_offset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FFMPEGMixin"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.ffmpeg.FFMPEGMixin">[docs]</a><span class="k">class</span> <span class="nc">FFMPEGMixin</span><span class="p">:</span>
+    <span class="n">_loudness</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="FFMPEGMixin.ffmpeg_loudness"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.ffmpeg.FFMPEGMixin.ffmpeg_loudness">[docs]</a>    <span class="k">def</span> <span class="nf">ffmpeg_loudness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quiet</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes loudness of audio file using FFMPEG.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        quiet : bool, optional</span>
+<span class="sd">            Whether to show FFMPEG output during computation,</span>
+<span class="sd">            by default True</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Loudness of every item in the batch, computed via</span>
+<span class="sd">            FFMPEG.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">loudness</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.wav&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">):</span>
+                <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">loudness_stats</span> <span class="o">=</span> <span class="n">r128stats</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="n">quiet</span><span class="p">)</span>
+                <span class="n">loudness</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loudness_stats</span><span class="p">[</span><span class="s2">&quot;I&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">loudness</span><span class="p">))</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loudness</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FFMPEGMixin.ffmpeg_resample"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.ffmpeg.FFMPEGMixin.ffmpeg_resample">[docs]</a>    <span class="k">def</span> <span class="nf">ffmpeg_resample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">quiet</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Resamples AudioSignal using FFMPEG. More memory-efficient</span>
+<span class="sd">        than using julius.resample for long audio files.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_rate : int</span>
+<span class="sd">            Sample rate to resample to.</span>
+<span class="sd">        quiet : bool, optional</span>
+<span class="sd">            Whether to show FFMPEG output during computation,</span>
+<span class="sd">            by default True</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Resampled AudioSignal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">audiotools</span> <span class="kn">import</span> <span class="n">AudioSignal</span>
+
+        <span class="k">if</span> <span class="n">sample_rate</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.wav&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">f_out</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;wav&quot;</span><span class="p">,</span> <span class="s2">&quot;rs.wav&quot;</span><span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;ffmpeg -i </span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> -ar </span><span class="si">{</span><span class="n">sample_rate</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">f_out</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">quiet</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot; -hide_banner -loglevel error&quot;</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
+            <span class="n">resampled</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span><span class="n">f_out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">resampled</span></div>
+
+<div class="viewcode-block" id="FFMPEGMixin.load_from_file_with_ffmpeg"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.ffmpeg.FFMPEGMixin.load_from_file_with_ffmpeg">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load_from_file_with_ffmpeg</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">audio_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">quiet</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads AudioSignal object after decoding it to a wav file using FFMPEG.</span>
+<span class="sd">        Useful for loading audio that isn&#39;t covered by librosa&#39;s loading mechanism. Also</span>
+<span class="sd">        useful for loading mp3 files, without any offset.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_path : str</span>
+<span class="sd">            Path to load AudioSignal from.</span>
+<span class="sd">        quiet : bool, optional</span>
+<span class="sd">            Whether to show FFMPEG output during computation,</span>
+<span class="sd">            by default True</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal loaded from file with FFMPEG.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">audio_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">audio_path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+            <span class="n">wav_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;extracted.wav&quot;</span><span class="p">)</span>
+            <span class="n">padded_wav</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;padded.wav&quot;</span><span class="p">)</span>
+
+            <span class="n">global_options</span> <span class="o">=</span> <span class="s2">&quot;-y&quot;</span>
+            <span class="k">if</span> <span class="n">quiet</span><span class="p">:</span>
+                <span class="n">global_options</span> <span class="o">+=</span> <span class="s2">&quot; -loglevel error&quot;</span>
+
+            <span class="n">ff</span> <span class="o">=</span> <span class="n">ffmpy</span><span class="o">.</span><span class="n">FFmpeg</span><span class="p">(</span>
+                <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="n">audio_path</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+                <span class="n">outputs</span><span class="o">=</span><span class="p">{</span><span class="n">wav_file</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+                <span class="n">global_options</span><span class="o">=</span><span class="n">global_options</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">ff</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+            <span class="c1"># We pad the file using the start time offset</span>
+            <span class="c1"># in case it&#39;s an audio stream starting at some</span>
+            <span class="c1"># offset in a video container.</span>
+            <span class="n">pad</span> <span class="o">=</span> <span class="n">ffprobe_offset</span><span class="p">(</span><span class="n">audio_path</span><span class="p">)</span>
+            <span class="c1"># Don&#39;t pad files with discrepancies less than</span>
+            <span class="c1"># 0.027s - it&#39;s likely due to codec latency.</span>
+            <span class="c1"># The amount of latency introduced by mp3 is</span>
+            <span class="c1"># 1152, which is 0.0261 44khz. So we</span>
+            <span class="c1"># set the threshold here slightly above that.</span>
+            <span class="c1"># Source: https://lame.sourceforge.io/tech-FAQ.txt.</span>
+            <span class="k">if</span> <span class="n">pad</span> <span class="o">&lt;</span> <span class="mf">0.027</span><span class="p">:</span>
+                <span class="n">pad</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">ff</span> <span class="o">=</span> <span class="n">ffmpy</span><span class="o">.</span><span class="n">FFmpeg</span><span class="p">(</span>
+                <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="n">wav_file</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+                <span class="n">outputs</span><span class="o">=</span><span class="p">{</span><span class="n">padded_wav</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;-af &#39;adelay=</span><span class="si">{</span><span class="n">pad</span><span class="o">*</span><span class="mi">1000</span><span class="si">}</span><span class="s2">:all=true&#39;&quot;</span><span class="p">},</span>
+                <span class="n">global_options</span><span class="o">=</span><span class="n">global_options</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">ff</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+            <span class="n">signal</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">padded_wav</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">signal</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

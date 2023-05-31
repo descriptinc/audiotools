@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.core.playback &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.core.playback</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.core.playback</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">These are utilities that allow one to embed an AudioSignal</span>
+<span class="sd">as a playable object in a Jupyter notebook, or to play audio from</span>
+<span class="sd">the terminal, etc.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">from</span> <span class="nn">tempfile</span> <span class="kn">import</span> <span class="n">NamedTemporaryFile</span>
+
+<span class="kn">import</span> <span class="nn">importlib_resources</span> <span class="k">as</span> <span class="nn">pkg_resources</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">templates</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">_close_temp_files</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">format_figure</span>
+
+<span class="n">headers</span> <span class="o">=</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="s2">&quot;headers.html&quot;</span><span class="p">)</span>
+<span class="n">widget</span> <span class="o">=</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="s2">&quot;widget.html&quot;</span><span class="p">)</span>
+
+<span class="n">DEFAULT_EXTENSION</span> <span class="o">=</span> <span class="s2">&quot;.wav&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">_check_imports</span><span class="p">():</span>  <span class="c1"># pragma: no cover</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">ffmpy</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">ffmpy</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">IPython</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;IPython must be installed in order to use this function!&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ffmpy</span><span class="p">,</span> <span class="n">IPython</span>
+
+
+<div class="viewcode-block" id="PlayMixin"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.playback.PlayMixin">[docs]</a><span class="k">class</span> <span class="nc">PlayMixin</span><span class="p">:</span>
+<div class="viewcode-block" id="PlayMixin.embed"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.playback.PlayMixin.embed">[docs]</a>    <span class="k">def</span> <span class="nf">embed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">return_html</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Embeds audio as a playable audio embed in a notebook, or HTML</span>
+<span class="sd">        document, etc.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ext : str, optional</span>
+<span class="sd">            Extension to use when saving the audio, by default &quot;.wav&quot;</span>
+<span class="sd">        display : bool, optional</span>
+<span class="sd">            This controls whether or not to display the audio when called. This</span>
+<span class="sd">            is used when the embed is the last line in a Jupyter cell, to prevent</span>
+<span class="sd">            the audio from being embedded twice, by default True</span>
+<span class="sd">        return_html : bool, optional</span>
+<span class="sd">            Whether to return the data wrapped in an HTML audio element, by default False</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Either the element for display, or the HTML string of it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ext</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ext</span> <span class="o">=</span> <span class="n">DEFAULT_EXTENSION</span>
+        <span class="n">ext</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">ext</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">ext</span>
+        <span class="n">ffmpy</span><span class="p">,</span> <span class="n">IPython</span> <span class="o">=</span> <span class="n">_check_imports</span><span class="p">()</span>
+        <span class="n">sr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span>
+        <span class="n">tmpfiles</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">with</span> <span class="n">_close_temp_files</span><span class="p">(</span><span class="n">tmpfiles</span><span class="p">):</span>
+            <span class="n">tmp_wav</span> <span class="o">=</span> <span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w+&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.wav&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">tmpfiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_wav</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">tmp_wav</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ext</span> <span class="o">!=</span> <span class="s2">&quot;.wav&quot;</span> <span class="ow">and</span> <span class="n">ffmpy</span><span class="p">:</span>
+                <span class="n">tmp_converted</span> <span class="o">=</span> <span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w+&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">ext</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">tmpfiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_wav</span><span class="p">)</span>
+                <span class="n">ff</span> <span class="o">=</span> <span class="n">ffmpy</span><span class="o">.</span><span class="n">FFmpeg</span><span class="p">(</span>
+                    <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="n">tmp_wav</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+                    <span class="n">outputs</span><span class="o">=</span><span class="p">{</span>
+                        <span class="n">tmp_converted</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="s2">&quot;-write_xing 0 -codec:a libmp3lame -b:a 128k -y -hide_banner -loglevel error&quot;</span>
+                    <span class="p">},</span>
+                <span class="p">)</span>
+                <span class="n">ff</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tmp_converted</span> <span class="o">=</span> <span class="n">tmp_wav</span>
+
+            <span class="n">audio_element</span> <span class="o">=</span> <span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">Audio</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">tmp_converted</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="n">sr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+                <span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">audio_element</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">return_html</span><span class="p">:</span>
+            <span class="n">audio_element</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&lt;audio &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;  controls &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;  src=&#39;</span><span class="si">{</span><span class="n">audio_element</span><span class="o">.</span><span class="n">src_attr</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;&gt; &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&lt;/audio&gt; &quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">audio_element</span></div>
+
+<div class="viewcode-block" id="PlayMixin.widget"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.playback.PlayMixin.widget">[docs]</a>    <span class="k">def</span> <span class="nf">widget</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.wav&quot;</span><span class="p">,</span>
+        <span class="n">add_headers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">player_width</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;100%&quot;</span><span class="p">,</span>
+        <span class="n">margin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;10px&quot;</span><span class="p">,</span>
+        <span class="n">plot_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;specshow&quot;</span><span class="p">,</span>
+        <span class="n">return_html</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a playable widget with spectrogram. Inspired (heavily) by</span>
+<span class="sd">        https://sjvasquez.github.io/blog/melnet/.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        title : str, optional</span>
+<span class="sd">            Title of plot, placed in upper right of top-most axis.</span>
+<span class="sd">        ext : str, optional</span>
+<span class="sd">            Extension for embedding, by default &quot;.mp3&quot;</span>
+<span class="sd">        add_headers : bool, optional</span>
+<span class="sd">            Whether or not to add headers (use for first embed, False for later embeds), by default True</span>
+<span class="sd">        player_width : str, optional</span>
+<span class="sd">            Width of the player, as a string in a CSS rule, by default &quot;100%&quot;</span>
+<span class="sd">        margin : str, optional</span>
+<span class="sd">            Margin on all sides of player, by default &quot;10px&quot;</span>
+<span class="sd">        plot_fn : function, optional</span>
+<span class="sd">            Plotting function to use (by default self.specshow).</span>
+<span class="sd">        return_html : bool, optional</span>
+<span class="sd">            Whether to return the data wrapped in an HTML audio element, by default False</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to plot_fn (by default self.specshow).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        HTML</span>
+<span class="sd">            HTML object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+        <span class="k">def</span> <span class="nf">_save_fig_to_tag</span><span class="p">():</span>
+            <span class="n">buffer</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
+
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">,</span> <span class="n">pad_inches</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+            <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">data_uri</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">buffer</span><span class="o">.</span><span class="n">read</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="s2">&quot;data:image/png;base64,</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_uri</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">tag</span>
+
+        <span class="n">_</span><span class="p">,</span> <span class="n">IPython</span> <span class="o">=</span> <span class="n">_check_imports</span><span class="p">()</span>
+
+        <span class="n">header_html</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">add_headers</span><span class="p">:</span>
+            <span class="n">header_html</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;PLAYER_WIDTH&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">player_width</span><span class="p">))</span>
+            <span class="n">header_html</span> <span class="o">=</span> <span class="n">header_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;MARGIN&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">margin</span><span class="p">))</span>
+            <span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="n">header_html</span><span class="p">))</span>
+
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plot_fn</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">plot_fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_fn</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">title</span>
+        <span class="n">plot_fn</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span>
+        <span class="n">pixels</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">get_size_inches</span><span class="p">()</span> <span class="o">*</span> <span class="n">fig</span><span class="o">.</span><span class="n">dpi</span>
+
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">_save_fig_to_tag</span><span class="p">()</span>
+
+        <span class="c1"># Make the source image for the levels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">specshow</span><span class="p">()</span>
+        <span class="n">format_figure</span><span class="p">((</span><span class="mi">12</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">))</span>
+        <span class="n">levels_tag</span> <span class="o">=</span> <span class="n">_save_fig_to_tag</span><span class="p">()</span>
+
+        <span class="n">player_id</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_uppercase</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+
+        <span class="n">audio_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="n">ext</span><span class="o">=</span><span class="n">ext</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;AUDIO_SRC&quot;</span><span class="p">,</span> <span class="n">audio_elem</span><span class="o">.</span><span class="n">src_attr</span><span class="p">())</span>
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;IMAGE_SRC&quot;</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;LEVELS_SRC&quot;</span><span class="p">,</span> <span class="n">levels_tag</span><span class="p">)</span>
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;PLAYER_ID&quot;</span><span class="p">,</span> <span class="n">player_id</span><span class="p">)</span>
+
+        <span class="c1"># Calculate width/height of figure based on figure size.</span>
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;PADDING_AMOUNT&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">pixels</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="si">}</span><span class="s2">px&quot;</span><span class="p">)</span>
+        <span class="n">widget_html</span> <span class="o">=</span> <span class="n">widget_html</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;MAX_WIDTH&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">pixels</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s2">px&quot;</span><span class="p">)</span>
+
+        <span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">IPython</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="n">widget_html</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">return_html</span><span class="p">:</span>
+            <span class="n">html</span> <span class="o">=</span> <span class="n">header_html</span> <span class="k">if</span> <span class="n">add_headers</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">html</span> <span class="o">+=</span> <span class="n">widget_html</span>
+            <span class="k">return</span> <span class="n">html</span></div>
+
+<div class="viewcode-block" id="PlayMixin.play"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.playback.PlayMixin.play">[docs]</a>    <span class="k">def</span> <span class="nf">play</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plays an audio signal if ffplay from the ffmpeg suite of tools is installed.</span>
+<span class="sd">        Otherwise, will fail. The audio signal is written to a temporary file</span>
+<span class="sd">        and then played with ffplay.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tmpfiles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">with</span> <span class="n">_close_temp_files</span><span class="p">(</span><span class="n">tmpfiles</span><span class="p">):</span>
+            <span class="n">tmp_wav</span> <span class="o">=</span> <span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.wav&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">tmpfiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_wav</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">tmp_wav</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="s2">&quot;ffplay&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;-nodisp&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;-autoexit&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;-hide_banner&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;-loglevel&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="n">tmp_wav</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+    <span class="kn">from</span> <span class="nn">audiotools</span> <span class="kn">import</span> <span class="n">AudioSignal</span>
+
+    <span class="n">signal</span> <span class="o">=</span> <span class="n">AudioSignal</span><span class="p">(</span>
+        <span class="s2">&quot;tests/audio/spk/f10_script4_produced.mp3&quot;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mi">5</span>
+    <span class="p">)</span>
+
+    <span class="n">wave_html</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">widget</span><span class="p">(</span>
+        <span class="s2">&quot;Waveform&quot;</span><span class="p">,</span>
+        <span class="n">plot_fn</span><span class="o">=</span><span class="s2">&quot;waveplot&quot;</span><span class="p">,</span>
+        <span class="n">return_html</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">spec_html</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">widget</span><span class="p">(</span><span class="s2">&quot;Spectrogram&quot;</span><span class="p">,</span> <span class="n">return_html</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">add_headers</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">combined_html</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">widget</span><span class="p">(</span>
+        <span class="s2">&quot;Waveform + spectrogram&quot;</span><span class="p">,</span>
+        <span class="n">plot_fn</span><span class="o">=</span><span class="s2">&quot;wavespec&quot;</span><span class="p">,</span>
+        <span class="n">return_html</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">add_headers</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">signal</span><span class="o">.</span><span class="n">low_pass</span><span class="p">(</span><span class="mi">8000</span><span class="p">)</span>
+    <span class="n">lowpass_html</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">widget</span><span class="p">(</span>
+        <span class="s2">&quot;Lowpassed audio&quot;</span><span class="p">,</span>
+        <span class="n">plot_fn</span><span class="o">=</span><span class="s2">&quot;wavespec&quot;</span><span class="p">,</span>
+        <span class="n">return_html</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">add_headers</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/tmp/index.html&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">wave_html</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">spec_html</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">combined_html</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">lowpass_html</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

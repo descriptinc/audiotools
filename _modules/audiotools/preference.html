@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.preference &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.preference</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.preference</h1><div class="highlight"><pre>
+<span></span><span class="c1">##############################################################</span>
+<span class="c1">### Tools for creating preference tests (MUSHRA, ABX, etc) ###</span>
+<span class="c1">##############################################################</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">import</span> <span class="nn">gradio</span> <span class="k">as</span> <span class="nn">gr</span>
+
+<span class="kn">from</span> <span class="nn">audiotools.core.util</span> <span class="kn">import</span> <span class="n">find_audio</span>
+
+<span class="c1">################################################################</span>
+<span class="c1">### Logic for audio player, and adding audio / play buttons. ###</span>
+<span class="c1">################################################################</span>
+
+<span class="n">WAVESURFER</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;&lt;div id=&quot;waveform&quot;&gt;&lt;/div&gt;&quot;&quot;&quot;</span>
+
+<span class="n">CUSTOM_CSS</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">.gradio-container {</span>
+<span class="s2">    max-width: 840px !important;</span>
+<span class="s2">}</span>
+<span class="s2">region.wavesurfer-region:before {</span>
+<span class="s2">    content: attr(data-region-label);</span>
+<span class="s2">}</span>
+
+<span class="s2">block {</span>
+<span class="s2">    min-width: 0 !important;</span>
+<span class="s2">}</span>
+
+<span class="s2">.head.svelte-1cl284s {</span>
+<span class="s2">    display: none;</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">load_wavesurfer_js</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function load_wavesurfer() {</span>
+<span class="s2">    function load_script(url) {</span>
+<span class="s2">        const script = document.createElement(&#39;script&#39;);</span>
+<span class="s2">        script.src = url;</span>
+<span class="s2">        document.body.appendChild(script);</span>
+
+<span class="s2">        return new Promise((res, rej) =&gt; {</span>
+<span class="s2">            script.onload = function() {</span>
+<span class="s2">                res();</span>
+<span class="s2">            }</span>
+<span class="s2">            script.onerror = function () {</span>
+<span class="s2">                rej();</span>
+<span class="s2">            }</span>
+<span class="s2">        });</span>
+<span class="s2">    }</span>
+
+<span class="s2">    function create_wavesurfer() {</span>
+<span class="s2">        var options = {</span>
+<span class="s2">            container: &#39;#waveform&#39;,</span>
+<span class="s2">            waveColor: &#39;#F2F2F2&#39;, // Set a darker wave color</span>
+<span class="s2">            progressColor: &#39;white&#39;, // Set a slightly lighter progress color</span>
+<span class="s2">            loaderColor: &#39;white&#39;, // Set a slightly lighter loader color</span>
+<span class="s2">            cursorColor: &#39;black&#39;, // Set a slightly lighter cursor color</span>
+<span class="s2">            backgroundColor: &#39;#00AAFF&#39;, // Set a black background color</span>
+<span class="s2">            barWidth: 4,</span>
+<span class="s2">            barRadius: 3,</span>
+<span class="s2">            barHeight: 1, // the height of the wave</span>
+<span class="s2">            plugins: [</span>
+<span class="s2">                WaveSurfer.regions.create({</span>
+<span class="s2">                    regionsMinLength: 0.0,</span>
+<span class="s2">                    dragSelection: {</span>
+<span class="s2">                        slop: 5</span>
+<span class="s2">                    },</span>
+<span class="s2">                    color: &#39;hsla(200, 50%, 70%, 0.4)&#39;,</span>
+<span class="s2">                }),</span>
+<span class="s2">            ]</span>
+<span class="s2">        };</span>
+<span class="s2">        wavesurfer = WaveSurfer.create(options);</span>
+<span class="s2">        wavesurfer.on(&#39;region-created&#39;, region =&gt; {</span>
+<span class="s2">            wavesurfer.regions.clear();</span>
+<span class="s2">        });</span>
+<span class="s2">        wavesurfer.on(&#39;finish&#39;, function () {</span>
+<span class="s2">            var loop =  document.getElementById(&quot;loop-button&quot;).textContent.includes(&quot;ON&quot;);</span>
+<span class="s2">            if (loop) {</span>
+<span class="s2">                wavesurfer.play();</span>
+<span class="s2">            }</span>
+<span class="s2">            else {</span>
+<span class="s2">                var button_elements = document.getElementsByClassName(&#39;playpause&#39;)</span>
+<span class="s2">                var buttons = Array.from(button_elements);</span>
+
+<span class="s2">                for (let j = 0; j &lt; buttons.length; j++) {</span>
+<span class="s2">                    buttons[j].classList.remove(&quot;primary&quot;);</span>
+<span class="s2">                    buttons[j].classList.add(&quot;secondary&quot;);</span>
+<span class="s2">                    buttons[j].textContent = buttons[j].textContent.replace(&quot;Stop&quot;, &quot;Play&quot;)</span>
+<span class="s2">                }</span>
+<span class="s2">            }</span>
+<span class="s2">        });</span>
+
+<span class="s2">        wavesurfer.on(&#39;region-out&#39;, function () {</span>
+<span class="s2">            var loop =  document.getElementById(&quot;loop-button&quot;).textContent.includes(&quot;ON&quot;);</span>
+<span class="s2">            if (!loop) {</span>
+<span class="s2">                var button_elements = document.getElementsByClassName(&#39;playpause&#39;)</span>
+<span class="s2">                var buttons = Array.from(button_elements);</span>
+
+<span class="s2">                for (let j = 0; j &lt; buttons.length; j++) {</span>
+<span class="s2">                    buttons[j].classList.remove(&quot;primary&quot;);</span>
+<span class="s2">                    buttons[j].classList.add(&quot;secondary&quot;);</span>
+<span class="s2">                    buttons[j].textContent = buttons[j].textContent.replace(&quot;Stop&quot;, &quot;Play&quot;)</span>
+<span class="s2">                }</span>
+<span class="s2">                wavesurfer.pause();</span>
+<span class="s2">            }</span>
+<span class="s2">        });</span>
+
+<span class="s2">        console.log(&quot;Created WaveSurfer object.&quot;)</span>
+<span class="s2">    }</span>
+
+<span class="s2">    load_script(&#39;https://unpkg.com/wavesurfer.js&#39;)</span>
+<span class="s2">        .then(() =&gt; {</span>
+<span class="s2">            load_script(&quot;https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.min.js&quot;)</span>
+<span class="s2">                .then(() =&gt; {</span>
+<span class="s2">                    load_script(&#39;https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.min.js&#39;)</span>
+<span class="s2">                        .then(() =&gt; {</span>
+<span class="s2">                            console.log(&quot;Loaded regions&quot;);</span>
+<span class="s2">                            create_wavesurfer();</span>
+<span class="s2">                            document.getElementById(&quot;start-survey&quot;).click();</span>
+<span class="s2">                        })</span>
+<span class="s2">                })</span>
+<span class="s2">        });</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">play</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function play() {</span>
+<span class="s2">    var audio_elements = document.getElementsByTagName(&#39;audio&#39;);</span>
+<span class="s2">    var button_elements = document.getElementsByClassName(&#39;playpause&#39;)</span>
+
+<span class="s2">    var audio_array = Array.from(audio_elements);</span>
+<span class="s2">    var buttons = Array.from(button_elements);</span>
+
+<span class="s2">    var src_link = audio_array[</span><span class="si">{i}</span><span class="s2">].getAttribute(&quot;src&quot;);</span>
+<span class="s2">    console.log(src_link);</span>
+
+<span class="s2">    var loop = document.getElementById(&quot;loop-button&quot;).textContent.includes(&quot;ON&quot;);</span>
+<span class="s2">    var playing = buttons[</span><span class="si">{i}</span><span class="s2">].textContent.includes(&quot;Stop&quot;);</span>
+
+<span class="s2">    for (let j = 0; j &lt; buttons.length; j++) {</span>
+<span class="s2">        if (j != </span><span class="si">{i}</span><span class="s2"> || playing) {</span>
+<span class="s2">            buttons[j].classList.remove(&quot;primary&quot;);</span>
+<span class="s2">            buttons[j].classList.add(&quot;secondary&quot;);</span>
+<span class="s2">            buttons[j].textContent = buttons[j].textContent.replace(&quot;Stop&quot;, &quot;Play&quot;)</span>
+<span class="s2">        }</span>
+<span class="s2">        else {</span>
+<span class="s2">            buttons[j].classList.remove(&quot;secondary&quot;);</span>
+<span class="s2">            buttons[j].classList.add(&quot;primary&quot;);</span>
+<span class="s2">            buttons[j].textContent = buttons[j].textContent.replace(&quot;Play&quot;, &quot;Stop&quot;)</span>
+<span class="s2">        }</span>
+<span class="s2">    }</span>
+
+<span class="s2">    if (playing) {</span>
+<span class="s2">        wavesurfer.pause();</span>
+<span class="s2">        wavesurfer.seekTo(0.0);</span>
+<span class="s2">    }</span>
+<span class="s2">    else {</span>
+<span class="s2">        wavesurfer.load(src_link);</span>
+<span class="s2">        wavesurfer.on(&#39;ready&#39;, function () {</span>
+<span class="s2">            var region = Object.values(wavesurfer.regions.list)[0];</span>
+
+<span class="s2">            if (region != null) {</span>
+<span class="s2">                region.loop = loop;</span>
+<span class="s2">                region.play();</span>
+<span class="s2">            } else {</span>
+<span class="s2">                wavesurfer.play();</span>
+<span class="s2">            }</span>
+<span class="s2">        });</span>
+<span class="s2">    }</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+    <span class="s2">&quot;</span><span class="si">{i}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">clear_regions</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function clear_regions() {</span>
+<span class="s2">    wavesurfer.clearRegions();</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">reset_player</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function reset_player() {</span>
+<span class="s2">    wavesurfer.clearRegions();</span>
+<span class="s2">    wavesurfer.pause();</span>
+<span class="s2">    wavesurfer.seekTo(0.0);</span>
+
+<span class="s2">    var button_elements = document.getElementsByClassName(&#39;playpause&#39;)</span>
+<span class="s2">    var buttons = Array.from(button_elements);</span>
+
+<span class="s2">    for (let j = 0; j &lt; buttons.length; j++) {</span>
+<span class="s2">        buttons[j].classList.remove(&quot;primary&quot;);</span>
+<span class="s2">        buttons[j].classList.add(&quot;secondary&quot;);</span>
+<span class="s2">        buttons[j].textContent = buttons[j].textContent.replace(&quot;Stop&quot;, &quot;Play&quot;)</span>
+<span class="s2">    }</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">loop_region</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function loop_region() {</span>
+<span class="s2">    var element = document.getElementById(&quot;loop-button&quot;);</span>
+<span class="s2">    var loop = element.textContent.includes(&quot;OFF&quot;);</span>
+<span class="s2">    console.log(loop);</span>
+
+<span class="s2">    try {</span>
+<span class="s2">        var region = Object.values(wavesurfer.regions.list)[0];</span>
+<span class="s2">        region.loop = loop;</span>
+<span class="s2">    } catch </span><span class="si">{}</span><span class="s2"></span>
+
+<span class="s2">    if (loop) {</span>
+<span class="s2">        element.classList.remove(&quot;secondary&quot;);</span>
+<span class="s2">        element.classList.add(&quot;primary&quot;);</span>
+<span class="s2">        element.textContent = &quot;Looping ON&quot;;</span>
+<span class="s2">    } else {</span>
+<span class="s2">        element.classList.remove(&quot;primary&quot;);</span>
+<span class="s2">        element.classList.add(&quot;secondary&quot;);</span>
+<span class="s2">        element.textContent = &quot;Looping OFF&quot;;</span>
+<span class="s2">    }</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="Player"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Player">[docs]</a><span class="k">class</span> <span class="nc">Player</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">_js</span><span class="o">=</span><span class="n">load_wavesurfer_js</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">css</span> <span class="o">=</span> <span class="n">CUSTOM_CSS</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">wavs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="Player.create"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Player.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gr</span><span class="o">.</span><span class="n">HTML</span><span class="p">(</span><span class="n">WAVESURFER</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">gr</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span>
+            <span class="s2">&quot;Click and drag on the waveform above to select a region for playback. &quot;</span>
+            <span class="s2">&quot;Once created, the region can be moved around and resized. &quot;</span>
+            <span class="s2">&quot;Clear the regions using the button below. Hit play on one of the buttons below to start!&quot;</span>
+        <span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">():</span>
+            <span class="n">clear</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Clear region&quot;</span><span class="p">)</span>
+            <span class="n">loop</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Looping OFF&quot;</span><span class="p">,</span> <span class="n">elem_id</span><span class="o">=</span><span class="s2">&quot;loop-button&quot;</span><span class="p">)</span>
+
+            <span class="n">loop</span><span class="o">.</span><span class="n">click</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">_js</span><span class="o">=</span><span class="n">loop_region</span><span class="p">)</span>
+            <span class="n">clear</span><span class="o">.</span><span class="n">click</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">_js</span><span class="o">=</span><span class="n">clear_regions</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Player.add"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Player.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Play&quot;</span><span class="p">):</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wavs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;audio&quot;</span><span class="p">:</span> <span class="n">gr</span><span class="o">.</span><span class="n">Audio</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+                <span class="s2">&quot;button&quot;</span><span class="p">:</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">elem_classes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;playpause&quot;</span><span class="p">]),</span>
+                <span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wavs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;button&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">click</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">_js</span><span class="o">=</span><span class="n">play</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Player.to_list"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Player.to_list">[docs]</a>    <span class="k">def</span> <span class="nf">to_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;audio&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavs</span><span class="p">]</span></div></div>
+
+
+<span class="c1">############################################################</span>
+<span class="c1">### Keeping track of users, and CSS for the progress bar ###</span>
+<span class="c1">############################################################</span>
+
+<span class="n">load_tracker</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function load_name() {</span>
+<span class="s2">    function setCookie(name, value, exp_days) {</span>
+<span class="s2">        var d = new Date();</span>
+<span class="s2">        d.setTime(d.getTime() + (exp_days*24*60*60*1000));</span>
+<span class="s2">        var expires = &quot;expires=&quot; + d.toGMTString();</span>
+<span class="s2">        document.cookie = name + &quot;=&quot; + value + &quot;;&quot; + expires + &quot;;path=/&quot;;</span>
+<span class="s2">    }</span>
+
+<span class="s2">    function getCookie(name) {</span>
+<span class="s2">        var cname = name + &quot;=&quot;;</span>
+<span class="s2">        var decodedCookie = decodeURIComponent(document.cookie);</span>
+<span class="s2">        var ca = decodedCookie.split(&#39;;&#39;);</span>
+<span class="s2">        for(var i = 0; i &lt; ca.length; i++){</span>
+<span class="s2">            var c = ca[i];</span>
+<span class="s2">            while(c.charAt(0) == &#39; &#39;){</span>
+<span class="s2">                c = c.substring(1);</span>
+<span class="s2">            }</span>
+<span class="s2">            if(c.indexOf(cname) == 0){</span>
+<span class="s2">                return c.substring(cname.length, c.length);</span>
+<span class="s2">            }</span>
+<span class="s2">        }</span>
+<span class="s2">        return &quot;&quot;;</span>
+<span class="s2">    }</span>
+
+<span class="s2">    name = getCookie(&quot;name&quot;);</span>
+<span class="s2">    if (name == &quot;&quot;) {</span>
+<span class="s2">        name = Math.random().toString(36).slice(2);</span>
+<span class="s2">        console.log(name);</span>
+<span class="s2">        setCookie(&quot;name&quot;, name, 30);</span>
+<span class="s2">    }</span>
+<span class="s2">    name = getCookie(&quot;name&quot;);</span>
+<span class="s2">    return name;</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1"># Progress bar</span>
+
+<span class="n">progress_template</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">&lt;!DOCTYPE html&gt;</span>
+<span class="s2">&lt;html&gt;</span>
+<span class="s2">  &lt;head&gt;</span>
+<span class="s2">    &lt;title&gt;Progress Bar&lt;/title&gt;</span>
+<span class="s2">    &lt;style&gt;</span>
+<span class="s2">      .progress-bar {</span>
+<span class="s2">        background-color: #ddd;</span>
+<span class="s2">        border-radius: 4px;</span>
+<span class="s2">        height: 30px;</span>
+<span class="s2">        width: 100%;</span>
+<span class="s2">        position: relative;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .progress {</span>
+<span class="s2">        background-color: #00AAFF;</span>
+<span class="s2">        border-radius: 4px;</span>
+<span class="s2">        height: 100%;</span>
+<span class="s2">        width: </span><span class="si">{PROGRESS}</span><span class="s2">%; /* Change this value to control the progress */</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .progress-text {</span>
+<span class="s2">        position: absolute;</span>
+<span class="s2">        top: 50%;</span>
+<span class="s2">        left: 50%;</span>
+<span class="s2">        transform: translate(-50%, -50%);</span>
+<span class="s2">        font-size: 18px;</span>
+<span class="s2">        font-family: Arial, sans-serif;</span>
+<span class="s2">        font-weight: bold;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">        text-shadow: 1px 1px #fff;</span>
+<span class="s2">      }</span>
+<span class="s2">    &lt;/style&gt;</span>
+<span class="s2">  &lt;/head&gt;</span>
+<span class="s2">  &lt;body&gt;</span>
+<span class="s2">    &lt;div class=&quot;progress-bar&quot;&gt;</span>
+<span class="s2">      &lt;div class=&quot;progress&quot;&gt;&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;progress-text&quot;&gt;</span><span class="si">{TEXT}</span><span class="s2">&lt;/div&gt;</span>
+<span class="s2">    &lt;/div&gt;</span>
+<span class="s2">  &lt;/body&gt;</span>
+<span class="s2">&lt;/html&gt;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="create_tracker"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.create_tracker">[docs]</a><span class="k">def</span> <span class="nf">create_tracker</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">elem_id</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">_js</span><span class="o">=</span><span class="n">load_tracker</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">user</span></div>
+
+
+<span class="c1">#################################################################</span>
+<span class="c1">### CSS and HTML for labeling sliders for both ABX and MUSHRA ###</span>
+<span class="c1">#################################################################</span>
+
+<span class="n">slider_abx</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">&lt;!DOCTYPE html&gt;</span>
+<span class="s2">&lt;html&gt;</span>
+<span class="s2">  &lt;head&gt;</span>
+<span class="s2">    &lt;meta charset=&quot;UTF-8&quot;&gt;</span>
+<span class="s2">    &lt;title&gt;Labels Example&lt;/title&gt;</span>
+<span class="s2">    &lt;style&gt;</span>
+<span class="s2">      body {</span>
+<span class="s2">        margin: 0;</span>
+<span class="s2">        padding: 0;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .labels-container {</span>
+<span class="s2">        display: flex;</span>
+<span class="s2">        justify-content: space-between;</span>
+<span class="s2">        align-items: center;</span>
+<span class="s2">        width: 100%;</span>
+<span class="s2">        height: 40px;</span>
+<span class="s2">        padding: 0px 12px 0px;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label {</span>
+<span class="s2">        display: flex;</span>
+<span class="s2">        justify-content: center;</span>
+<span class="s2">        align-items: center;</span>
+<span class="s2">        width: 33%;</span>
+<span class="s2">        height: 100%;</span>
+<span class="s2">        font-weight: bold;</span>
+<span class="s2">        text-transform: uppercase;</span>
+<span class="s2">        padding: 10px;</span>
+<span class="s2">        font-family: Arial, sans-serif;</span>
+<span class="s2">        font-size: 16px;</span>
+<span class="s2">        font-weight: 700;</span>
+<span class="s2">        letter-spacing: 1px;</span>
+<span class="s2">        line-height: 1.5;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-a {</span>
+<span class="s2">        background-color: #00AAFF;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-tie {</span>
+<span class="s2">        background-color: #f97316;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-b {</span>
+<span class="s2">        background-color: #00AAFF;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+<span class="s2">    &lt;/style&gt;</span>
+<span class="s2">  &lt;/head&gt;</span>
+<span class="s2">  &lt;body&gt;</span>
+<span class="s2">    &lt;div class=&quot;labels-container&quot;&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-a&quot;&gt;Prefer A&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-tie&quot;&gt;Toss-up&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-b&quot;&gt;Prefer B&lt;/div&gt;</span>
+<span class="s2">    &lt;/div&gt;</span>
+<span class="s2">  &lt;/body&gt;</span>
+<span class="s2">&lt;/html&gt;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">slider_mushra</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">&lt;!DOCTYPE html&gt;</span>
+<span class="s2">&lt;html&gt;</span>
+<span class="s2">  &lt;head&gt;</span>
+<span class="s2">    &lt;meta charset=&quot;UTF-8&quot;&gt;</span>
+<span class="s2">    &lt;title&gt;Labels Example&lt;/title&gt;</span>
+<span class="s2">    &lt;style&gt;</span>
+<span class="s2">      body {</span>
+<span class="s2">        margin: 0;</span>
+<span class="s2">        padding: 0;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .labels-container {</span>
+<span class="s2">        display: flex;</span>
+<span class="s2">        justify-content: space-between;</span>
+<span class="s2">        align-items: center;</span>
+<span class="s2">        width: 100%;</span>
+<span class="s2">        height: 30px;</span>
+<span class="s2">        padding: 10px;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label {</span>
+<span class="s2">        display: flex;</span>
+<span class="s2">        justify-content: center;</span>
+<span class="s2">        align-items: center;</span>
+<span class="s2">        width: 20%;</span>
+<span class="s2">        height: 100%;</span>
+<span class="s2">        font-weight: bold;</span>
+<span class="s2">        text-transform: uppercase;</span>
+<span class="s2">        padding: 10px;</span>
+<span class="s2">        font-family: Arial, sans-serif;</span>
+<span class="s2">        font-size: 13.5px;</span>
+<span class="s2">        font-weight: 700;</span>
+<span class="s2">        line-height: 1.5;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-bad {</span>
+<span class="s2">        background-color: #ff5555;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-poor {</span>
+<span class="s2">        background-color: #ffa500;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-fair {</span>
+<span class="s2">        background-color: #ffd700;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-good {</span>
+<span class="s2">        background-color: #97d997;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+
+<span class="s2">      .label-excellent {</span>
+<span class="s2">        background-color: #04c822;</span>
+<span class="s2">        color: #333 !important;</span>
+<span class="s2">      }</span>
+<span class="s2">    &lt;/style&gt;</span>
+<span class="s2">  &lt;/head&gt;</span>
+<span class="s2">  &lt;body&gt;</span>
+<span class="s2">    &lt;div class=&quot;labels-container&quot;&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-bad&quot;&gt;bad&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-poor&quot;&gt;poor&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-fair&quot;&gt;fair&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-good&quot;&gt;good&lt;/div&gt;</span>
+<span class="s2">      &lt;div class=&quot;label label-excellent&quot;&gt;excellent&lt;/div&gt;</span>
+<span class="s2">    &lt;/div&gt;</span>
+<span class="s2">  &lt;/body&gt;</span>
+<span class="s2">&lt;/html&gt;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1">#########################################################</span>
+<span class="c1">### Handling loading audio and tracking session state ###</span>
+<span class="c1">#########################################################</span>
+
+
+<div class="viewcode-block" id="Samples"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Samples">[docs]</a><span class="k">class</span> <span class="nc">Samples</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="n">find_audio</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">defaultdict</span><span class="p">())</span>
+
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">condition</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">stem</span>
+            <span class="n">samples</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="n">condition</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">samples</span> <span class="o">=</span> <span class="n">samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filtered</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">shuffle</span><span class="p">:</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">=</span> <span class="n">n_samples</span>
+
+<div class="viewcode-block" id="Samples.get_updates"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Samples.get_updates">[docs]</a>    <span class="k">def</span> <span class="nf">get_updates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">o</span><span class="p">]))</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">order</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Samples.progress"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Samples.progress">[docs]</a>    <span class="k">def</span> <span class="nf">progress</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">pct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">pct</span> <span class="o">=</span> <span class="mi">100</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;On </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="si">}</span><span class="s2"> / </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples&quot;</span>
+        <span class="n">pbar</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">progress_template</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{PROGRESS}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">pct</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{TEXT}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">pbar</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Samples.filter_completed"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Samples.filter_completed">[docs]</a>    <span class="k">def</span> <span class="nf">filter_completed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">save_path</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">filtered</span><span class="p">:</span>
+            <span class="n">done</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                    <span class="n">done</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;sample&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">reader</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">user</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">done</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filtered</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Avoid filtering more than once per session.</span></div>
+
+<div class="viewcode-block" id="Samples.get_next_sample"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.Samples.get_next_sample">[docs]</a>    <span class="k">def</span> <span class="nf">get_next_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">conditions</span><span class="p">):</span>
+        <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">conditions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="p">[</span><span class="n">reference</span><span class="p">]</span> <span class="o">+</span> <span class="n">conditions</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="n">conditions</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">updates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_updates</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">done</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">interactive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">pbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">updates</span> <span class="o">=</span> <span class="p">[</span><span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">))]</span>
+            <span class="n">done</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;No more samples!&quot;</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">pbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">updates</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">pbar</span></div></div>
+
+
+<div class="viewcode-block" id="save_result"><a class="viewcode-back" href="../../source/audiotools.preference.html#audiotools.preference.save_result">[docs]</a><span class="k">def</span> <span class="nf">save_result</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">save_path</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictWriter</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">fieldnames</span><span class="o">=</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">())))</span>
+        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writeheader</span><span class="p">()</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.ml.layers.spectral_gate &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.ml.layers.spectral_gate</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.ml.layers.spectral_gate</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="kn">from</span> <span class="nn">...core</span> <span class="kn">import</span> <span class="n">AudioSignal</span>
+<span class="kn">from</span> <span class="nn">...core</span> <span class="kn">import</span> <span class="n">STFTParams</span>
+<span class="kn">from</span> <span class="nn">...core</span> <span class="kn">import</span> <span class="n">util</span>
+
+
+<div class="viewcode-block" id="SpectralGate"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.spectral_gate.SpectralGate">[docs]</a><span class="k">class</span> <span class="nc">SpectralGate</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Spectral gating algorithm for noise reduction,</span>
+<span class="sd">    as in Audacity/Ocenaudio. The steps are as follows:</span>
+
+<span class="sd">    1.  An FFT is calculated over the noise audio clip</span>
+<span class="sd">    2.  Statistics are calculated over FFT of the the noise</span>
+<span class="sd">        (in frequency)</span>
+<span class="sd">    3.  A threshold is calculated based upon the statistics</span>
+<span class="sd">        of the noise (and the desired sensitivity of the algorithm)</span>
+<span class="sd">    4.  An FFT is calculated over the signal</span>
+<span class="sd">    5.  A mask is determined by comparing the signal FFT to the</span>
+<span class="sd">        threshold</span>
+<span class="sd">    6.  The mask is smoothed with a filter over frequency and time</span>
+<span class="sd">    7.  The mask is appled to the FFT of the signal, and is inverted</span>
+
+<span class="sd">    Implementation inspired by Tim Sainburg&#39;s noisereduce:</span>
+
+<span class="sd">    https://timsainburg.com/noise-reduction-python.html</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    n_freq : int, optional</span>
+<span class="sd">        Number of frequency bins to smooth by, by default 3</span>
+<span class="sd">    n_time : int, optional</span>
+<span class="sd">        Number of time bins to smooth by, by default 5</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_freq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_time</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="n">smoothing_filter</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_freq</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">n_freq</span> <span class="o">+</span> <span class="mi">2</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_time</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">n_time</span> <span class="o">+</span> <span class="mi">2</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="n">smoothing_filter</span> <span class="o">=</span> <span class="n">smoothing_filter</span> <span class="o">/</span> <span class="n">smoothing_filter</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">smoothing_filter</span> <span class="o">=</span> <span class="n">smoothing_filter</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;smoothing_filter&quot;</span><span class="p">,</span> <span class="n">smoothing_filter</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SpectralGate.forward"><a class="viewcode-back" href="../../../../source/audiotools.ml.layers.html#audiotools.ml.layers.spectral_gate.SpectralGate.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">audio_signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">,</span>
+        <span class="n">nz_signal</span><span class="p">:</span> <span class="n">AudioSignal</span><span class="p">,</span>
+        <span class="n">denoise_amount</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">n_std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+        <span class="n">win_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2048</span><span class="p">,</span>
+        <span class="n">hop_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Perform noise reduction.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_signal : AudioSignal</span>
+<span class="sd">            Audio signal that noise will be removed from.</span>
+<span class="sd">        nz_signal : AudioSignal, optional</span>
+<span class="sd">            Noise signal to compute noise statistics from.</span>
+<span class="sd">        denoise_amount : float, optional</span>
+<span class="sd">            Amount to denoise by, by default 1.0</span>
+<span class="sd">        n_std : float, optional</span>
+<span class="sd">            Number of standard deviations above which to consider</span>
+<span class="sd">            noise, by default 3.0</span>
+<span class="sd">        win_length : int, optional</span>
+<span class="sd">            Length of window for STFT, by default 2048</span>
+<span class="sd">        hop_length : int, optional</span>
+<span class="sd">            Hop length for STFT, by default 512</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Denoised audio signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stft_params</span> <span class="o">=</span> <span class="n">STFTParams</span><span class="p">(</span><span class="n">win_length</span><span class="p">,</span> <span class="n">hop_length</span><span class="p">,</span> <span class="s2">&quot;sqrt_hann&quot;</span><span class="p">)</span>
+
+        <span class="n">audio_signal</span> <span class="o">=</span> <span class="n">audio_signal</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">audio_signal</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">audio_signal</span><span class="o">.</span><span class="n">stft_params</span> <span class="o">=</span> <span class="n">stft_params</span>
+
+        <span class="n">nz_signal</span> <span class="o">=</span> <span class="n">nz_signal</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">nz_signal</span><span class="o">.</span><span class="n">stft_params</span> <span class="o">=</span> <span class="n">stft_params</span>
+
+        <span class="n">nz_stft_db</span> <span class="o">=</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">nz_signal</span><span class="o">.</span><span class="n">magnitude</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mf">1e-4</span><span class="p">)</span><span class="o">.</span><span class="n">log10</span><span class="p">()</span>
+        <span class="n">nz_freq_mean</span> <span class="o">=</span> <span class="n">nz_stft_db</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">nz_freq_std</span> <span class="o">=</span> <span class="n">nz_stft_db</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">nz_thresh</span> <span class="o">=</span> <span class="n">nz_freq_mean</span> <span class="o">+</span> <span class="n">nz_freq_std</span> <span class="o">*</span> <span class="n">n_std</span>
+
+        <span class="n">stft_db</span> <span class="o">=</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">audio_signal</span><span class="o">.</span><span class="n">magnitude</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mf">1e-4</span><span class="p">)</span><span class="o">.</span><span class="n">log10</span><span class="p">()</span>
+        <span class="n">nb</span><span class="p">,</span> <span class="n">nac</span><span class="p">,</span> <span class="n">nf</span><span class="p">,</span> <span class="n">nt</span> <span class="o">=</span> <span class="n">stft_db</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">db_thresh</span> <span class="o">=</span> <span class="n">nz_thresh</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">nac</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">nt</span><span class="p">)</span>
+
+        <span class="n">stft_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">stft_db</span> <span class="o">&lt;</span> <span class="n">db_thresh</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">stft_mask</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="n">stft_mask</span> <span class="o">=</span> <span class="n">stft_mask</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nb</span> <span class="o">*</span> <span class="n">nac</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nf</span><span class="p">,</span> <span class="n">nt</span><span class="p">)</span>
+        <span class="n">pad_tuple</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">smoothing_filter</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">smoothing_filter</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">stft_mask</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">stft_mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">smoothing_filter</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="n">pad_tuple</span><span class="p">)</span>
+        <span class="n">stft_mask</span> <span class="o">=</span> <span class="n">stft_mask</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">stft_mask</span> <span class="o">*=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">denoise_amount</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="n">stft_mask</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
+            <span class="n">audio_signal</span><span class="o">.</span><span class="n">device</span>
+        <span class="p">)</span>
+        <span class="n">stft_mask</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">stft_mask</span>
+
+        <span class="n">audio_signal</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">*=</span> <span class="n">stft_mask</span>
+        <span class="n">audio_signal</span><span class="o">.</span><span class="n">istft</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">audio_signal</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

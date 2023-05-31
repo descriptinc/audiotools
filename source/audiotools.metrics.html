@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metrics for audio similarity &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Machine learning" href="audiotools.ml.html" />
+    <link rel="prev" title="Data processing" href="audiotools.data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Metrics for audio similarity</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-audiotools.metrics.distance">Distances</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.distance.L1Loss"><code class="docutils literal notranslate"><span class="pre">L1Loss</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.distance.L1Loss.forward"><code class="docutils literal notranslate"><span class="pre">L1Loss.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.distance.L1Loss.reduction"><code class="docutils literal notranslate"><span class="pre">L1Loss.reduction</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.distance.SISDRLoss"><code class="docutils literal notranslate"><span class="pre">SISDRLoss</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.distance.SISDRLoss.forward"><code class="docutils literal notranslate"><span class="pre">SISDRLoss.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.distance.SISDRLoss.training"><code class="docutils literal notranslate"><span class="pre">SISDRLoss.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-audiotools.metrics.quality">Quality metrics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.quality.pesq"><code class="docutils literal notranslate"><span class="pre">pesq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.quality.stoi"><code class="docutils literal notranslate"><span class="pre">stoi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.quality.visqol"><code class="docutils literal notranslate"><span class="pre">visqol()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-audiotools.metrics.spectral">Spectral distance metrics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.spectral.MelSpectrogramLoss"><code class="docutils literal notranslate"><span class="pre">MelSpectrogramLoss</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.spectral.MelSpectrogramLoss.forward"><code class="docutils literal notranslate"><span class="pre">MelSpectrogramLoss.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.spectral.MelSpectrogramLoss.training"><code class="docutils literal notranslate"><span class="pre">MelSpectrogramLoss.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.spectral.MultiScaleSTFTLoss"><code class="docutils literal notranslate"><span class="pre">MultiScaleSTFTLoss</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.spectral.MultiScaleSTFTLoss.forward"><code class="docutils literal notranslate"><span class="pre">MultiScaleSTFTLoss.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.spectral.MultiScaleSTFTLoss.training"><code class="docutils literal notranslate"><span class="pre">MultiScaleSTFTLoss.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#audiotools.metrics.spectral.PhaseLoss"><code class="docutils literal notranslate"><span class="pre">PhaseLoss</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.spectral.PhaseLoss.forward"><code class="docutils literal notranslate"><span class="pre">PhaseLoss.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#audiotools.metrics.spectral.PhaseLoss.training"><code class="docutils literal notranslate"><span class="pre">PhaseLoss.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Metrics for audio similarity</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/audiotools.metrics.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="metrics-for-audio-similarity">
+<h1>Metrics for audio similarity<a class="headerlink" href="#metrics-for-audio-similarity" title="Permalink to this heading"></a></h1>
+<section id="module-audiotools.metrics.distance">
+<span id="distances"></span><h2>Distances<a class="headerlink" href="#module-audiotools.metrics.distance" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.metrics.distance.L1Loss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.metrics.distance.</span></span><span class="sig-name descname"><span class="pre">L1Loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attribute</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'audio_data'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/distance.html#L1Loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.distance.L1Loss" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">L1Loss</span></code></p>
+<p>L1 Loss between AudioSignals. Defaults
+to comparing <code class="docutils literal notranslate"><span class="pre">audio_data</span></code>, but any
+attribute of an AudioSignal can be used.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>attribute</strong> (<em>str</em><em>, </em><em>optional</em>) – Attribute of signal to compare, defaults to <code class="docutils literal notranslate"><span class="pre">audio_data</span></code>.</p></li>
+<li><p><strong>weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of this loss, defaults to 1.0.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.metrics.distance.L1Loss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/distance.html#L1Loss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.distance.L1Loss.forward" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Estimate AudioSignal</p></li>
+<li><p><strong>y</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Reference AudioSignal</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>L1 loss between AudioSignal attributes.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.metrics.distance.L1Loss.reduction">
+<span class="sig-name descname"><span class="pre">reduction</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#audiotools.metrics.distance.L1Loss.reduction" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.metrics.distance.SISDRLoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.metrics.distance.</span></span><span class="sig-name descname"><span class="pre">SISDRLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_mean</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clip_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/distance.html#SISDRLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.distance.SISDRLoss" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Computes the Scale-Invariant Source-to-Distortion Ratio between a batch
+of estimated and reference audio signals or aligned features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scaling</strong> (<em>int</em><em>, </em><em>optional</em>) – Whether to use scale-invariant (True) or
+signal-to-noise ratio (False), by default True</p></li>
+<li><p><strong>reduction</strong> (<em>str</em><em>, </em><em>optional</em>) – How to reduce across the batch (either ‘mean’,
+‘sum’, or none).], by default ‘ mean’</p></li>
+<li><p><strong>zero_mean</strong> (<em>int</em><em>, </em><em>optional</em>) – Zero mean the references and estimates before
+computing the loss, by default True</p></li>
+<li><p><strong>clip_min</strong> (<em>int</em><em>, </em><em>optional</em>) – The minimum possible loss value. Helps network
+to not focus on making already good examples better, by default None</p></li>
+<li><p><strong>weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of this loss, defaults to 1.0.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.metrics.distance.SISDRLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/distance.html#SISDRLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.distance.SISDRLoss.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.metrics.distance.SISDRLoss.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#audiotools.metrics.distance.SISDRLoss.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-audiotools.metrics.quality">
+<span id="quality-metrics"></span><h2>Quality metrics<a class="headerlink" href="#module-audiotools.metrics.quality" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="audiotools.metrics.quality.pesq">
+<span class="sig-prename descclassname"><span class="pre">audiotools.metrics.quality.</span></span><span class="sig-name descname"><span class="pre">pesq</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estimates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">references</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'wb'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_sr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/quality.html#pesq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.quality.pesq" title="Permalink to this definition"></a></dt>
+<dd><p>_summary_</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>estimates</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Degraded AudioSignal</p></li>
+<li><p><strong>references</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Reference AudioSignal</p></li>
+<li><p><strong>mode</strong> (<em>str</em><em>, </em><em>optional</em>) – ‘wb’ (wide-band) or ‘nb’ (narrow-band), by default “wb”</p></li>
+<li><p><strong>target_sr</strong> (<em>float</em><em>, </em><em>optional</em>) – Target sample rate, by default 16000</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>PESQ score: P.862.2 Prediction (MOS-LQO)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Tensor[float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="audiotools.metrics.quality.stoi">
+<span class="sig-prename descclassname"><span class="pre">audiotools.metrics.quality.</span></span><span class="sig-name descname"><span class="pre">stoi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estimates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">references</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">extended</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/quality.html#stoi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.quality.stoi" title="Permalink to this definition"></a></dt>
+<dd><p>Short term objective intelligibility
+Computes the STOI (See [1][2]) of a denoised signal compared to a clean
+signal, The output is expected to have a monotonic relation with the
+subjective speech-intelligibility, where a higher score denotes better
+speech intelligibility. Uses pystoi under the hood.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>estimates</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Denoised speech</p></li>
+<li><p><strong>references</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Clean original speech</p></li>
+<li><p><strong>extended</strong> (<em>int</em><em>, </em><em>optional</em>) – Boolean, whether to use the extended STOI described in [3], by default False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Short time objective intelligibility measure between clean and
+denoised speech</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Tensor[float]</p>
+</dd>
+</dl>
+<p class="rubric">References</p>
+<ol class="arabic simple">
+<li><p>C.H.Taal, R.C.Hendriks, R.Heusdens, J.Jensen ‘A Short-Time
+Objective Intelligibility Measure for Time-Frequency Weighted Noisy
+Speech’, ICASSP 2010, Texas, Dallas.</p></li>
+<li><p>C.H.Taal, R.C.Hendriks, R.Heusdens, J.Jensen ‘An Algorithm for
+Intelligibility Prediction of Time-Frequency Weighted Noisy Speech’,
+IEEE Transactions on Audio, Speech, and Language Processing, 2011.</p></li>
+<li><p>Jesper Jensen and Cees H. Taal, ‘An Algorithm for Predicting the
+Intelligibility of Speech Masked by Modulated Noise Maskers’,
+IEEE Transactions on Audio, Speech and Language Processing, 2016.</p></li>
+</ol>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="audiotools.metrics.quality.visqol">
+<span class="sig-prename descclassname"><span class="pre">audiotools.metrics.quality.</span></span><span class="sig-name descname"><span class="pre">visqol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estimates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">references</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'audio'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/quality.html#visqol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.quality.visqol" title="Permalink to this definition"></a></dt>
+<dd><p>ViSQOL score.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>estimates</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Degraded AudioSignal</p></li>
+<li><p><strong>references</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Reference AudioSignal</p></li>
+<li><p><strong>mode</strong> (<em>str</em><em>, </em><em>optional</em>) – ‘audio’ or ‘speech’, by default ‘audio’</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ViSQOL score (MOS-LQO)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Tensor[float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-audiotools.metrics.spectral">
+<span id="spectral-distance-metrics"></span><h2>Spectral distance metrics<a class="headerlink" href="#module-audiotools.metrics.spectral" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.MelSpectrogramLoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.metrics.spectral.</span></span><span class="sig-name descname"><span class="pre">MelSpectrogramLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_mels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[150,</span> <span class="pre">80]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_lengths</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[2048,</span> <span class="pre">512]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">L1Loss()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clamp_eps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mag_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pow</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">match_stride</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mel_fmin</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[0.0,</span> <span class="pre">0.0]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mel_fmax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[None,</span> <span class="pre">None]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/spectral.html#MelSpectrogramLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.spectral.MelSpectrogramLoss" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Compute distance between mel spectrograms. Can be used
+in a multi-scale way.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_mels</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – Number of mels per STFT, by default [150, 80],</p></li>
+<li><p><strong>window_lengths</strong> (<em>List</em><em>[</em><em>int</em><em>]</em><em>, </em><em>optional</em>) – Length of each window of each STFT, by default [2048, 512]</p></li>
+<li><p><strong>loss_fn</strong> (<em>Callable</em><em>, </em><em>optional</em>) – How to compare each loss, by default nn.L1Loss()</p></li>
+<li><p><strong>clamp_eps</strong> (<em>float</em><em>, </em><em>optional</em>) – Clamp on the log magnitude, below, by default 1e-5</p></li>
+<li><p><strong>mag_weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of raw magnitude portion of loss, by default 1.0</p></li>
+<li><p><strong>log_weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of log magnitude portion of loss, by default 1.0</p></li>
+<li><p><strong>pow</strong> (<em>float</em><em>, </em><em>optional</em>) – Power to raise magnitude to before taking log, by default 2.0</p></li>
+<li><p><strong>weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of this loss, by default 1.0</p></li>
+<li><p><strong>match_stride</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to match the stride of convolutional layers, by default False</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.MelSpectrogramLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/spectral.html#MelSpectrogramLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.spectral.MelSpectrogramLoss.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Computes mel loss between an estimate and a reference
+signal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Estimate signal</p></li>
+<li><p><strong>y</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Reference signal</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Mel loss.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.MelSpectrogramLoss.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#audiotools.metrics.spectral.MelSpectrogramLoss.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.MultiScaleSTFTLoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.metrics.spectral.</span></span><span class="sig-name descname"><span class="pre">MultiScaleSTFTLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">window_lengths</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[2048,</span> <span class="pre">512]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">L1Loss()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clamp_eps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mag_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pow</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">match_stride</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/spectral.html#MultiScaleSTFTLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.spectral.MultiScaleSTFTLoss" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Computes the multi-scale STFT loss from [1].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>window_lengths</strong> (<em>List</em><em>[</em><em>int</em><em>]</em><em>, </em><em>optional</em>) – Length of each window of each STFT, by default [2048, 512]</p></li>
+<li><p><strong>loss_fn</strong> (<em>Callable</em><em>, </em><em>optional</em>) – How to compare each loss, by default nn.L1Loss()</p></li>
+<li><p><strong>clamp_eps</strong> (<em>float</em><em>, </em><em>optional</em>) – Clamp on the log magnitude, below, by default 1e-5</p></li>
+<li><p><strong>mag_weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of raw magnitude portion of loss, by default 1.0</p></li>
+<li><p><strong>log_weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of log magnitude portion of loss, by default 1.0</p></li>
+<li><p><strong>pow</strong> (<em>float</em><em>, </em><em>optional</em>) – Power to raise magnitude to before taking log, by default 2.0</p></li>
+<li><p><strong>weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of this loss, by default 1.0</p></li>
+<li><p><strong>match_stride</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to match the stride of convolutional layers, by default False</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">References</p>
+<ol class="arabic simple">
+<li><p>Engel, Jesse, Chenjie Gu, and Adam Roberts.
+“DDSP: Differentiable Digital Signal Processing.”
+International Conference on Learning Representations. 2019.</p></li>
+</ol>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.MultiScaleSTFTLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/spectral.html#MultiScaleSTFTLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.spectral.MultiScaleSTFTLoss.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Computes multi-scale STFT between an estimate and a reference
+signal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Estimate signal</p></li>
+<li><p><strong>y</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Reference signal</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Multi-scale STFT loss.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.MultiScaleSTFTLoss.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#audiotools.metrics.spectral.MultiScaleSTFTLoss.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.PhaseLoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiotools.metrics.spectral.</span></span><span class="sig-name descname"><span class="pre">PhaseLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">window_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hop_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/spectral.html#PhaseLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.spectral.PhaseLoss" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Difference between phase spectrograms.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>window_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Length of STFT window, by default 2048</p></li>
+<li><p><strong>hop_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Hop length of STFT window, by default 512</p></li>
+<li><p><strong>weight</strong> (<em>float</em><em>, </em><em>optional</em>) – Weight of loss, by default 1.0</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.PhaseLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><span class="pre">AudioSignal</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/audiotools/metrics/spectral.html#PhaseLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#audiotools.metrics.spectral.PhaseLoss.forward" title="Permalink to this definition"></a></dt>
+<dd><p>Computes phase loss between an estimate and a reference
+signal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Estimate signal</p></li>
+<li><p><strong>y</strong> (<a class="reference internal" href="audiotools.core.html#audiotools.core.audio_signal.AudioSignal" title="audiotools.core.audio_signal.AudioSignal"><em>AudioSignal</em></a>) – Reference signal</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Phase loss.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiotools.metrics.spectral.PhaseLoss.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#audiotools.metrics.spectral.PhaseLoss.training" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="audiotools.data.html" class="btn btn-neutral float-left" title="Data processing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="audiotools.ml.html" class="btn btn-neutral float-right" title="Machine learning" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

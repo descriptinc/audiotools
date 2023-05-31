@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.core.loudness &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.core.loudness</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.core.loudness</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">import</span> <span class="nn">julius</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">torchaudio</span>
+
+
+<div class="viewcode-block" id="Meter"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.Meter">[docs]</a><span class="k">class</span> <span class="nc">Meter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Tensorized version of pyloudnorm.Meter. Works with batched audio tensors.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    rate : int</span>
+<span class="sd">        Sample rate of audio.</span>
+<span class="sd">    filter_class : str, optional</span>
+<span class="sd">        Class of weighting filter used.</span>
+<span class="sd">        K-weighting&#39; (default), &#39;Fenton/Lee 1&#39;</span>
+<span class="sd">        &#39;Fenton/Lee 2&#39;, &#39;Dash et al.&#39;</span>
+<span class="sd">        by default &quot;K-weighting&quot;</span>
+<span class="sd">    block_size : float, optional</span>
+<span class="sd">        Gating block size in seconds, by default 0.400</span>
+<span class="sd">    zeros : int, optional</span>
+<span class="sd">         Number of zeros to use in FIR approximation of</span>
+<span class="sd">         IIR filters, by default 512</span>
+<span class="sd">    use_fir : bool, optional</span>
+<span class="sd">        Whether to use FIR approximation or exact IIR formulation.</span>
+<span class="sd">        If computing on GPU, ``use_fir=True`` will be used, as its</span>
+<span class="sd">        much faster, by default False</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">filter_class</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;K-weighting&quot;</span><span class="p">,</span>
+        <span class="n">block_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.400</span><span class="p">,</span>
+        <span class="n">zeros</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span>
+        <span class="n">use_fir</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">rate</span> <span class="o">=</span> <span class="n">rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_class</span> <span class="o">=</span> <span class="n">filter_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_size</span> <span class="o">=</span> <span class="n">block_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_fir</span> <span class="o">=</span> <span class="n">use_fir</span>
+
+        <span class="n">G</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.41</span><span class="p">,</span> <span class="mf">1.41</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;G&quot;</span><span class="p">,</span> <span class="n">G</span><span class="p">)</span>
+
+        <span class="c1"># Compute impulse responses so that filtering is fast via</span>
+        <span class="c1"># a convolution at runtime, on GPU, unlike lfilter.</span>
+        <span class="n">impulse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">zeros</span><span class="p">,))</span>
+        <span class="n">impulse</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="n">firs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filters</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">zeros</span><span class="p">))</span>
+        <span class="n">passband_gain</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filters</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">filter_stage</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filters</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">firs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">lfilter</span><span class="p">(</span><span class="n">filter_stage</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="n">filter_stage</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">impulse</span><span class="p">)</span>
+            <span class="n">passband_gain</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">filter_stage</span><span class="o">.</span><span class="n">passband_gain</span>
+
+        <span class="n">firs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">firs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;firs&quot;</span><span class="p">,</span> <span class="n">firs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;passband_gain&quot;</span><span class="p">,</span> <span class="n">passband_gain</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Meter.apply_filter_gpu"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.Meter.apply_filter_gpu">[docs]</a>    <span class="k">def</span> <span class="nf">apply_filter_gpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs FIR approximation of loudness computation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : torch.Tensor</span>
+<span class="sd">            Audio data of shape (nb, nch, nt).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Filtered audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Data is of shape (nb, nch, nt)</span>
+        <span class="c1"># Reshape to (nb*nch, 1, nt)</span>
+        <span class="n">nb</span><span class="p">,</span> <span class="n">nt</span><span class="p">,</span> <span class="n">nch</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nb</span> <span class="o">*</span> <span class="n">nch</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nt</span><span class="p">)</span>
+
+        <span class="c1"># Apply padding</span>
+        <span class="n">pad_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">firs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Apply filtering in sequence</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">firs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">pad_length</span><span class="p">,</span> <span class="n">pad_length</span><span class="p">))</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">julius</span><span class="o">.</span><span class="n">fftconv</span><span class="o">.</span><span class="n">fft_conv1d</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">firs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">passband_gain</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">data</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">nt</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">:</span><span class="n">nt</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="Meter.apply_filter_cpu"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.Meter.apply_filter_cpu">[docs]</a>    <span class="k">def</span> <span class="nf">apply_filter_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs IIR formulation of loudness computation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : torch.Tensor</span>
+<span class="sd">            Audio data of shape (nb, nch, nt).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Filtered audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">filter_stage</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">passband_gain</span> <span class="o">=</span> <span class="n">filter_stage</span><span class="o">.</span><span class="n">passband_gain</span>
+
+            <span class="n">a_coeffs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">filter_stage</span><span class="o">.</span><span class="n">a</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">b_coeffs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">filter_stage</span><span class="o">.</span><span class="n">b</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+            <span class="n">_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="n">torchaudio</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">lfilter</span><span class="p">(</span>
+                <span class="n">_data</span><span class="p">,</span> <span class="n">a_coeffs</span><span class="p">,</span> <span class="n">b_coeffs</span><span class="p">,</span> <span class="n">clamp</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">passband_gain</span> <span class="o">*</span> <span class="n">filtered</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="Meter.apply_filter"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.Meter.apply_filter">[docs]</a>    <span class="k">def</span> <span class="nf">apply_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Applies filter on either CPU or GPU, depending</span>
+<span class="sd">        on if the audio is on GPU or is on CPU, or if</span>
+<span class="sd">        ``self.use_fir`` is True.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : torch.Tensor</span>
+<span class="sd">            Audio data of shape (nb, nch, nt).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Filtered audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">is_cuda</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_fir</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_filter_gpu</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_filter_cpu</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="Meter.forward"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.Meter.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes integrated loudness of data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : torch.Tensor</span>
+<span class="sd">            Audio data of shape (nb, nch, nt).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Filtered audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">integrated_loudness</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_unfold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_data</span><span class="p">):</span>
+        <span class="n">T_g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_size</span>
+        <span class="n">overlap</span> <span class="o">=</span> <span class="mf">0.75</span>  <span class="c1"># overlap of 75% of the block duration</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">overlap</span>  <span class="c1"># step size by percentage</span>
+
+        <span class="n">kernel_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">T_g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate</span><span class="p">)</span>
+        <span class="n">stride</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">T_g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate</span> <span class="o">*</span> <span class="n">step</span><span class="p">)</span>
+        <span class="n">unfolded</span> <span class="o">=</span> <span class="n">julius</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">unfold</span><span class="p">(</span><span class="n">input_data</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+        <span class="n">unfolded</span> <span class="o">=</span> <span class="n">unfolded</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">unfolded</span>
+
+<div class="viewcode-block" id="Meter.integrated_loudness"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.Meter.integrated_loudness">[docs]</a>    <span class="k">def</span> <span class="nf">integrated_loudness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes integrated loudness of data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : torch.Tensor</span>
+<span class="sd">            Audio data of shape (nb, nch, nt).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Filtered audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+        <span class="n">input_data</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># Data always has a batch and channel dimension.</span>
+        <span class="c1"># Is of shape (nb, nt, nch)</span>
+        <span class="k">if</span> <span class="n">input_data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">input_data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">nb</span><span class="p">,</span> <span class="n">nt</span><span class="p">,</span> <span class="n">nch</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="c1"># Apply frequency weighting filters - account</span>
+        <span class="c1"># for the acoustic respose of the head and auditory system</span>
+        <span class="n">input_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
+
+        <span class="n">G</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">G</span>  <span class="c1"># channel gains</span>
+        <span class="n">T_g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_size</span>  <span class="c1"># 400 ms gating block standard</span>
+        <span class="n">Gamma_a</span> <span class="o">=</span> <span class="o">-</span><span class="mf">70.0</span>  <span class="c1"># -70 LKFS = absolute loudness threshold</span>
+
+        <span class="n">unfolded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unfold</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span>
+
+        <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">T_g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate</span><span class="p">))</span> <span class="o">*</span> <span class="n">unfolded</span><span class="o">.</span><span class="n">square</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.691</span> <span class="o">+</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log10</span><span class="p">((</span><span class="n">G</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:</span><span class="n">nch</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">z</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">expand_as</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+
+        <span class="c1"># find gating block indices above absolute threshold</span>
+        <span class="n">z_avg_gated</span> <span class="o">=</span> <span class="n">z</span>
+        <span class="n">z_avg_gated</span><span class="p">[</span><span class="n">l</span> <span class="o">&lt;=</span> <span class="n">Gamma_a</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">masked</span> <span class="o">=</span> <span class="n">l</span> <span class="o">&gt;</span> <span class="n">Gamma_a</span>
+        <span class="n">z_avg_gated</span> <span class="o">=</span> <span class="n">z_avg_gated</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">masked</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># calculate the relative threshold value (see eq. 6)</span>
+        <span class="n">Gamma_r</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="o">-</span><span class="mf">0.691</span> <span class="o">+</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log10</span><span class="p">((</span><span class="n">z_avg_gated</span> <span class="o">*</span> <span class="n">G</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:</span><span class="n">nch</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="mf">10.0</span>
+        <span class="p">)</span>
+        <span class="n">Gamma_r</span> <span class="o">=</span> <span class="n">Gamma_r</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">Gamma_r</span> <span class="o">=</span> <span class="n">Gamma_r</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">nch</span><span class="p">,</span> <span class="n">l</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># find gating block indices above relative and absolute thresholds  (end of eq. 7)</span>
+        <span class="n">z_avg_gated</span> <span class="o">=</span> <span class="n">z</span>
+        <span class="n">z_avg_gated</span><span class="p">[</span><span class="n">l</span> <span class="o">&lt;=</span> <span class="n">Gamma_a</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">z_avg_gated</span><span class="p">[</span><span class="n">l</span> <span class="o">&lt;=</span> <span class="n">Gamma_r</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">masked</span> <span class="o">=</span> <span class="p">(</span><span class="n">l</span> <span class="o">&gt;</span> <span class="n">Gamma_a</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">l</span> <span class="o">&gt;</span> <span class="n">Gamma_r</span><span class="p">)</span>
+        <span class="n">z_avg_gated</span> <span class="o">=</span> <span class="n">z_avg_gated</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">masked</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># # Cannot use nan_to_num (pytorch 1.8 does not come with GCP-supported cuda version)</span>
+        <span class="c1"># z_avg_gated = torch.nan_to_num(z_avg_gated)</span>
+        <span class="n">z_avg_gated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">z_avg_gated</span><span class="o">.</span><span class="n">isnan</span><span class="p">(),</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">z_avg_gated</span><span class="p">),</span> <span class="n">z_avg_gated</span>
+        <span class="p">)</span>
+        <span class="n">z_avg_gated</span><span class="p">[</span><span class="n">z_avg_gated</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">)</span>
+        <span class="n">z_avg_gated</span><span class="p">[</span><span class="n">z_avg_gated</span> <span class="o">==</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">)</span>
+
+        <span class="n">LUFS</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.691</span> <span class="o">+</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log10</span><span class="p">((</span><span class="n">G</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:</span><span class="n">nch</span><span class="p">]</span> <span class="o">*</span> <span class="n">z_avg_gated</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">LUFS</span><span class="o">.</span><span class="n">float</span><span class="p">()</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">filter_class</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_class</span>
+
+    <span class="nd">@filter_class</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">filter_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">pyloudnorm</span> <span class="kn">import</span> <span class="n">Meter</span>
+
+        <span class="n">meter</span> <span class="o">=</span> <span class="n">Meter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rate</span><span class="p">)</span>
+        <span class="n">meter</span><span class="o">.</span><span class="n">filter_class</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filter_class</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filters</span> <span class="o">=</span> <span class="n">meter</span><span class="o">.</span><span class="n">_filters</span></div>
+
+
+<div class="viewcode-block" id="LoudnessMixin"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.LoudnessMixin">[docs]</a><span class="k">class</span> <span class="nc">LoudnessMixin</span><span class="p">:</span>
+    <span class="n">_loudness</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">MIN_LOUDNESS</span> <span class="o">=</span> <span class="o">-</span><span class="mi">70</span>
+    <span class="sd">&quot;&quot;&quot;Minimum loudness possible.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LoudnessMixin.loudness"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.loudness.LoudnessMixin.loudness">[docs]</a>    <span class="k">def</span> <span class="nf">loudness</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">filter_class</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;K-weighting&quot;</span><span class="p">,</span> <span class="n">block_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.400</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates loudness using an implementation of ITU-R BS.1770-4.</span>
+<span class="sd">        Allows control over gating block size and frequency weighting filters for</span>
+<span class="sd">        additional control. Measure the integrated gated loudness of a signal.</span>
+
+<span class="sd">        API is derived from PyLoudnorm, but this implementation is ported to PyTorch</span>
+<span class="sd">        and is tensorized across batches. When on GPU, an FIR approximation of the IIR</span>
+<span class="sd">        filters is used to compute loudness for speed.</span>
+
+<span class="sd">        Uses the weighting filters and block size defined by the meter</span>
+<span class="sd">        the integrated loudness is measured based upon the gating algorithm</span>
+<span class="sd">        defined in the ITU-R BS.1770-4 specification.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filter_class : str, optional</span>
+<span class="sd">            Class of weighting filter used.</span>
+<span class="sd">            K-weighting&#39; (default), &#39;Fenton/Lee 1&#39;</span>
+<span class="sd">            &#39;Fenton/Lee 2&#39;, &#39;Dash et al.&#39;</span>
+<span class="sd">            by default &quot;K-weighting&quot;</span>
+<span class="sd">        block_size : float, optional</span>
+<span class="sd">            Gating block size in seconds, by default 0.400</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to :py:func:`audiotools.core.loudness.Meter`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Loudness of audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">original_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_duration</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="n">pad_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="mf">0.5</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_duration</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">zero_pad</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">pad_len</span><span class="p">)</span>
+
+        <span class="c1"># create BS.1770 meter</span>
+        <span class="n">meter</span> <span class="o">=</span> <span class="n">Meter</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">filter_class</span><span class="o">=</span><span class="n">filter_class</span><span class="p">,</span> <span class="n">block_size</span><span class="o">=</span><span class="n">block_size</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="n">meter</span> <span class="o">=</span> <span class="n">meter</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="c1"># measure loudness</span>
+        <span class="n">loudness</span> <span class="o">=</span> <span class="n">meter</span><span class="o">.</span><span class="n">integrated_loudness</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">truncate_samples</span><span class="p">(</span><span class="n">original_length</span><span class="p">)</span>
+        <span class="n">min_loudness</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">loudness</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">loudness</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">MIN_LOUDNESS</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">loudness</span><span class="p">,</span> <span class="n">min_loudness</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

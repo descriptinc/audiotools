@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audiotools.core.audio_signal &mdash; AudioTools  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> AudioTools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/transforms.html">Transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/listening_tests.html">Creating listening tests</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.core.html">AudioSignal</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.data.html">Data processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.metrics.html">Metrics for audio similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.ml.html">Machine learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.post.html">Tools for sharing audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/audiotools.preference.html">Tools for creating preference tests</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">AudioTools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>audiotools.core.audio_signal</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for audiotools.core.audio_signal</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">julius</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">soundfile</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">.display</span> <span class="kn">import</span> <span class="n">DisplayMixin</span>
+<span class="kn">from</span> <span class="nn">.dsp</span> <span class="kn">import</span> <span class="n">DSPMixin</span>
+<span class="kn">from</span> <span class="nn">.effects</span> <span class="kn">import</span> <span class="n">EffectMixin</span>
+<span class="kn">from</span> <span class="nn">.effects</span> <span class="kn">import</span> <span class="n">ImpulseResponseMixin</span>
+<span class="kn">from</span> <span class="nn">.ffmpeg</span> <span class="kn">import</span> <span class="n">FFMPEGMixin</span>
+<span class="kn">from</span> <span class="nn">.loudness</span> <span class="kn">import</span> <span class="n">LoudnessMixin</span>
+<span class="kn">from</span> <span class="nn">.playback</span> <span class="kn">import</span> <span class="n">PlayMixin</span>
+<span class="kn">from</span> <span class="nn">.whisper</span> <span class="kn">import</span> <span class="n">WhisperMixin</span>
+
+
+<span class="n">STFTParams</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span>
+    <span class="s2">&quot;STFTParams&quot;</span><span class="p">,</span>
+    <span class="p">[</span><span class="s2">&quot;window_length&quot;</span><span class="p">,</span> <span class="s2">&quot;hop_length&quot;</span><span class="p">,</span> <span class="s2">&quot;window_type&quot;</span><span class="p">,</span> <span class="s2">&quot;match_stride&quot;</span><span class="p">,</span> <span class="s2">&quot;padding_type&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">STFTParams object is a container that holds STFT parameters - window_length,</span>
+<span class="sd">hop_length, and window_type. Not all parameters need to be specified. Ones that</span>
+<span class="sd">are not specified will be inferred by the AudioSignal parameters.</span>
+
+<span class="sd">Parameters</span>
+<span class="sd">----------</span>
+<span class="sd">window_length : int, optional</span>
+<span class="sd">    Window length of STFT, by default ``0.032 * self.sample_rate``.</span>
+<span class="sd">hop_length : int, optional</span>
+<span class="sd">    Hop length of STFT, by default ``window_length // 4``.</span>
+<span class="sd">window_type : str, optional</span>
+<span class="sd">    Type of window to use, by default ``sqrt\_hann``.</span>
+<span class="sd">match_stride : bool, optional</span>
+<span class="sd">    Whether to match the stride of convolutional layers, by default False</span>
+<span class="sd">padding_type : str, optional</span>
+<span class="sd">    Type of padding to use, by default &#39;reflect&#39;</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">STFTParams</span><span class="o">.</span><span class="fm">__new__</span><span class="o">.</span><span class="vm">__defaults__</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="AudioSignal"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal">[docs]</a><span class="k">class</span> <span class="nc">AudioSignal</span><span class="p">(</span>
+    <span class="n">EffectMixin</span><span class="p">,</span>
+    <span class="n">LoudnessMixin</span><span class="p">,</span>
+    <span class="n">PlayMixin</span><span class="p">,</span>
+    <span class="n">ImpulseResponseMixin</span><span class="p">,</span>
+    <span class="n">DSPMixin</span><span class="p">,</span>
+    <span class="n">DisplayMixin</span><span class="p">,</span>
+    <span class="n">FFMPEGMixin</span><span class="p">,</span>
+    <span class="n">WhisperMixin</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is the core object of this library. Audio is always</span>
+<span class="sd">    loaded into an AudioSignal, which then enables all the features</span>
+<span class="sd">    of this library, including audio augmentations, I/O, playback,</span>
+<span class="sd">    and more.</span>
+
+<span class="sd">    The structure of this object is that the base functionality</span>
+<span class="sd">    is defined in ``core/audio_signal.py``, while extensions to</span>
+<span class="sd">    that functionality are defined in the other ``core/*.py``</span>
+<span class="sd">    files. For example, all the display-based functionality</span>
+<span class="sd">    (e.g. plot spectrograms, waveforms, write to tensorboard)</span>
+<span class="sd">    are in ``core/display.py``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    audio_path_or_array : typing.Union[torch.Tensor, str, Path, np.ndarray]</span>
+<span class="sd">        Object to create AudioSignal from. Can be a tensor, numpy array,</span>
+<span class="sd">        or a path to a file. The file is always reshaped to</span>
+<span class="sd">    sample_rate : int, optional</span>
+<span class="sd">        Sample rate of the audio. If different from underlying file, resampling is</span>
+<span class="sd">        performed. If passing in an array or tensor, this must be defined,</span>
+<span class="sd">        by default None</span>
+<span class="sd">    stft_params : STFTParams, optional</span>
+<span class="sd">        Parameters of STFT to use. , by default None</span>
+<span class="sd">    offset : float, optional</span>
+<span class="sd">        Offset in seconds to read from file, by default 0</span>
+<span class="sd">    duration : float, optional</span>
+<span class="sd">        Duration in seconds to read from file, by default None</span>
+<span class="sd">    device : str, optional</span>
+<span class="sd">        Device to load audio onto, by default None</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Loading an AudioSignal from an array, at a sample rate of</span>
+<span class="sd">    44100.</span>
+
+<span class="sd">    &gt;&gt;&gt; signal = AudioSignal(torch.randn(5*44100), 44100)</span>
+
+<span class="sd">    Note, the signal is reshaped to have a batch size, and one</span>
+<span class="sd">    audio channel:</span>
+
+<span class="sd">    &gt;&gt;&gt; print(signal.shape)</span>
+<span class="sd">    (1, 1, 44100)</span>
+
+<span class="sd">    You can treat AudioSignals like tensors, and many of the same</span>
+<span class="sd">    functions you might use on tensors are defined for AudioSignals</span>
+<span class="sd">    as well:</span>
+
+<span class="sd">    &gt;&gt;&gt; signal.to(&quot;cuda&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; signal.cuda()</span>
+<span class="sd">    &gt;&gt;&gt; signal.clone()</span>
+<span class="sd">    &gt;&gt;&gt; signal.detach()</span>
+
+<span class="sd">    Indexing AudioSignals returns an AudioSignal:</span>
+
+<span class="sd">    &gt;&gt;&gt; signal[..., 3*44100:4*44100]</span>
+
+<span class="sd">    The above signal is 1 second long, and is also an AudioSignal.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">audio_path_or_array</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stft_params</span><span class="p">:</span> <span class="n">STFTParams</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">audio_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">audio_array</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">audio_path_or_array</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">audio_path</span> <span class="o">=</span> <span class="n">audio_path_or_array</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">audio_path_or_array</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">):</span>
+            <span class="n">audio_path</span> <span class="o">=</span> <span class="n">audio_path_or_array</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">audio_path_or_array</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">audio_array</span> <span class="o">=</span> <span class="n">audio_path_or_array</span>
+        <span class="k">elif</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">audio_path_or_array</span><span class="p">):</span>
+            <span class="n">audio_array</span> <span class="o">=</span> <span class="n">audio_path_or_array</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;audio_path_or_array must be either a Path, &quot;</span>
+                <span class="s2">&quot;string, numpy array, or torch Tensor!&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sources</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># List of AudioSignal objects.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">audio_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_from_file</span><span class="p">(</span>
+                <span class="n">audio_path</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">audio_array</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">sample_rate</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Must set sample rate!&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_from_array</span><span class="p">(</span><span class="n">audio_array</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span> <span class="o">=</span> <span class="n">stft_params</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;offset&quot;</span><span class="p">:</span> <span class="n">offset</span><span class="p">,</span>
+            <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="n">duration</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">path_to_input_file</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Path to input file, if it exists.</span>
+<span class="sd">        Alias to ``path_to_file`` for backwards compatibility</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span>
+
+<div class="viewcode-block" id="AudioSignal.excerpt"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.excerpt">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">excerpt</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">audio_path</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Randomly draw an excerpt of ``duration`` seconds from an</span>
+<span class="sd">        audio file specified at ``audio_path``, between ``offset`` seconds</span>
+<span class="sd">        and end of file. ``state`` can be used to seed the random draw.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_path : typing.Union[str, Path]</span>
+<span class="sd">            Path to audio file to grab excerpt from.</span>
+<span class="sd">        offset : float, optional</span>
+<span class="sd">            Lower bound for the start time, in seconds drawn from</span>
+<span class="sd">            the file, by default None.</span>
+<span class="sd">        duration : float, optional</span>
+<span class="sd">            Duration of excerpt, in seconds, by default None</span>
+<span class="sd">        state : typing.Union[np.random.RandomState, int], optional</span>
+<span class="sd">            RandomState or seed of random state, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal containing excerpt.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal.excerpt(&quot;path/to/audio&quot;, duration=5)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">audio_path</span><span class="p">)</span>
+        <span class="n">total_duration</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">duration</span>
+
+        <span class="n">state</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">random_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">lower_bound</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">offset</span>
+        <span class="n">upper_bound</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">total_duration</span> <span class="o">-</span> <span class="n">duration</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">lower_bound</span><span class="p">,</span> <span class="n">upper_bound</span><span class="p">)</span>
+
+        <span class="n">signal</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">audio_path</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;duration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">duration</span>
+
+        <span class="k">return</span> <span class="n">signal</span></div>
+
+<div class="viewcode-block" id="AudioSignal.salient_excerpt"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.salient_excerpt">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">salient_excerpt</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">audio_path</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">loudness_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_tries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Similar to AudioSignal.excerpt, except it extracts excerpts only</span>
+<span class="sd">        if they are above a specified loudness threshold, which is computed via</span>
+<span class="sd">        a fast LUFS routine.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_path : typing.Union[str, Path]</span>
+<span class="sd">            Path to audio file to grab excerpt from.</span>
+<span class="sd">        loudness_cutoff : float, optional</span>
+<span class="sd">            Loudness threshold in dB. Typical values are ``-40, -60``,</span>
+<span class="sd">            etc, by default None</span>
+<span class="sd">        num_tries : int, optional</span>
+<span class="sd">            Number of tries to grab an excerpt above the threshold</span>
+<span class="sd">            before giving up, by default 8.</span>
+<span class="sd">        state : typing.Union[np.random.RandomState, int], optional</span>
+<span class="sd">            RandomState or seed of random state, by default None</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            Keyword arguments to AudioSignal.excerpt</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal containing excerpt.</span>
+
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            if ``num_tries`` is set to None, ``salient_excerpt`` may try forever, which can</span>
+<span class="sd">            result in an infinite loop if ``audio_path`` does not have</span>
+<span class="sd">            any loud enough excerpts.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal.salient_excerpt(</span>
+<span class="sd">                &quot;path/to/audio&quot;,</span>
+<span class="sd">                loudness_cutoff=-40,</span>
+<span class="sd">                duration=5</span>
+<span class="sd">            )</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">random_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">loudness_cutoff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">excerpt</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">excerpt</span><span class="p">(</span><span class="n">audio_path</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">loudness</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">num_try</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">while</span> <span class="n">loudness</span> <span class="o">&lt;=</span> <span class="n">loudness_cutoff</span><span class="p">:</span>
+                <span class="n">excerpt</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">excerpt</span><span class="p">(</span><span class="n">audio_path</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="n">loudness</span> <span class="o">=</span> <span class="n">excerpt</span><span class="o">.</span><span class="n">loudness</span><span class="p">()</span>
+                <span class="n">num_try</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">num_tries</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_try</span> <span class="o">&gt;=</span> <span class="n">num_tries</span><span class="p">:</span>
+                    <span class="k">break</span>
+        <span class="k">return</span> <span class="n">excerpt</span></div>
+
+<div class="viewcode-block" id="AudioSignal.zeros"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.zeros">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">zeros</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper function create an AudioSignal of all zeros.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        duration : float</span>
+<span class="sd">            Duration of AudioSignal</span>
+<span class="sd">        sample_rate : int</span>
+<span class="sd">            Sample rate of AudioSignal</span>
+<span class="sd">        num_channels : int, optional</span>
+<span class="sd">            Number of channels, by default 1</span>
+<span class="sd">        batch_size : int, optional</span>
+<span class="sd">            Batch size, by default 1</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal containing all zeros.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Generate 5 seconds of all zeros at a sample rate of 44100.</span>
+
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal.zeros(5.0, 44100)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span> <span class="o">*</span> <span class="n">sample_rate</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_channels</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">),</span> <span class="n">sample_rate</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.wave"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.wave">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">wave</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">frequency</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">shape</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sine&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a waveform of a given frequency and shape.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        frequency : float</span>
+<span class="sd">            Frequency of the waveform</span>
+<span class="sd">        duration : float</span>
+<span class="sd">            Duration of the waveform</span>
+<span class="sd">        sample_rate : int</span>
+<span class="sd">            Sample rate of the waveform</span>
+<span class="sd">        num_channels : int, optional</span>
+<span class="sd">            Number of channels, by default 1</span>
+<span class="sd">        shape : str, optional</span>
+<span class="sd">            Shape of the waveform, by default &quot;saw&quot;</span>
+<span class="sd">            One of &quot;sawtooth&quot;, &quot;square&quot;, &quot;sine&quot;, &quot;triangle&quot;</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            Keyword arguments to AudioSignal</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span> <span class="o">*</span> <span class="n">sample_rate</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">duration</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">shape</span> <span class="o">==</span> <span class="s2">&quot;sawtooth&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">sawtooth</span>
+
+            <span class="n">wave_data</span> <span class="o">=</span> <span class="n">sawtooth</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">frequency</span> <span class="o">*</span> <span class="n">t</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">shape</span> <span class="o">==</span> <span class="s2">&quot;square&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">square</span>
+
+            <span class="n">wave_data</span> <span class="o">=</span> <span class="n">square</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">frequency</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">shape</span> <span class="o">==</span> <span class="s2">&quot;sine&quot;</span><span class="p">:</span>
+            <span class="n">wave_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">frequency</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">shape</span> <span class="o">==</span> <span class="s2">&quot;triangle&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">sawtooth</span>
+
+            <span class="c1"># frequency is doubled by the abs call, so omit the 2 in 2pi</span>
+            <span class="n">wave_data</span> <span class="o">=</span> <span class="n">sawtooth</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">frequency</span> <span class="o">*</span> <span class="n">t</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+            <span class="n">wave_data</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">wave_data</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid shape </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">wave_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">wave_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">wave_data</span> <span class="o">=</span> <span class="n">wave_data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">wave_data</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.batch"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.batch">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">batch</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">audio_signals</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">pad_signals</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">truncate_signals</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">resample</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a batched AudioSignal from a list of AudioSignals.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_signals : list[AudioSignal]</span>
+<span class="sd">            List of AudioSignal objects</span>
+<span class="sd">        pad_signals : bool, optional</span>
+<span class="sd">            Whether to pad signals to length of the maximum length</span>
+<span class="sd">            AudioSignal in the list, by default False</span>
+<span class="sd">        truncate_signals : bool, optional</span>
+<span class="sd">            Whether to truncate signals to length of shortest length</span>
+<span class="sd">            AudioSignal in the list, by default False</span>
+<span class="sd">        resample : bool, optional</span>
+<span class="sd">            Whether to resample AudioSignal to the sample rate of</span>
+<span class="sd">            the first AudioSignal in the list, by default False</span>
+<span class="sd">        dim : int, optional</span>
+<span class="sd">            Dimension along which to batch the signals.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Batched AudioSignal.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        RuntimeError</span>
+<span class="sd">            If not all AudioSignals are the same sample rate, and</span>
+<span class="sd">            ``resample=False``, an error is raised.</span>
+<span class="sd">        RuntimeError</span>
+<span class="sd">            If not all AudioSignals are the same the length, and</span>
+<span class="sd">            both ``pad_signals=False`` and ``truncate_signals=False``,</span>
+<span class="sd">            an error is raised.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Batching a bunch of random signals:</span>
+
+<span class="sd">        &gt;&gt;&gt; signal_list = [AudioSignal(torch.randn(44100), 44100) for _ in range(10)]</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal.batch(signal_list)</span>
+<span class="sd">        &gt;&gt;&gt; print(signal.shape)</span>
+<span class="sd">        (10, 1, 44100)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">signal_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">signal_length</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">]</span>
+        <span class="n">sample_rates</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">sample_rate</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">sample_rates</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">resample</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">:</span>
+                    <span class="n">x</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">sample_rates</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Not all signals had the same sample rate! Got </span><span class="si">{</span><span class="n">sample_rates</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;All signals must have the same sample rate, or resample must be True. &quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">signal_lengths</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">pad_signals</span><span class="p">:</span>
+                <span class="n">max_length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">signal_lengths</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">:</span>
+                    <span class="n">pad_len</span> <span class="o">=</span> <span class="n">max_length</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">signal_length</span>
+                    <span class="n">x</span><span class="o">.</span><span class="n">zero_pad</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">pad_len</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">truncate_signals</span><span class="p">:</span>
+                <span class="n">min_length</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">signal_lengths</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">:</span>
+                    <span class="n">x</span><span class="o">.</span><span class="n">truncate_samples</span><span class="p">(</span><span class="n">min_length</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Not all signals had the same length! Got </span><span class="si">{</span><span class="n">signal_lengths</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;All signals must be the same length, or pad_signals/truncate_signals &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;must be True. &quot;</span>
+                <span class="p">)</span>
+        <span class="c1"># Concatenate along the specified dimension (default 0)</span>
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">audio_data</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">)</span>
+        <span class="n">audio_paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">path_to_file</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">audio_signals</span><span class="p">]</span>
+
+        <span class="n">batched_signal</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">audio_data</span><span class="p">,</span>
+            <span class="n">sample_rate</span><span class="o">=</span><span class="n">audio_signals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">batched_signal</span><span class="o">.</span><span class="n">path_to_file</span> <span class="o">=</span> <span class="n">audio_paths</span>
+        <span class="k">return</span> <span class="n">batched_signal</span></div>
+
+    <span class="c1"># I/O</span>
+<div class="viewcode-block" id="AudioSignal.load_from_file"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.load_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">audio_path</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+        <span class="n">offset</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads data from file. Used internally when AudioSignal</span>
+<span class="sd">        is instantiated with a path to a file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_path : typing.Union[str, Path]</span>
+<span class="sd">            Path to file</span>
+<span class="sd">        offset : float</span>
+<span class="sd">            Offset in seconds</span>
+<span class="sd">        duration : float</span>
+<span class="sd">            Duration in seconds</span>
+<span class="sd">        device : str, optional</span>
+<span class="sd">            Device to put AudioSignal on, by default &quot;cpu&quot;</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal loaded from file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">librosa</span>
+
+        <span class="n">data</span><span class="p">,</span> <span class="n">sample_rate</span> <span class="o">=</span> <span class="n">librosa</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+            <span class="n">audio_path</span><span class="p">,</span>
+            <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span>
+            <span class="n">duration</span><span class="o">=</span><span class="n">duration</span><span class="p">,</span>
+            <span class="n">sr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">mono</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Audio file </span><span class="si">{</span><span class="n">audio_path</span><span class="si">}</span><span class="s2"> with offset </span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s2"> and duration </span><span class="si">{</span><span class="n">duration</span><span class="si">}</span><span class="s2"> is empty!&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">data</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">original_signal_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span> <span class="o">=</span> <span class="n">audio_path</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.load_from_array"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.load_from_array">[docs]</a>    <span class="k">def</span> <span class="nf">load_from_array</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">audio_array</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads data from array, reshaping it to be exactly 3</span>
+<span class="sd">        dimensions. Used internally when AudioSignal is called</span>
+<span class="sd">        with a tensor or an array.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_array : typing.Union[torch.Tensor, np.ndarray]</span>
+<span class="sd">            Array/tensor of audio of samples.</span>
+<span class="sd">        sample_rate : int</span>
+<span class="sd">            Sample rate of audio</span>
+<span class="sd">        device : str, optional</span>
+<span class="sd">            Device to move audio onto, by default &quot;cpu&quot;</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal loaded from array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">ensure_tensor</span><span class="p">(</span><span class="n">audio_array</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">double</span><span class="p">:</span>
+            <span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">original_signal_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.write"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_path</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;Writes audio to a file. Only writes the audio</span>
+<span class="sd">        that is in the very first item of the batch. To write other items</span>
+<span class="sd">        in the batch, index the signal along the batch dimension</span>
+<span class="sd">        before writing. After writing, the signal&#39;s ``path_to_file``</span>
+<span class="sd">        attribute is updated to the new path.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        audio_path : typing.Union[str, Path]</span>
+<span class="sd">            Path to write audio to.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Returns original AudioSignal, so you can use this in a fluent</span>
+<span class="sd">            interface.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Creating and writing a signal to disk:</span>
+
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(torch.randn(10, 1, 44100), 44100)</span>
+<span class="sd">        &gt;&gt;&gt; signal.write(&quot;/tmp/out.wav&quot;)</span>
+
+<span class="sd">        Writing a different element of the batch:</span>
+
+<span class="sd">        &gt;&gt;&gt; signal[5].write(&quot;/tmp/out.wav&quot;)</span>
+
+<span class="sd">        Using this in a fluent interface:</span>
+
+<span class="sd">        &gt;&gt;&gt; signal.write(&quot;/tmp/original.wav&quot;).low_pass(4000).write(&quot;/tmp/lowpass.wav&quot;)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Audio amplitude &gt; 1 clipped when saving&quot;</span><span class="p">)</span>
+        <span class="n">soundfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">audio_path</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span> <span class="o">=</span> <span class="n">audio_path</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.deepcopy"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.deepcopy">[docs]</a>    <span class="k">def</span> <span class="nf">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copies the signal and all of its attributes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Deep copy of the audio signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.copy"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shallow copy of signal.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Shallow copy of the audio signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.clone"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.clone">[docs]</a>    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clones all tensors contained in the AudioSignal,</span>
+<span class="sd">        and returns a copy of the signal with everything</span>
+<span class="sd">        cloned. Useful when using AudioSignal within autograd</span>
+<span class="sd">        computation graphs.</span>
+
+<span class="sd">        Relevant attributes are the stft data, the audio data,</span>
+<span class="sd">        and the loudness of the file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Clone of AudioSignal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">clone</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">clone</span><span class="p">(),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="n">stft_params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">clone</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">clone</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">clone</span><span class="o">.</span><span class="n">path_to_file</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span><span class="p">)</span>
+        <span class="n">clone</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">clone</span></div>
+
+<div class="viewcode-block" id="AudioSignal.detach"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.detach">[docs]</a>    <span class="k">def</span> <span class="nf">detach</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Detaches tensors contained in AudioSignal.</span>
+
+<span class="sd">        Relevant attributes are the stft data, the audio data,</span>
+<span class="sd">        and the loudness of the file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Same signal, but with all tensors detached.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.hash"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.hash">[docs]</a>    <span class="k">def</span> <span class="nf">hash</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the audio data to a temporary file, and then</span>
+<span class="sd">        hashes it using hashlib. Useful for creating a file</span>
+<span class="sd">        name based on the audio content.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Hash of audio data.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Creating a signal, and writing it to a unique file name:</span>
+
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(torch.randn(44100), 44100)</span>
+<span class="sd">        &gt;&gt;&gt; hash = signal.hash()</span>
+<span class="sd">        &gt;&gt;&gt; signal.write(f&quot;{hash}.wav&quot;)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.wav&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">(</span><span class="mi">128</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+            <span class="n">mv</span> <span class="o">=</span> <span class="nb">memoryview</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">,</span> <span class="n">buffering</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">readinto</span><span class="p">(</span><span class="n">mv</span><span class="p">),</span> <span class="mi">0</span><span class="p">):</span>
+                    <span class="n">h</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">mv</span><span class="p">[:</span><span class="n">n</span><span class="p">])</span>
+            <span class="n">file_hash</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">file_hash</span></div>
+
+    <span class="c1"># Signal operations</span>
+<div class="viewcode-block" id="AudioSignal.to_mono"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.to_mono">[docs]</a>    <span class="k">def</span> <span class="nf">to_mono</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Converts audio data to mono audio, by taking the mean</span>
+<span class="sd">        along the channels dimension.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with mean of channels.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.resample"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.resample">[docs]</a>    <span class="k">def</span> <span class="nf">resample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Resamples the audio, using sinc interpolation. This works on both</span>
+<span class="sd">        cpu and gpu, and is much faster on gpu.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sample_rate : int</span>
+<span class="sd">            Sample rate to resample to.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            Resampled AudioSignal</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sample_rate</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">julius</span><span class="o">.</span><span class="n">resample_frac</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">sample_rate</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="c1"># Tensor operations</span>
+<div class="viewcode-block" id="AudioSignal.to"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.to">[docs]</a>    <span class="k">def</span> <span class="nf">to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Moves all tensors contained in signal to the specified device.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        device : str</span>
+<span class="sd">            Device to move AudioSignal onto. Typical values are</span>
+<span class="sd">            &quot;cuda&quot;, &quot;cpu&quot;, or &quot;cuda:n&quot; to specify the nth gpu.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with all tensors moved to specified device.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.float"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.float">[docs]</a>    <span class="k">def</span> <span class="nf">float</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calls ``.float()`` on ``self.audio_data``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.cpu"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.cpu">[docs]</a>    <span class="k">def</span> <span class="nf">cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Moves AudioSignal to cpu.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.cuda"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.cuda">[docs]</a>    <span class="k">def</span> <span class="nf">cuda</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+        <span class="sd">&quot;&quot;&quot;Moves AudioSignal to cuda.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.numpy"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.numpy">[docs]</a>    <span class="k">def</span> <span class="nf">numpy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Detaches ``self.audio_data``, moves to cpu, and converts to numpy.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray</span>
+<span class="sd">            Audio data as a numpy array.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="AudioSignal.zero_pad"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.zero_pad">[docs]</a>    <span class="k">def</span> <span class="nf">zero_pad</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">before</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">after</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Zero pads the audio_data tensor before and after.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        before : int</span>
+<span class="sd">            How many zeros to prepend to audio.</span>
+<span class="sd">        after : int</span>
+<span class="sd">            How many zeros to append to audio.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with padding applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">,</span> <span class="p">(</span><span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.zero_pad_to"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.zero_pad_to">[docs]</a>    <span class="k">def</span> <span class="nf">zero_pad_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;after&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pad with zeros to a specified length, either before or after</span>
+<span class="sd">        the audio data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        length : int</span>
+<span class="sd">            Length to pad to</span>
+<span class="sd">        mode : str, optional</span>
+<span class="sd">            Whether to prepend or append zeros to signal, by default &quot;after&quot;</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with padding applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;before&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">zero_pad</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;after&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">zero_pad</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.trim"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.trim">[docs]</a>    <span class="k">def</span> <span class="nf">trim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">before</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">after</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Trims the audio_data tensor before and after.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        before : int</span>
+<span class="sd">            How many samples to trim from beginning.</span>
+<span class="sd">        after : int</span>
+<span class="sd">            How many samples to trim from end.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with trimming applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">after</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">before</span><span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">before</span><span class="p">:</span><span class="o">-</span><span class="n">after</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.truncate_samples"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.truncate_samples">[docs]</a>    <span class="k">def</span> <span class="nf">truncate_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">length_in_samples</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Truncate signal to specified length.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        length_in_samples : int</span>
+<span class="sd">            Truncate to this many samples.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with truncation applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">length_in_samples</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">device</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get device that AudioSignal is on.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.device</span>
+<span class="sd">            Device that AudioSignal is on.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">device</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">device</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">device</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">device</span>
+        <span class="k">return</span> <span class="n">device</span>
+
+    <span class="c1"># Properties</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">audio_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the audio data tensor in the object.</span>
+
+<span class="sd">        Audio data is always of the shape</span>
+<span class="sd">        (batch_size, num_channels, num_samples). If value has less</span>
+<span class="sd">        than 3 dims (e.g. is (num_channels, num_samples)), then it will</span>
+<span class="sd">        be reshaped to (1, num_channels, num_samples) - a batch size of 1.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : typing.Union[torch.Tensor, np.ndarray]</span>
+<span class="sd">            Audio data to set.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Audio samples.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_audio_data</span>
+
+    <span class="nd">@audio_data</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">audio_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="s2">&quot;audio_data should be torch.Tensor&quot;</span>
+            <span class="k">assert</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;audio_data should be 3-dim (B, C, T)&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audio_data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="c1"># Old loudness value not guaranteed to be right, reset it.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span>
+
+    <span class="c1"># alias for audio_data</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">audio_data</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">stft_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the STFT data inside the signal. Shape is</span>
+<span class="sd">        (batch, channels, frequencies, time).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Complex spectrogram data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stft_data</span>
+
+    <span class="nd">@stft_data</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">stft_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_complex</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;stft_data changed shape&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stft_data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="k">return</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Batch size of audio signal.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int</span>
+<span class="sd">            Batch size of signal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">signal_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Length of audio signal.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int</span>
+<span class="sd">            Length of signal in samples.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># alias for signal_length</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="n">signal_length</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shape of audio data.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple</span>
+<span class="sd">            Shape of audio data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">signal_duration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Length of audio signal in seconds.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Length of signal in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span>
+
+    <span class="c1"># alias for signal_duration</span>
+    <span class="n">duration</span> <span class="o">=</span> <span class="n">signal_duration</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">num_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Number of audio channels.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int</span>
+<span class="sd">            Number of audio channels.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># STFT</span>
+<div class="viewcode-block" id="AudioSignal.get_window"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.get_window">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_window</span><span class="p">(</span><span class="n">window_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">window_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Wrapper around scipy.signal.get_window so one can also get the</span>
+<span class="sd">        popular sqrt-hann window. This function caches for efficiency</span>
+<span class="sd">        using functools.lru\_cache.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        window_type : str</span>
+<span class="sd">            Type of window to get</span>
+<span class="sd">        window_length : int</span>
+<span class="sd">            Length of the window</span>
+<span class="sd">        device : str</span>
+<span class="sd">            Device to put window onto.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Window returned by scipy.signal.get_window, as a tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">signal</span>
+
+        <span class="k">if</span> <span class="n">window_type</span> <span class="o">==</span> <span class="s2">&quot;average&quot;</span><span class="p">:</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">window_length</span><span class="p">)</span> <span class="o">/</span> <span class="n">window_length</span>
+        <span class="k">elif</span> <span class="n">window_type</span> <span class="o">==</span> <span class="s2">&quot;sqrt_hann&quot;</span><span class="p">:</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">get_window</span><span class="p">(</span><span class="s2">&quot;hann&quot;</span><span class="p">,</span> <span class="n">window_length</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">get_window</span><span class="p">(</span><span class="n">window_type</span><span class="p">,</span> <span class="n">window_length</span><span class="p">)</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">window</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">window</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">stft_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns STFTParams object, which can be re-used to other</span>
+<span class="sd">        AudioSignals.</span>
+
+<span class="sd">        This property can be set as well. If values are not defined in STFTParams,</span>
+<span class="sd">        they are inferred automatically from the signal properties. The default is to use</span>
+<span class="sd">        32ms windows, with 8ms hop length, and the square root of the hann window.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        STFTParams</span>
+<span class="sd">            STFT parameters for the AudioSignal.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; stft_params = STFTParams(128, 32)</span>
+<span class="sd">        &gt;&gt;&gt; signal1 = AudioSignal(torch.randn(44100), 44100, stft_params=stft_params)</span>
+<span class="sd">        &gt;&gt;&gt; signal2 = AudioSignal(torch.randn(44100), 44100, stft_params=signal1.stft_params)</span>
+<span class="sd">        &gt;&gt;&gt; signal1.stft_params = STFTParams() # Defaults</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stft_params</span>
+
+    <span class="nd">@stft_params</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">stft_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">STFTParams</span><span class="p">):</span>
+        <span class="n">default_win_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="mf">0.032</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">))))</span>
+        <span class="n">default_hop_len</span> <span class="o">=</span> <span class="n">default_win_len</span> <span class="o">//</span> <span class="mi">4</span>
+        <span class="n">default_win_type</span> <span class="o">=</span> <span class="s2">&quot;hann&quot;</span>
+        <span class="n">default_match_stride</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">default_padding_type</span> <span class="o">=</span> <span class="s2">&quot;reflect&quot;</span>
+
+        <span class="n">default_stft_params</span> <span class="o">=</span> <span class="n">STFTParams</span><span class="p">(</span>
+            <span class="n">window_length</span><span class="o">=</span><span class="n">default_win_len</span><span class="p">,</span>
+            <span class="n">hop_length</span><span class="o">=</span><span class="n">default_hop_len</span><span class="p">,</span>
+            <span class="n">window_type</span><span class="o">=</span><span class="n">default_win_type</span><span class="p">,</span>
+            <span class="n">match_stride</span><span class="o">=</span><span class="n">default_match_stride</span><span class="p">,</span>
+            <span class="n">padding_type</span><span class="o">=</span><span class="n">default_padding_type</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">_asdict</span><span class="p">()</span>
+
+        <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">_asdict</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span> <span class="k">else</span> <span class="n">default_stft_params</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_stft_params</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">value</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">value</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_stft_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stft_params</span> <span class="o">=</span> <span class="n">STFTParams</span><span class="p">(</span><span class="o">**</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="AudioSignal.compute_stft_padding"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.compute_stft_padding">[docs]</a>    <span class="k">def</span> <span class="nf">compute_stft_padding</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">window_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">hop_length</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">match_stride</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compute how the STFT should be padded, based on match\_stride.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        window_length : int</span>
+<span class="sd">            Window length of STFT.</span>
+<span class="sd">        hop_length : int</span>
+<span class="sd">            Hop length of STFT.</span>
+<span class="sd">        match_stride : bool</span>
+<span class="sd">            Whether or not to match stride, making the STFT have the same alignment as</span>
+<span class="sd">            convolutional layers.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple</span>
+<span class="sd">            Amount to pad on either side of audio.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_length</span>
+
+        <span class="k">if</span> <span class="n">match_stride</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="n">hop_length</span> <span class="o">==</span> <span class="n">window_length</span> <span class="o">//</span> <span class="mi">4</span>
+            <span class="p">),</span> <span class="s2">&quot;For match_stride, hop must equal n_fft // 4&quot;</span>
+            <span class="n">right_pad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="n">hop_length</span><span class="p">)</span> <span class="o">*</span> <span class="n">hop_length</span> <span class="o">-</span> <span class="n">length</span>
+            <span class="n">pad</span> <span class="o">=</span> <span class="p">(</span><span class="n">window_length</span> <span class="o">-</span> <span class="n">hop_length</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">right_pad</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">pad</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">return</span> <span class="n">right_pad</span><span class="p">,</span> <span class="n">pad</span></div>
+
+<div class="viewcode-block" id="AudioSignal.stft"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.stft">[docs]</a>    <span class="k">def</span> <span class="nf">stft</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">window_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hop_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">window_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">match_stride</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">padding_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes the short-time Fourier transform of the audio data,</span>
+<span class="sd">        with specified STFT parameters.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        window_length : int, optional</span>
+<span class="sd">            Window length of STFT, by default ``0.032 * self.sample_rate``.</span>
+<span class="sd">        hop_length : int, optional</span>
+<span class="sd">            Hop length of STFT, by default ``window_length // 4``.</span>
+<span class="sd">        window_type : str, optional</span>
+<span class="sd">            Type of window to use, by default ``sqrt\_hann``.</span>
+<span class="sd">        match_stride : bool, optional</span>
+<span class="sd">            Whether to match the stride of convolutional layers, by default False</span>
+<span class="sd">        padding_type : str, optional</span>
+<span class="sd">            Type of padding to use, by default &#39;reflect&#39;</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            STFT of audio data.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Compute the STFT of an AudioSignal:</span>
+
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(torch.randn(44100), 44100)</span>
+<span class="sd">        &gt;&gt;&gt; signal.stft()</span>
+
+<span class="sd">        Vary the window and hop length:</span>
+
+<span class="sd">        &gt;&gt;&gt; stft_params = [STFTParams(128, 32), STFTParams(512, 128)]</span>
+<span class="sd">        &gt;&gt;&gt; for stft_param in stft_params:</span>
+<span class="sd">        &gt;&gt;&gt;     signal.stft_params = stft_params</span>
+<span class="sd">        &gt;&gt;&gt;     signal.stft()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">window_length</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">window_length</span>
+            <span class="k">if</span> <span class="n">window_length</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">window_length</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">hop_length</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">hop_length</span> <span class="k">if</span> <span class="n">hop_length</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">hop_length</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">window_type</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">window_type</span> <span class="k">if</span> <span class="n">window_type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">window_type</span>
+        <span class="p">)</span>
+        <span class="n">match_stride</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">match_stride</span> <span class="k">if</span> <span class="n">match_stride</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">match_stride</span>
+        <span class="p">)</span>
+        <span class="n">padding_type</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">padding_type</span> <span class="k">if</span> <span class="n">padding_type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">padding_type</span>
+        <span class="p">)</span>
+
+        <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window</span><span class="p">(</span><span class="n">window_type</span><span class="p">,</span> <span class="n">window_length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span>
+        <span class="n">right_pad</span><span class="p">,</span> <span class="n">pad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_stft_padding</span><span class="p">(</span>
+            <span class="n">window_length</span><span class="p">,</span> <span class="n">hop_length</span><span class="p">,</span> <span class="n">match_stride</span>
+        <span class="p">)</span>
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+            <span class="n">audio_data</span><span class="p">,</span> <span class="p">(</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span> <span class="o">+</span> <span class="n">right_pad</span><span class="p">),</span> <span class="n">padding_type</span>
+        <span class="p">)</span>
+        <span class="n">stft_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stft</span><span class="p">(</span>
+            <span class="n">audio_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="n">n_fft</span><span class="o">=</span><span class="n">window_length</span><span class="p">,</span>
+            <span class="n">hop_length</span><span class="o">=</span><span class="n">hop_length</span><span class="p">,</span>
+            <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">,</span>
+            <span class="n">return_complex</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">nf</span><span class="p">,</span> <span class="n">nt</span> <span class="o">=</span> <span class="n">stft_data</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">stft_data</span> <span class="o">=</span> <span class="n">stft_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span><span class="p">,</span> <span class="n">nf</span><span class="p">,</span> <span class="n">nt</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">match_stride</span><span class="p">:</span>
+            <span class="c1"># Drop first two and last two frames, which are added</span>
+            <span class="c1"># because of padding. Now num_frames * hop_length = num_samples.</span>
+            <span class="n">stft_data</span> <span class="o">=</span> <span class="n">stft_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="n">stft_data</span>
+
+        <span class="k">return</span> <span class="n">stft_data</span></div>
+
+<div class="viewcode-block" id="AudioSignal.istft"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.istft">[docs]</a>    <span class="k">def</span> <span class="nf">istft</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">window_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hop_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">window_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">match_stride</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes inverse STFT and sets it to audio\_data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        window_length : int, optional</span>
+<span class="sd">            Window length of STFT, by default ``0.032 * self.sample_rate``.</span>
+<span class="sd">        hop_length : int, optional</span>
+<span class="sd">            Hop length of STFT, by default ``window_length // 4``.</span>
+<span class="sd">        window_type : str, optional</span>
+<span class="sd">            Type of window to use, by default ``sqrt\_hann``.</span>
+<span class="sd">        match_stride : bool, optional</span>
+<span class="sd">            Whether to match the stride of convolutional layers, by default False</span>
+<span class="sd">        length : int, optional</span>
+<span class="sd">            Original length of signal, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AudioSignal</span>
+<span class="sd">            AudioSignal with istft applied.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        RuntimeError</span>
+<span class="sd">            Raises an error if stft was not called prior to istft on the signal,</span>
+<span class="sd">            or if stft_data is not set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Cannot do inverse STFT without self.stft_data!&quot;</span><span class="p">)</span>
+
+        <span class="n">window_length</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">window_length</span>
+            <span class="k">if</span> <span class="n">window_length</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">window_length</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">hop_length</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">hop_length</span> <span class="k">if</span> <span class="n">hop_length</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">hop_length</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">window_type</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">window_type</span> <span class="k">if</span> <span class="n">window_type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">window_type</span>
+        <span class="p">)</span>
+        <span class="n">match_stride</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="o">.</span><span class="n">match_stride</span> <span class="k">if</span> <span class="n">match_stride</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">match_stride</span>
+        <span class="p">)</span>
+
+        <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window</span><span class="p">(</span><span class="n">window_type</span><span class="p">,</span> <span class="n">window_length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">nb</span><span class="p">,</span> <span class="n">nch</span><span class="p">,</span> <span class="n">nf</span><span class="p">,</span> <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nb</span> <span class="o">*</span> <span class="n">nch</span><span class="p">,</span> <span class="n">nf</span><span class="p">,</span> <span class="n">nt</span><span class="p">)</span>
+        <span class="n">right_pad</span><span class="p">,</span> <span class="n">pad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_stft_padding</span><span class="p">(</span>
+            <span class="n">window_length</span><span class="p">,</span> <span class="n">hop_length</span><span class="p">,</span> <span class="n">match_stride</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">original_signal_length</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">pad</span> <span class="o">+</span> <span class="n">right_pad</span>
+
+        <span class="k">if</span> <span class="n">match_stride</span><span class="p">:</span>
+            <span class="c1"># Zero-pad the STFT on either side, putting back the frames that were</span>
+            <span class="c1"># dropped in stft().</span>
+            <span class="n">stft_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">stft_data</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">istft</span><span class="p">(</span>
+            <span class="n">stft_data</span><span class="p">,</span>
+            <span class="n">n_fft</span><span class="o">=</span><span class="n">window_length</span><span class="p">,</span>
+            <span class="n">hop_length</span><span class="o">=</span><span class="n">hop_length</span><span class="p">,</span>
+            <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">,</span>
+            <span class="n">length</span><span class="o">=</span><span class="n">length</span><span class="p">,</span>
+            <span class="n">center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">nch</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match_stride</span><span class="p">:</span>
+            <span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">pad</span> <span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">pad</span> <span class="o">+</span> <span class="n">right_pad</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">audio_data</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="AudioSignal.get_mel_filters"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.get_mel_filters">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_mel_filters</span><span class="p">(</span>
+        <span class="n">sr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n_fft</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n_mels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">fmin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">fmax</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a Filterbank matrix to combine FFT bins into Mel-frequency bins.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sr : int</span>
+<span class="sd">            Sample rate of audio</span>
+<span class="sd">        n_fft : int</span>
+<span class="sd">            Number of FFT bins</span>
+<span class="sd">        n_mels : int</span>
+<span class="sd">            Number of mels</span>
+<span class="sd">        fmin : float, optional</span>
+<span class="sd">            Lowest frequency, in Hz, by default 0.0</span>
+<span class="sd">        fmax : float, optional</span>
+<span class="sd">            Highest frequency, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray [shape=(n_mels, 1 + n_fft/2)]</span>
+<span class="sd">            Mel transform matrix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">librosa.filters</span> <span class="kn">import</span> <span class="n">mel</span> <span class="k">as</span> <span class="n">librosa_mel_fn</span>
+
+        <span class="k">return</span> <span class="n">librosa_mel_fn</span><span class="p">(</span>
+            <span class="n">sr</span><span class="o">=</span><span class="n">sr</span><span class="p">,</span>
+            <span class="n">n_fft</span><span class="o">=</span><span class="n">n_fft</span><span class="p">,</span>
+            <span class="n">n_mels</span><span class="o">=</span><span class="n">n_mels</span><span class="p">,</span>
+            <span class="n">fmin</span><span class="o">=</span><span class="n">fmin</span><span class="p">,</span>
+            <span class="n">fmax</span><span class="o">=</span><span class="n">fmax</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.mel_spectrogram"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.mel_spectrogram">[docs]</a>    <span class="k">def</span> <span class="nf">mel_spectrogram</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">n_mels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">80</span><span class="p">,</span> <span class="n">mel_fmin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">mel_fmax</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes a Mel spectrogram.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_mels : int, optional</span>
+<span class="sd">            Number of mels, by default 80</span>
+<span class="sd">        mel_fmin : float, optional</span>
+<span class="sd">            Lowest frequency, in Hz, by default 0.0</span>
+<span class="sd">        mel_fmax : float, optional</span>
+<span class="sd">            Highest frequency, by default None</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to self.stft().</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor [shape=(batch, channels, mels, time)]</span>
+<span class="sd">            Mel spectrogram.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stft</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">magnitude</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">stft</span><span class="p">)</span>
+
+        <span class="n">nf</span> <span class="o">=</span> <span class="n">magnitude</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">mel_basis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mel_filters</span><span class="p">(</span>
+            <span class="n">sr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="n">n_fft</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">nf</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">n_mels</span><span class="o">=</span><span class="n">n_mels</span><span class="p">,</span>
+            <span class="n">fmin</span><span class="o">=</span><span class="n">mel_fmin</span><span class="p">,</span>
+            <span class="n">fmax</span><span class="o">=</span><span class="n">mel_fmax</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">mel_basis</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">mel_basis</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">mel_spectrogram</span> <span class="o">=</span> <span class="n">magnitude</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">@</span> <span class="n">mel_basis</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">mel_spectrogram</span> <span class="o">=</span> <span class="n">mel_spectrogram</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mel_spectrogram</span></div>
+
+<div class="viewcode-block" id="AudioSignal.get_dct"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.get_dct">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_dct</span><span class="p">(</span><span class="n">n_mfcc</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n_mels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ortho&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a discrete cosine transform (DCT) transformation matrix with shape (``n_mels``, ``n_mfcc``),</span>
+<span class="sd">        it can be normalized depending on norm. For more information about dct:</span>
+<span class="sd">        http://en.wikipedia.org/wiki/Discrete_cosine_transform#DCT-II</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_mfcc : int</span>
+<span class="sd">            Number of mfccs</span>
+<span class="sd">        n_mels : int</span>
+<span class="sd">            Number of mels</span>
+<span class="sd">        norm   : str</span>
+<span class="sd">            Use &quot;ortho&quot; to get a orthogonal matrix or None, by default &quot;ortho&quot;</span>
+<span class="sd">        device : str, optional</span>
+<span class="sd">            Device to load the transformation matrix on, by default None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor [shape=(n_mels, n_mfcc)] T</span>
+<span class="sd">            The dct transformation matrix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">torchaudio.functional</span> <span class="kn">import</span> <span class="n">create_dct</span>
+
+        <span class="k">return</span> <span class="n">create_dct</span><span class="p">(</span><span class="n">n_mfcc</span><span class="p">,</span> <span class="n">n_mels</span><span class="p">,</span> <span class="n">norm</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AudioSignal.mfcc"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.mfcc">[docs]</a>    <span class="k">def</span> <span class="nf">mfcc</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">n_mfcc</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span> <span class="n">n_mels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">80</span><span class="p">,</span> <span class="n">log_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes mel-frequency cepstral coefficients (MFCCs).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n_mfcc : int, optional</span>
+<span class="sd">            Number of mels, by default 40</span>
+<span class="sd">        n_mels : int, optional</span>
+<span class="sd">            Number of mels, by default 80</span>
+<span class="sd">        log_offset: float, optional</span>
+<span class="sd">            Small value to prevent numerical issues when trying to compute log(0), by default 1e-6</span>
+<span class="sd">        kwargs : dict, optional</span>
+<span class="sd">            Keyword arguments to self.mel_spectrogram(), note that some of them will be used for self.stft()</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor [shape=(batch, channels, mfccs, time)]</span>
+<span class="sd">            MFCCs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">mel_spectrogram</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mel_spectrogram</span><span class="p">(</span><span class="n">n_mels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">mel_spectrogram</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">mel_spectrogram</span> <span class="o">+</span> <span class="n">log_offset</span><span class="p">)</span>
+        <span class="n">dct_mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dct</span><span class="p">(</span><span class="n">n_mfcc</span><span class="p">,</span> <span class="n">n_mels</span><span class="p">,</span> <span class="s2">&quot;ortho&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">mfcc</span> <span class="o">=</span> <span class="n">mel_spectrogram</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">dct_mat</span>
+        <span class="n">mfcc</span> <span class="o">=</span> <span class="n">mfcc</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mfcc</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">magnitude</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes and returns the absolute value of the STFT, which</span>
+<span class="sd">        is the magnitude. This value can also be set to some tensor.</span>
+<span class="sd">        When set, ``self.stft_data`` is manipulated so that its magnitude</span>
+<span class="sd">        matches what this is set to, and modulated by the phase.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Magnitude of STFT.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(torch.randn(44100), 44100)</span>
+<span class="sd">        &gt;&gt;&gt; magnitude = signal.magnitude # Computes stft if not computed</span>
+<span class="sd">        &gt;&gt;&gt; magnitude[magnitude &lt; magnitude.mean()] = 0</span>
+<span class="sd">        &gt;&gt;&gt; signal.magnitude = magnitude</span>
+<span class="sd">        &gt;&gt;&gt; signal.istft()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="p">)</span>
+
+    <span class="nd">@magnitude</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">magnitude</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="n">value</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">)</span>
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="AudioSignal.log_magnitude"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.log_magnitude">[docs]</a>    <span class="k">def</span> <span class="nf">log_magnitude</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">ref_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">amin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span> <span class="n">top_db</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">80.0</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes the log-magnitude of the spectrogram.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ref_value : float, optional</span>
+<span class="sd">            The magnitude is scaled relative to ``ref``: ``20 * log10(S / ref)``.</span>
+<span class="sd">            Zeros in the output correspond to positions where ``S == ref``,</span>
+<span class="sd">            by default 1.0</span>
+<span class="sd">        amin : float, optional</span>
+<span class="sd">            Minimum threshold for ``S`` and ``ref``, by default 1e-5</span>
+<span class="sd">        top_db : float, optional</span>
+<span class="sd">            Threshold the output at ``top_db`` below the peak:</span>
+<span class="sd">            ``max(10 * log10(S/ref)) - top_db``, by default -80.0</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Log-magnitude spectrogram</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">magnitude</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnitude</span>
+
+        <span class="n">amin</span> <span class="o">=</span> <span class="n">amin</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">log_spec</span> <span class="o">=</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">magnitude</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">amin</span><span class="p">))</span>
+        <span class="n">log_spec</span> <span class="o">-=</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">amin</span><span class="p">,</span> <span class="n">ref_value</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">top_db</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log_spec</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">log_spec</span><span class="p">,</span> <span class="n">log_spec</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">top_db</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">log_spec</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">phase</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes and returns the phase of the STFT.</span>
+<span class="sd">        This value can also be set to some tensor.</span>
+<span class="sd">        When set, ``self.stft_data`` is manipulated so that its phase</span>
+<span class="sd">        matches what this is set to, we original magnitudeith th.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            Phase of STFT.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(torch.randn(44100), 44100)</span>
+<span class="sd">        &gt;&gt;&gt; phase = signal.phase # Computes stft if not computed</span>
+<span class="sd">        &gt;&gt;&gt; phase[phase &lt; phase.mean()] = 0</span>
+<span class="sd">        &gt;&gt;&gt; signal.phase = phase</span>
+<span class="sd">        &gt;&gt;&gt; signal.istft()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="p">)</span>
+
+    <span class="nd">@phase</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnitude</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Operator overloading</span>
+    <span class="k">def</span> <span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="n">new_signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">new_signal</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">+=</span> <span class="n">util</span><span class="o">.</span><span class="n">_get_value</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_signal</span>
+
+    <span class="k">def</span> <span class="fm">__iadd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">+=</span> <span class="n">util</span><span class="o">.</span><span class="n">_get_value</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__radd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="o">+</span> <span class="n">other</span>
+
+    <span class="k">def</span> <span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="n">new_signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">new_signal</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">-=</span> <span class="n">util</span><span class="o">.</span><span class="n">_get_value</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_signal</span>
+
+    <span class="k">def</span> <span class="fm">__isub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">-=</span> <span class="n">util</span><span class="o">.</span><span class="n">_get_value</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="n">new_signal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">new_signal</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">*=</span> <span class="n">util</span><span class="o">.</span><span class="n">_get_value</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_signal</span>
+
+    <span class="k">def</span> <span class="fm">__imul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">*=</span> <span class="n">util</span><span class="o">.</span><span class="n">_get_value</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__rmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="o">*</span> <span class="n">other</span>
+
+    <span class="c1"># Representation</span>
+    <span class="k">def</span> <span class="nf">_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dur</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_duration</span><span class="si">:</span><span class="s2">0.3f</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_duration</span> <span class="k">else</span> <span class="s2">&quot;[unknown]&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dur</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">path_to_file</span> <span class="k">else</span> <span class="s2">&quot;path unknown&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;sample_rate&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+            <span class="s2">&quot;num_channels&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="k">else</span> <span class="s2">&quot;[unknown]&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;audio_data.shape&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="s2">&quot;stft_params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="p">,</span>
+            <span class="s2">&quot;device&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">info</span>
+
+<div class="viewcode-block" id="AudioSignal.markdown"><a class="viewcode-back" href="../../../source/audiotools.core.html#audiotools.core.audio_signal.AudioSignal.markdown">[docs]</a>    <span class="k">def</span> <span class="nf">markdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Produces a markdown representation of AudioSignal, in a markdown table.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Markdown representation of AudioSignal.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; signal = AudioSignal(torch.randn(44100), 44100)</span>
+<span class="sd">        &gt;&gt;&gt; print(signal.markdown())</span>
+<span class="sd">        | Key | Value</span>
+<span class="sd">        |---|---</span>
+<span class="sd">        | duration | 1.000 seconds |</span>
+<span class="sd">        | batch_size | 1 |</span>
+<span class="sd">        | path | path unknown |</span>
+<span class="sd">        | sample_rate | 44100 |</span>
+<span class="sd">        | num_channels | 1 |</span>
+<span class="sd">        | audio_data.shape | torch.Size([1, 1, 44100]) |</span>
+<span class="sd">        | stft_params | STFTParams(window_length=2048, hop_length=512, window_type=&#39;sqrt_hann&#39;, match_stride=False) |</span>
+<span class="sd">        | device | cpu |</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">()</span>
+
+        <span class="n">FORMAT</span> <span class="o">=</span> <span class="s2">&quot;| Key | Value </span><span class="se">\n</span><span class="s2">&quot;</span> <span class="s2">&quot;|---|--- </span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;| </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2"> |</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">FORMAT</span> <span class="o">+=</span> <span class="n">row</span>
+        <span class="k">return</span> <span class="n">FORMAT</span></div>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">()</span>
+
+        <span class="n">desc</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">desc</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">desc</span>
+
+    <span class="k">def</span> <span class="nf">__rich__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">rich.table</span> <span class="kn">import</span> <span class="n">Table</span>
+
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="p">()</span>
+
+        <span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Key&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;green&quot;</span><span class="p">)</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Value&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;cyan&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">table</span>
+
+    <span class="c1"># Comparison</span>
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+                    <span class="n">max_error</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">k</span><span class="p">])</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Max abs error for </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">max_error</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="c1"># Indexing</span>
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">key</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span>
+            <span class="n">_loudness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span>
+            <span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+        <span class="p">):</span>
+            <span class="c1"># Indexing only on the batch dimension.</span>
+            <span class="c1"># Then let&#39;s copy over relevant stuff.</span>
+            <span class="c1"># Future work: make this work for time-indexing</span>
+            <span class="c1"># as well, using the hop length.</span>
+            <span class="n">audio_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="n">_loudness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">stft_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="n">sources</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">copy</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)(</span><span class="n">audio_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">stft_params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stft_params</span><span class="p">)</span>
+        <span class="n">copy</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="n">_loudness</span>
+        <span class="n">copy</span><span class="o">.</span><span class="n">_stft_data</span> <span class="o">=</span> <span class="n">stft_data</span>
+        <span class="n">copy</span><span class="o">.</span><span class="n">sources</span> <span class="o">=</span> <span class="n">sources</span>
+
+        <span class="k">return</span> <span class="n">copy</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">key</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">audio_data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">_loudness</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">stft_data</span>
+            <span class="k">return</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">audio_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">audio_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">audio_data</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">_loudness</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_loudness</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">_loudness</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">stft_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stft_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">stft_data</span>
+            <span class="k">return</span>
+
+    <span class="k">def</span> <span class="fm">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Prem Seetharaman, Lucas Gestin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
