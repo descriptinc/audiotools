@@ -16,7 +16,7 @@ from audiotools.core.util import find_audio
 ### Logic for audio player, and adding audio / play buttons. ###
 ################################################################
 
-WAVESURFER = """<div id="waveform"></div>"""
+WAVESURFER = """<div id="waveform"></div><div id="wave-timeline"></div>"""
 
 CUSTOM_CSS = """
 .gradio-container {
@@ -28,6 +28,10 @@ region.wavesurfer-region:before {
 
 block {
     min-width: 0 !important;
+}
+
+#wave-timeline {
+    background-color: rgba(0, 0, 0, 0.5);
 }
 
 .head.svelte-1cl284s {
@@ -70,6 +74,13 @@ function load_wavesurfer() {
                         slop: 5
                     },
                     color: 'hsla(200, 50%, 70%, 0.4)',
+                }),
+                 WaveSurfer.timeline.create({
+                    container: "#wave-timeline",
+                    primaryLabelInterval: 5.0,
+                    secondaryLabelInterval: 1.0,
+                    primaryFontColor: '#F2F2F2',
+                    secondaryFontColor: '#F2F2F2',
                 }),
             ]
         };
@@ -114,7 +125,7 @@ function load_wavesurfer() {
 
     load_script('https://unpkg.com/wavesurfer.js')
         .then(() => {
-            load_script("https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.min.js")
+            load_script("https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.min.js")
                 .then(() => {
                     load_script('https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.min.js')
                         .then(() => {
@@ -234,7 +245,7 @@ class Player:
         self.position = 0
 
     def create(self):
-        gr.HTML(WAVESURFER, visible=True)
+        gr.HTML(WAVESURFER)
         gr.Markdown(
             "Click and drag on the waveform above to select a region for playback. "
             "Once created, the region can be moved around and resized. "
@@ -247,6 +258,8 @@ class Player:
 
             loop.click(None, _js=loop_region)
             clear.click(None, _js=clear_regions)
+
+        gr.HTML("<hr>")
 
     def add(self, name: str = "Play"):
         i = self.position
