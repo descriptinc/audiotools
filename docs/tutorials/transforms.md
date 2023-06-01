@@ -102,11 +102,11 @@ distance = metrics.spectral.MelSpectrogramLoss()
 for transform_name in transforms_to_demo:
     kwargs = {}
     if transform_name == "BackgroundNoise":
-        kwargs["sources"] = ["../../tests/audio/noises.csv"]
+        kwargs["sources"] = ["../../tests/audio/nz"]
     if transform_name == "RoomImpulseResponse":
-        kwargs["sources"] = ["../../tests/audio/irs.csv"]
+        kwargs["sources"] = ["../../tests/audio/ir"]
     if transform_name == "CrossTalk":
-        kwargs["sources"] = ["../../tests/audio/spk.csv"]
+        kwargs["sources"] = ["../../tests/audio/spk"]
     if "Quantization" in transform_name:
         kwargs["channels"] = ("choice", [8, 16, 32])
     transform_cls = getattr(tfm, transform_name)
@@ -541,15 +541,15 @@ class YourTransform(BaseTransform):
 
 There are two transforms which require a dataset to run. They are:
 
-1. `BackgroundNoise`: takes a `sources` argument which points to a list of files that it can load background noise from.
-2. `RoomImpulseResponse`: takes a `sources` argument which points to a list of files that it can load impulse response data from.
+1. `BackgroundNoise`: takes a `sources` argument which points to a list of folders that it can load background noise from.
+2. `RoomImpulseResponse`: takes a `sources` argument which points to a list of folders that it can load impulse response data from.
 
 Both of these transforms require an additional argument to their `instantiate` function: an `AudioSignal` object. They get instantiated like this:
 
 ```python
 seed = ...
 signal = ...
-transform = tfm.BackgroundNoise(sources=["/tmp/noises.csv"])
+transform = tfm.BackgroundNoise(sources=["noise_folder"])
 transform.instantiate(seed, signal)
 ```
 
@@ -571,17 +571,12 @@ batch_size = 10
 # Make it into a batch
 signal = AudioSignal.batch([signal.clone() for _ in range(batch_size)])
 
-# Prepare csv files for BackgroundNoise and RoomImpulseResponse
-_path = Path("../../tests/audio/").absolute()
-preprocess.create_csv(util.find_audio(_path / "nz"), "/tmp/noises.csv")
-preprocess.create_csv(util.find_audio(_path / "ir"), "/tmp/irs.csv")
-
 # Create each group of transforms
 preprocess = tfm.VolumeChange(name="pre")
 process = tfm.Compose(
     [
-        tfm.RoomImpulseResponse(sources=["/tmp/irs.csv"]),
-        tfm.BackgroundNoise(sources=["/tmp/noises.csv"]),
+        tfm.RoomImpulseResponse(sources=["../../tests/audio/ir"]),
+        tfm.BackgroundNoise(sources=["../../tests/audio/nz"]),
         tfm.ClippingDistortion(),
         tfm.MuLawQuantization(),
         tfm.LowPass(prob=0.5),

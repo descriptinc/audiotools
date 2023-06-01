@@ -1,4 +1,4 @@
-Machine Learning
+Machine learning
 =====================
 
 .. toctree::
@@ -14,26 +14,18 @@ ML Accelerator
    :undoc-members:
    :show-inheritance:
 
+ML Loggers / decorators
+--------------------------------
+
+.. automodule:: audiotools.ml.decorators
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Experiment tracking/saving
 -------------------------------
 
 .. automodule:: audiotools.ml.experiment
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Trainer
-----------------------------
-
-.. automodule:: audiotools.ml.trainer
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ML tricks
----------------------------
-
-.. automodule:: audiotools.ml.tricks
    :members:
    :undoc-members:
    :show-inheritance:

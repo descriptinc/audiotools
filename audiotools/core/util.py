@@ -1,4 +1,5 @@
 import csv
+import glob
 import math
 import numbers
 import os
@@ -37,7 +38,12 @@ def info(audio_path: str):
     audio_path : str
         Path to audio file.
     """
-    info = torchaudio.info(str(audio_path))
+    # try default backend first, then fallback to soundfile
+    try:
+        info = torchaudio.info(str(audio_path))
+    except:  # pragma: no cover
+        info = torchaudio.backend.soundfile_backend.info(str(audio_path))
+
     if isinstance(info, tuple):  # pragma: no cover
         signal_info = info[0]
         info = Info(sample_rate=signal_info.rate, num_frames=signal_info.length)
@@ -232,7 +238,13 @@ def find_audio(folder: str, ext: List[str] = AUDIO_EXTENSIONS):
     # Take care of case where user has passed in an audio file directly
     # into one of the calling functions.
     if str(folder).endswith(tuple(ext)):
-        return [folder]
+        # if, however, there's a glob in the path, we need to
+        # return the glob, not the file.
+        if "*" in str(folder):
+            return glob.glob(str(folder), recursive=("**" in str(folder)))
+        else:
+            return [folder]
+
     files = []
     for x in ext:
         files += folder.glob(f"**/*{x}")
