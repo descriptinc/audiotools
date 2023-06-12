@@ -2,6 +2,17 @@
 
 Object-oriented handling of audio signals, with fast augmentation routines, batching, padding, and more.
 
+## Installation
+```
+pip install git+https://github.com/descriptinc/audiotools
+```
+OR
+```bash
+git clone https://github.com/descriptinc/audiotools
+cd audiotools
+pip install .
+```
+
 ## Documentation
 
 For documentation, see [the docs](https://descriptinc.github.io/audiotools/).
