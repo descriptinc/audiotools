@@ -4,7 +4,7 @@ Object-oriented handling of audio signals, with fast augmentation routines, batc
 
 ## Documentation
 
-For documentation, see [the docs](https://descriptinc.github.io/lyrebird-audiotools/).
+For documentation, see [the docs](https://descriptinc.github.io/audiotools/).
 
 ### Deploying documentation
 
