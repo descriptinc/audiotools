@@ -5,7 +5,7 @@ with open("README.md") as f:
     long_description = f.read()
 
 setup(
-    name="audiotools",
+    name="descript-audiotools",
     version="0.7.0",
     classifiers=[
         "Intended Audience :: Developers",
