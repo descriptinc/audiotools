@@ -136,6 +136,7 @@ class FFMPEGMixin:
                 command += " -hide_banner -loglevel error"
             subprocess.check_call(shlex.split(command))
             resampled = AudioSignal(f_out)
+            Path.unlink(Path(f.out))
         return resampled
 
     @classmethod
