@@ -7,6 +7,8 @@ import random
 from collections import defaultdict
 from pathlib import Path
 from typing import List
+import traceback
+import sys
 
 import gradio as gr
 
@@ -581,6 +583,7 @@ class Samples:
             done = gr.update(interactive=True)
             pbar = self.progress()
         except:
+            traceback.print_exc()
             updates = [gr.update() for _ in range(len(self.order))]
             done = gr.update(value="No more samples!", interactive=False)
             self.current = len(self)
