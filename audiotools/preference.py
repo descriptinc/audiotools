@@ -123,11 +123,11 @@ function load_wavesurfer() {
         console.log("Created WaveSurfer object.")
     }
 
-    load_script('https://unpkg.com/wavesurfer.js')
+    load_script('https://unpkg.com/wavesurfer.js@6.6.4')
         .then(() => {
-            load_script("https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.min.js")
+            load_script("https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.timeline.min.js")
                 .then(() => {
-                    load_script('https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.min.js')
+                    load_script('https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js')
                         .then(() => {
                             console.log("Loaded regions");
                             create_wavesurfer();
