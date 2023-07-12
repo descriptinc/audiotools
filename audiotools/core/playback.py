@@ -16,8 +16,8 @@ from . import templates
 from .util import _close_temp_files
 from .util import format_figure
 
-headers = pkg_resources.read_text(templates, "headers.html")
-widget = pkg_resources.read_text(templates, "widget.html")
+headers = pkg_resources.files(templates).joinpath("headers.html").read_text()
+widget = pkg_resources.files(templates).joinpath("widget.html").read_text()
 
 DEFAULT_EXTENSION = ".wav"
 

@@ -238,6 +238,7 @@ class BaseModel(nn.Module):
         self,
         folder: typing.Union[str, Path],
         extra_data: dict = None,
+        package: bool = True,
     ):
         """Dumps a model into a folder, as both a package
         and as weights, as well as anything specified in
@@ -271,10 +272,11 @@ class BaseModel(nn.Module):
         target_base = Path(f"{folder}/{model_name}/")
         target_base.mkdir(exist_ok=True, parents=True)
 
-        package_path = target_base / f"package.pth"
-        weights_path = target_base / f"weights.pth"
+        if package:
+            package_path = target_base / f"package.pth"
+            self.save(package_path)
 
-        self.save(package_path)
+        weights_path = target_base / f"weights.pth"
         self.save(weights_path, package=False)
 
         for path, obj in extra_data.items():
