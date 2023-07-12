@@ -535,7 +535,7 @@ class Samples:
         if shuffle:
             random.shuffle(self.names)
 
-        self.n_samples = n_samples
+        self.n_samples = len(self.names) if n_samples is None else n_samples
 
     def get_updates(self, idx, order):
         key = self.names[idx]
@@ -555,7 +555,7 @@ class Samples:
         return gr.update(value=pbar)
 
     def __len__(self):
-        return len(self.names)
+        return self.n_samples
 
     def filter_completed(self, user, save_path):
         if not self.filtered:
@@ -565,6 +565,7 @@ class Samples:
                     reader = csv.DictReader(f)
                     done = [r["sample"] for r in reader if r["user"] == user]
             self.names = [k for k in self.names if k not in done]
+            self.names = self.names[:self.n_samples]
             self.filtered = True  # Avoid filtering more than once per session.
 
     def get_next_sample(self, reference, conditions):
