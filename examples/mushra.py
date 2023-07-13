@@ -1,108 +1,99 @@
-import math
 import string
 from dataclasses import dataclass
+from typing import List
 from pathlib import Path
 
 import gradio as gr
-import numpy as np
-import soundfile as sf
 
+import argbind
 from audiotools import preference as pr
 
 
+@argbind.bind(without_prefix=True)
 @dataclass
 class Config:
     folder: str = None
     save_path: str = "results.csv"
-    conditions: list = None
+    conditions: List[str] = None
     reference: str = None
     seed: int = 0
+    share: bool = False
+    n_samples: int = 10
 
 
-def random_sine(f):
-    fs = 44100  # sampling rate, Hz, must be integer
-    duration = 5.0  # in seconds, may be float
+def get_text(wav_file: str):
+    txt_file = Path(wav_file).with_suffix(".txt")
+    if Path(txt_file).exists():
+        with open(txt_file, "r") as f:
+            txt = f.read()
+    else:
+        txt = ""
+    return f"""<div style="text-align:center;font-size:large;">{txt}</div>"""
 
-    # generate samples, note conversion to float32 array
-    volume = 0.1
-    num_samples = int(fs * duration)
-    samples = volume * np.sin(2 * math.pi * (f / fs) * np.arange(num_samples))
+def main(config: Config):
+    with gr.Blocks() as app:
+        save_path = config.save_path
+        samples = gr.State(pr.Samples(config.folder, n_samples=config.n_samples))
 
-    return samples, fs
+        reference = config.reference
+        conditions = config.conditions
 
+        player = pr.Player(app)
+        player.create()
+        if reference is not None:
+            player.add("Play Reference")
 
-def create_data(path):
-    path = Path(path)
-    hz = [110, 140, 180]
+        user = pr.create_tracker(app)
+        ratings = []
 
-    for i in range(6):
-        name = f"condition_{string.ascii_lowercase[i]}"
-        for j in range(3):
-            sample_path = path / name / f"sample_{j}.wav"
-            sample_path.parent.mkdir(exist_ok=True, parents=True)
-            audio, sr = random_sine(hz[j] * (2**i))
-            sf.write(sample_path, audio, sr)
+        with gr.Row():
+            txt = gr.HTML("")
 
+        with gr.Row():
+            gr.Button("Rate audio quality", interactive=False)
+            with gr.Column(scale=8):
+                gr.HTML(pr.slider_mushra)
 
-config = Config(
-    folder="/tmp/pref/audio/",
-    save_path="/tmp/pref/results.csv",
-    conditions=["condition_a", "condition_b"],
-    reference="condition_c",
-)
+        for i in range(len(conditions)):
+            with gr.Row().style(equal_height=True):
+                x = string.ascii_uppercase[i]
+                player.add(f"Play {x}")
+                with gr.Column(scale=9):
+                    ratings.append(gr.Slider(value=50, interactive=True))
 
-create_data(config.folder)
+        def build(user, samples, *ratings):
+            # Filter out samples user has done already, by looking in the CSV.
+            samples.filter_completed(user, save_path)
 
-with gr.Blocks() as app:
-    save_path = config.save_path
-    samples = gr.State(pr.Samples(config.folder))
+            # Write results to CSV
+            if samples.current > 0:
+                start_idx = 1 if reference is not None else 0
+                name = samples.names[samples.current - 1]
+                result = {"sample": name, "user": user}
+                for k, r in zip(samples.order[start_idx:], ratings):
+                    result[k] = r
+                pr.save_result(result, save_path)
 
-    reference = config.reference
-    conditions = config.conditions
+            updates, done, pbar = samples.get_next_sample(reference, conditions)
+            wav_file = updates[0]['value']
 
-    player = pr.Player(app)
-    player.create()
-    if reference is not None:
-        player.add("Play Reference")
+            txt_update = gr.update(value=get_text(wav_file))
 
-    user = pr.create_tracker(app)
-    ratings = []
+            return updates + [gr.update(value=50) for _ in ratings] + [done, samples, pbar, txt_update]
 
-    with gr.Row():
-        gr.HTML("")
-        with gr.Column(scale=9):
-            gr.HTML(pr.slider_mushra)
+        progress = gr.HTML()
+        begin = gr.Button("Submit", elem_id="start-survey")
+        begin.click(
+            fn=build,
+            inputs=[user, samples] + ratings,
+            outputs=player.to_list() + ratings + [begin, samples, progress, txt],
+        ).then(None, _js=pr.reset_player)
 
-    for i in range(len(conditions)):
-        with gr.Row().style(equal_height=True):
-            x = string.ascii_uppercase[i]
-            player.add(f"Play {x}")
-            with gr.Column(scale=9):
-                ratings.append(gr.Slider(value=50, interactive=True))
+        # Comment this back in to actually launch the script.
+        app.launch(share=config.share)
 
-    def build(user, samples, *ratings):
-        # Filter out samples user has done already, by looking in the CSV.
-        samples.filter_completed(user, save_path)
-
-        # Write results to CSV
-        if samples.current > 0:
-            start_idx = 1 if reference is not None else 0
-            name = samples.names[samples.current - 1]
-            result = {"sample": name, "user": user}
-            for k, r in zip(samples.order[start_idx:], ratings):
-                result[k] = r
-            pr.save_result(result, save_path)
-
-        updates, done, pbar = samples.get_next_sample(reference, conditions)
-        return updates + [gr.update(value=50) for _ in ratings] + [done, samples, pbar]
-
-    progress = gr.HTML()
-    begin = gr.Button("Submit", elem_id="start-survey")
-    begin.click(
-        fn=build,
-        inputs=[user, samples] + ratings,
-        outputs=player.to_list() + ratings + [begin, samples, progress],
-    ).then(None, _js=pr.reset_player)
-
-    # Comment this back in to actually launch the script.
-    app.launch()
+if __name__ == "__main__":
+    args = argbind.parse_args()
+    with argbind.scope(args):
+        config = Config()
+        main(config)
