@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setup(
     name="descript-audiotools",
-    version="0.7.2",
+    version="0.7.3",
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
