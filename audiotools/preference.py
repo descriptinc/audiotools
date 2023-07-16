@@ -4,11 +4,11 @@
 import copy
 import csv
 import random
+import sys
+import traceback
 from collections import defaultdict
 from pathlib import Path
 from typing import List
-import traceback
-import sys
 
 import gradio as gr
 
@@ -567,7 +567,7 @@ class Samples:
                     reader = csv.DictReader(f)
                     done = [r["sample"] for r in reader if r["user"] == user]
             self.names = [k for k in self.names if k not in done]
-            self.names = self.names[:self.n_samples]
+            self.names = self.names[: self.n_samples]
             self.filtered = True  # Avoid filtering more than once per session.
 
     def get_next_sample(self, reference, conditions):
