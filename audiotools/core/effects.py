@@ -276,7 +276,7 @@ class EffectMixin:
         self.audio_data = self._to_3d(waveform)
         return self.to(device)
 
-    def time_stretch(self, factor: float, quick: bool = True):
+    def time_stretch(self, factor: float, quick: bool = True, speech: bool = True):
         """Time stretch the audio signal.
 
         Parameters
@@ -299,6 +299,9 @@ class EffectMixin:
         ]
         if quick:
             effects[0].insert(1, "-q")
+
+        if speech:
+            effects[0].insert(1, "-s")
 
         waveform = self._to_2d().cpu()
         waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(

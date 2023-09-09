@@ -178,6 +178,13 @@ def test_time_stretch():
 
     batched = spk_batch.deepcopy().time_stretch(0.8)
 
+    #non-default case
+    single = spk.deepcopy().time_stretch(0.8, speech=False)
+
+    spk_batch = AudioSignal.batch([spk.deepcopy() for _ in range(batch_size)])
+    
+    batched = spk_batch.deepcopy().time_stretch(0.8, speech=False)
+
     assert np.allclose(batched[0].audio_data, single[0].audio_data)
 
 
