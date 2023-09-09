@@ -546,7 +546,7 @@ class Samples:
     def progress(self):
         try:
             pct = self.current / len(self) * 100
-        except:
+        except: # pragma: no cover
             pct = 100
         text = f"On {self.current} / {len(self)} samples"
         pbar = (

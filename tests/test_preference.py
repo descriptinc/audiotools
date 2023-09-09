@@ -83,7 +83,7 @@ def _test_mushra(app, config):
         samples.filter_completed(user, save_path)
 
         # Write results to CSV
-        if samples.current > 0:
+        if samples.current > 0 and len(samples.names) > 0:
             start_idx = 1 if reference is not None else 0
             name = samples.names[samples.current - 1]
             result = {"sample": name, "user": user}
@@ -115,6 +115,19 @@ def test_preference():
             save_path=tmpdir / "results.csv",
             conditions=["condition_a", "condition_b"],
             reference="condition_c",
+        )
+
+        create_data(config.folder)
+        with gr.Blocks() as app:
+            _test_mushra(app, config)
+            _test_mushra(app, config)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        config = Config(
+            folder=tmpdir,
+            save_path=tmpdir / "results.csv",
+            conditions=["condition_a", "condition_b"],
         )
 
         create_data(config.folder)
