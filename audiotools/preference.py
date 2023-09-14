@@ -4,6 +4,8 @@
 import copy
 import csv
 import random
+import sys
+import traceback
 from collections import defaultdict
 from pathlib import Path
 from typing import List
@@ -123,11 +125,11 @@ function load_wavesurfer() {
         console.log("Created WaveSurfer object.")
     }
 
-    load_script('https://unpkg.com/wavesurfer.js')
+    load_script('https://unpkg.com/wavesurfer.js@6.6.4')
         .then(() => {
-            load_script("https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.min.js")
+            load_script("https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.timeline.min.js")
                 .then(() => {
-                    load_script('https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.min.js')
+                    load_script('https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js')
                         .then(() => {
                             console.log("Loaded regions");
                             create_wavesurfer();
@@ -535,7 +537,7 @@ class Samples:
         if shuffle:
             random.shuffle(self.names)
 
-        self.n_samples = n_samples
+        self.n_samples = len(self.names) if n_samples is None else n_samples
 
     def get_updates(self, idx, order):
         key = self.names[idx]
@@ -544,7 +546,7 @@ class Samples:
     def progress(self):
         try:
             pct = self.current / len(self) * 100
-        except:
+        except:  # pragma: no cover
             pct = 100
         text = f"On {self.current} / {len(self)} samples"
         pbar = (
@@ -555,7 +557,7 @@ class Samples:
         return gr.update(value=pbar)
 
     def __len__(self):
-        return len(self.names)
+        return self.n_samples
 
     def filter_completed(self, user, save_path):
         if not self.filtered:
@@ -565,6 +567,7 @@ class Samples:
                     reader = csv.DictReader(f)
                     done = [r["sample"] for r in reader if r["user"] == user]
             self.names = [k for k in self.names if k not in done]
+            self.names = self.names[: self.n_samples]
             self.filtered = True  # Avoid filtering more than once per session.
 
     def get_next_sample(self, reference, conditions):
@@ -580,6 +583,7 @@ class Samples:
             done = gr.update(interactive=True)
             pbar = self.progress()
         except:
+            traceback.print_exc()
             updates = [gr.update() for _ in range(len(self.order))]
             done = gr.update(value="No more samples!", interactive=False)
             self.current = len(self)
