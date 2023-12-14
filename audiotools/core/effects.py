@@ -96,7 +96,7 @@ class EffectMixin:
             idx = other.audio_data.abs().argmax(axis=-1)
             irs = torch.zeros_like(other.audio_data)
             for i in range(other.batch_size):
-                irs[i] = torch.roll(other.audio_data[i], -idx[i].item(), -1)
+                irs[i] = torch.roll(other.audio_data[i], -idx[i].min().item(), -1)
             other = AudioSignal(irs, other.sample_rate)
 
         delta = torch.zeros_like(other.audio_data)
