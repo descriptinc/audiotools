@@ -567,7 +567,7 @@ class ImpulseResponseMixin:
 
         window = torch.zeros_like(self.audio_data, device=self.device)
         for idx in range(self.batch_size):
-            window_idx = early_idx[idx, 0].nonzero()
+            window_idx = early_idx[idx, :].nonzero()
             window[idx, ..., window_idx] = self.get_window(
                 "hann", window_idx.shape[-1], self.device
             )
