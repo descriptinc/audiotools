@@ -308,6 +308,8 @@ class LoudnessMixin:
         meter = Meter(
             self.sample_rate, filter_class=filter_class, block_size=block_size, **kwargs
         )
+        if "mps" in str(self.audio_data.device):  # MPS has no float64
+            meter = meter.type(torch.float32)
         meter = meter.to(self.device)
         # measure loudness
         loudness = meter.integrated_loudness(self.audio_data.permute(0, 2, 1))
