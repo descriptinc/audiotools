@@ -1,5 +1,4 @@
 import json
-import pathlib
 import shlex
 import subprocess
 import tempfile
@@ -62,20 +61,26 @@ def r128stats(filepath: str, quiet: bool):
     return stats_dict
 
 
-def ffprobe_offset(path):
+def ffprobe_codec_and_offset(path: str) -> Tuple[float, str]:
+    """Given a path to a file, returns the start time offset and codec of
+    the first audio stream.
+    """
     ff = ffmpy.FFprobe(
         inputs={path: None},
-        global_options="-show_entries format=start_time:stream=duration,start_time,codec_type,start_pts,time_base -of json -v quiet",
+        global_options="-show_entries format=start_time:stream=duration,start_time,codec_type,codec_name,start_pts,time_base -of json -v quiet",
     )
     streams = json.loads(ff.run(stdout=subprocess.PIPE)[0])["streams"]
     seconds_offset = 0.0
-    # Get the offset of the first audio stream we find
+    codec = None
+    
+    # Get the offset and codec of the first audio stream we find
     # and return its start time, if it has one.
     for stream in streams:
         if stream["codec_type"] == "audio":
             seconds_offset = stream.get("start_time", 0.0)
+            codec = stream.get("codec_name")
             break
-    return float(seconds_offset)
+    return float(seconds_offset), codec
 
 
 class FFMPEGMixin:
@@ -178,8 +183,7 @@ class FFMPEGMixin:
             # We pad the file using the start time offset
             # in case it's an audio stream starting at some
             # offset in a video container.
-            pad = ffprobe_offset(audio_path)
-            file_extension = pathlib.Path(audio_path).suffix.lower()
+            pad, codec = ffprobe_codec_and_offset(audio_path)
             
             # For mp3s, don't pad files with discrepancies less than
             # 0.027s - it's likely due to codec latency.
@@ -187,7 +191,7 @@ class FFMPEGMixin:
             # 1152, which is 0.0261 44khz. So we
             # set the threshold here slightly above that.
             # Source: https://lame.sourceforge.io/tech-FAQ.txt.
-            if file_extension == 'mp3' and pad < 0.027:
+            if codec == 'mp3' and pad < 0.027:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
