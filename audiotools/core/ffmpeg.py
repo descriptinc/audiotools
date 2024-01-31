@@ -61,7 +61,7 @@ def r128stats(filepath: str, quiet: bool):
     return stats_dict
 
 
-def ffprobe_codec_and_offset(path: str) -> Tuple[float, str]:
+def ffprobe_offset_and_codec(path: str) -> Tuple[float, str]:
     """Given a path to a file, returns the start time offset and codec of
     the first audio stream.
     """
@@ -183,7 +183,7 @@ class FFMPEGMixin:
             # We pad the file using the start time offset
             # in case it's an audio stream starting at some
             # offset in a video container.
-            pad, codec = ffprobe_codec_and_offset(audio_path)
+            pad, codec = ffprobe_offset_and_codec(audio_path)
             
             # For mp3s, don't pad files with discrepancies less than
             # 0.027s - it's likely due to codec latency.
