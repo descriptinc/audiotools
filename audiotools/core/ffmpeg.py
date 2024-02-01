@@ -2,6 +2,7 @@ import json
 import shlex
 import subprocess
 import tempfile
+from typing import Tuple
 from pathlib import Path
 
 import ffmpy
