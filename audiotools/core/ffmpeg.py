@@ -2,8 +2,8 @@ import json
 import shlex
 import subprocess
 import tempfile
-from typing import Tuple
 from pathlib import Path
+from typing import Tuple
 
 import ffmpy
 import numpy as np
@@ -73,7 +73,7 @@ def ffprobe_offset_and_codec(path: str) -> Tuple[float, str]:
     streams = json.loads(ff.run(stdout=subprocess.PIPE)[0])["streams"]
     seconds_offset = 0.0
     codec = None
-    
+
     # Get the offset and codec of the first audio stream we find
     # and return its start time, if it has one.
     for stream in streams:
@@ -181,19 +181,19 @@ class FFMPEGMixin:
             )
             ff.run()
 
-            # We pad the file using the start time offset in case it's an audio 
+            # We pad the file using the start time offset in case it's an audio
             # stream starting at some offset in a video container.
             pad, codec = ffprobe_offset_and_codec(audio_path)
-            
+
             # For mp3s, don't pad files with discrepancies less than 0.027s -
-            # it's likely due to codec latency. The amount of latency introduced 
-            # by mp3 is 1152, which is 0.0261 44khz. So we set the threshold 
+            # it's likely due to codec latency. The amount of latency introduced
+            # by mp3 is 1152, which is 0.0261 44khz. So we set the threshold
             # here slightly above that.
             # Source: https://lame.sourceforge.io/tech-FAQ.txt.
             #
             # The client should match this logic.
             # See https://linear.app/descript/issue/MEDIA-1034/mp3-files-decoding-incorrectly-during-exportweb-was-echo-during
-            if codec == 'mp3' and pad < 0.027:
+            if codec == "mp3" and pad < 0.027:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
                 inputs={wav_file: None},
