@@ -190,9 +190,6 @@ class FFMPEGMixin:
             # by mp3 is 1152, which is 0.0261 44khz. So we set the threshold
             # here slightly above that.
             # Source: https://lame.sourceforge.io/tech-FAQ.txt.
-            #
-            # The client should match this logic.
-            # See https://linear.app/descript/issue/MEDIA-1034/mp3-files-decoding-incorrectly-during-exportweb-was-echo-during
             if codec == "mp3" and pad < 0.027:
                 pad = 0.0
             ff = ffmpy.FFmpeg(
