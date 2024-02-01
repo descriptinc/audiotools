@@ -33,7 +33,7 @@ def test_audio_grad():
                     result.audio_data.sum().backward()
             else:
                 if result.dtype.is_complex:
-                    result.real().sum().backward()
+                    result.real.sum().backward()
                 else:
                     result.sum().backward()
 
