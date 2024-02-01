@@ -46,7 +46,7 @@ setup(
         "ffmpy",
         "ipython",
         "rich",
-        "matplotlib==3.7", # See https://github.com/librosa/librosa/issues/1763#issuecomment-1742120524
+        "matplotlib==3.7",  # See https://github.com/librosa/librosa/issues/1763#issuecomment-1742120524
         "librosa",
         "pystoi",
         "torch_stoi",
@@ -66,7 +66,7 @@ setup(
             "line_profiler",
             "pesq",
             "gradio==3.32.0",
-            "transformers>=4.23.1", 
+            "transformers>=4.23.1",
         ],
         "docs": [
             "sphinx",
