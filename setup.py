@@ -65,7 +65,7 @@ setup(
             "pytest-cov",
             "line_profiler",
             "pesq",
-            "gradio==3.41.2",
+            "gradio==3.32.0",
             "transformers>=4.23.1",
         ],
         "docs": [
