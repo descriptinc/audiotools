@@ -46,7 +46,7 @@ setup(
         "ffmpy",
         "ipython",
         "rich",
-        "matplotlib",
+        "matplotlib==3.5",  # See https://github.com/librosa/librosa/issues/1763#issuecomment-1742120524
         "librosa",
         "pystoi",
         "torch_stoi",
@@ -65,7 +65,7 @@ setup(
             "pytest-cov",
             "line_profiler",
             "pesq",
-            "gradio>=3.32.0",
+            "gradio==3.32.0",
             "transformers>=4.23.1",
         ],
         "docs": [

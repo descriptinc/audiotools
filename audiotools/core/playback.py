@@ -2,7 +2,7 @@
 These are utilities that allow one to embed an AudioSignal
 as a playable object in a Jupyter notebook, or to play audio from
 the terminal, etc.
-"""
+"""  # fmt: skip
 import base64
 import io
 import random

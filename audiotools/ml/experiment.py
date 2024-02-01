@@ -1,7 +1,7 @@
 """
 Useful class for Experiment tracking, and ensuring code is
 saved alongside files.
-"""
+"""  # fmt: skip
 import datetime
 import os
 import shlex

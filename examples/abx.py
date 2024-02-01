@@ -98,6 +98,6 @@ with gr.Blocks() as app:
         fn=build,
         inputs=[user, samples, rating],
         outputs=player.to_list() + [rating, begin, samples, progress],
-    ).then(None, _js=pr.reset_player)
+    ).then(None, js=pr.reset_player)
 
     app.launch()
