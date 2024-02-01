@@ -27,15 +27,9 @@ def test_audio_grad():
                 # If necessary, propagate spectrogram changes to waveform
                 if result.stft_data is not None:
                     result.istft()
-                if result.audio_data.dtype.is_complex:
-                    result.real().sum().backward()
-                else:
-                    result.audio_data.sum().backward()
+                result.audio_data.sum().backward()
             else:
-                if result.dtype.is_complex:
-                    result.real.sum().backward()
-                else:
-                    result.sum().backward()
+                result.sum().backward()
 
             assert signal.audio_data.grad is not None or not target
         except RuntimeError:
