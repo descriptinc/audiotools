@@ -28,12 +28,12 @@ def test_audio_grad():
                 if result.stft_data is not None:
                     result.istft()
                 if result.audio_data.dtype.is_complex:
-                    result.real().sum().backward()
+                    result.audio_data.real().sum().backward()
                 else:
                     result.audio_data.sum().backward()
             else:
                 if result.dtype.is_complex:
-                    result.real.sum().backward()
+                    result.real().sum().backward()
                 else:
                     result.sum().backward()
 
