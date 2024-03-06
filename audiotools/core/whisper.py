@@ -72,7 +72,7 @@ class WhisperMixin:
             input_features = input_features.to(self.whisper_device)
             generated_ids = self.whisper_model.generate(input_features=input_features, **kwargs)
 
-        transcription = self.whisper_processor.batch_decode(generated_ids)
+        transcription = self.whisper_processor.batch_decode(generated_ids, skip_special_tokens=True)
         return transcription[0]
 
     def get_whisper_embeddings(self, **kwargs) -> torch.Tensor:
