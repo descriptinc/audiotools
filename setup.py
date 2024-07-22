@@ -46,7 +46,7 @@ setup(
         "ffmpy",
         "ipython",
         "rich",
-        "matplotlib==3.5",  # See https://github.com/librosa/librosa/issues/1763#issuecomment-1742120524
+        "matplotlib",
         "librosa",
         "pystoi",
         "torch_stoi",
