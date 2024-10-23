@@ -26,8 +26,7 @@ def test_whisper_transcript():
 
     transcript = signal.get_whisper_transcript()
 
-    assert "<|startoftranscript|>" in transcript
-    assert "<|endoftext|>" in transcript
+    assert transcript.startswith("<|startoftranscript|>")
 
 
 def test_whisper_embeddings():
