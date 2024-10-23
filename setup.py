@@ -35,7 +35,7 @@ setup(
     },
     install_requires=[
         "argbind",
-        "numpy",
+        "numpy<2",
         "soundfile",
         "pyloudnorm",
         "importlib-resources",
