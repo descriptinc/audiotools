@@ -4,6 +4,8 @@ on:
       - "master"
   workflow_dispatch:
 name: Create Release
+permissions:
+  contents: write
 
 jobs:
   build:
