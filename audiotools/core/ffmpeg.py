@@ -176,7 +176,14 @@ class FFMPEGMixin:
 
             ff = ffmpy.FFmpeg(
                 inputs={audio_path: None},
-                outputs={wav_file: None},
+                # For inputs that are m4a (and others?), the input audio can
+                # have samples that don't match the sample rate. This aresample
+                # option forces ffmpeg to read timing information in the source
+                # file instead of assuming constant sample rate.
+                #
+                # This fixes an issue where an input m4a file might be a
+                # different length than the output wav file
+                outputs={wav_file: "-af aresample=async=1000"},
                 global_options=global_options,
             )
             ff.run()
