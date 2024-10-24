@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - "master"
+  workflow_dispatch:
 name: Create Release
 
 jobs:
@@ -15,7 +16,7 @@ jobs:
           lfs: true
       - name: Retrieve version
         run: |
-          echo "name=TAG_NAME::$(grep -i -o -P '(?<=version=\")[^\"]+(?=\")' setup.py)" > "$GITHUB_OUTPUT"
+          echo "TAG_NAME=$(grep -i -o -P '(?<=version=\")[^\"]+(?=\")' setup.py)" > "$GITHUB_OUTPUT"
         id: version
       - name: Changelog
         uses: scottbrenner/generate-changelog-action@master
