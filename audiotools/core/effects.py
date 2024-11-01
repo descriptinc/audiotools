@@ -96,7 +96,7 @@ class EffectMixin:
             idx = other.audio_data.abs().argmax(axis=-1)
             irs = torch.zeros_like(other.audio_data)
             for i in range(other.batch_size):
-                irs[i] = torch.roll(other.audio_data[i], -idx[i].item(), -1)
+                irs[i] = torch.roll(other.audio_data[i], -idx[i].min().item(), -1)
             other = AudioSignal(irs, other.sample_rate)
 
         delta = torch.zeros_like(other.audio_data)
@@ -567,7 +567,7 @@ class ImpulseResponseMixin:
 
         window = torch.zeros_like(self.audio_data, device=self.device)
         for idx in range(self.batch_size):
-            window_idx = early_idx[idx, 0].nonzero()
+            window_idx = early_idx[idx, :].nonzero()
             window[idx, ..., window_idx] = self.get_window(
                 "hann", window_idx.shape[-1], self.device
             )
