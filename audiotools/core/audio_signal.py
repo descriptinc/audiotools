@@ -1158,8 +1158,8 @@ class AudioSignal(
 
         Vary the window and hop length:
 
-        >>> stft_params = [STFTParams(128, 32), STFTParams(512, 128)]
-        >>> for stft_param in stft_params:
+        >>> stft_params_list = [STFTParams(128, 32), STFTParams(512, 128)]
+        >>> for stft_params in stft_params_list:
         >>>     signal.stft_params = stft_params
         >>>     signal.stft()
 
