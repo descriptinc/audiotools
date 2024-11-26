@@ -78,9 +78,8 @@ class AudioSignal(
         Object to create AudioSignal from. Can be a tensor, numpy array,
         or a path to a file. The file is always reshaped to
     sample_rate : int, optional
-        Sample rate of the audio. If different from underlying file, resampling is
-        performed. If passing in an array or tensor, this must be defined,
-        by default None
+        Sample rate of the audio. Required if creating an AudioSignal from
+        a tensor or numpy array, ignored otherwise.
     stft_params : STFTParams, optional
         Parameters of STFT to use. , by default None
     offset : float, optional
