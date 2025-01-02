@@ -566,6 +566,7 @@ class Samples:
                 with open(save_path, "r") as f:
                     reader = csv.DictReader(f)
                     done = [r["sample"] for r in reader if r["user"] == user]
+            self.current = len(done)
             self.names = [k for k in self.names if k not in done]
             self.names = self.names[: self.n_samples]
             self.filtered = True  # Avoid filtering more than once per session.
