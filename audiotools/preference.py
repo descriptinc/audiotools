@@ -571,6 +571,8 @@ class Samples:
             self.names = self.names[: self.n_samples]
             self.filtered = True  # Avoid filtering more than once per session.
 
+            print(self.current)
+
     def get_next_sample(self, reference, conditions):
         random.shuffle(conditions)
         if reference is not None:
