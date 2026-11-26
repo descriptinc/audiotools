@@ -53,6 +53,9 @@ class DSPMixin:
             window_length, hop_length = self._preprocess_signal_for_windowing(
                 window_duration, hop_duration
             )
+        else:
+            window_length = int(window_duration * self.sample_rate)
+            hop_length = int(hop_duration * self.sample_rate)
 
         self.audio_data = self.audio_data.reshape(-1, 1, self.signal_length)
 
@@ -94,6 +97,9 @@ class DSPMixin:
             window_length, hop_length = self._preprocess_signal_for_windowing(
                 window_duration, hop_duration
             )
+        else:
+            window_length = int(window_duration * self.sample_rate)
+            hop_length = int(hop_duration * self.sample_rate)
 
         # self.audio_data: (nb, nch, nt).
         unfolded = torch.nn.functional.unfold(

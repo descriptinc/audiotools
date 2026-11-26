@@ -73,6 +73,33 @@ def test_inplace_overlap_add(duration, sample_rate, window_duration):
         _test(spk_signal)
 
 
+@pytest.mark.parametrize("sample_rate", [8000, 16000, 22050, 44100])
+def test_windows_without_preprocess(sample_rate):
+    window_duration, hop_duration = 0.1, 0.05
+    t = torch.arange(0, 1.0, 1 / sample_rate)
+    signal = AudioSignal(torch.sin(2 * np.pi * 440 * t).unsqueeze(0), sample_rate)
+
+    window_length = int(window_duration * sample_rate)
+    hop_length = int(hop_duration * sample_rate)
+    expected_windows = (signal.signal_length - window_length) // hop_length + 1
+
+    windows = list(signal.windows(window_duration, hop_duration, preprocess=False))
+    assert len(windows) == expected_windows
+    assert windows[0].audio_data.shape == (1, 1, window_length)
+    # Without preprocessing the first window starts at sample 0.
+    assert torch.allclose(
+        windows[0].audio_data, signal.audio_data[..., :window_length]
+    )
+
+    windowed = signal.deepcopy().collect_windows(
+        window_duration, hop_duration, preprocess=False
+    )
+    assert windowed.audio_data.shape == (expected_windows, 1, window_length)
+    assert torch.allclose(
+        windowed.audio_data[0], windows[0].audio_data.reshape(1, 1, window_length)
+    )
+
+
 def test_low_pass():
     sample_rate = 44100
     f = 440
